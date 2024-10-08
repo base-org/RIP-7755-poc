@@ -2,27 +2,19 @@
 pragma solidity ^0.8.23;
 
 import {IPrecheckContract} from "./IPrecheckContract.sol";
-import {CrossChainCall} from "./RIP7755Structs.sol";
+import {CrossChainCall, FulfillmentInfo} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Verifier
 ///
 /// @author Coinbase (https://github.com/base-org/7755-poc)
 ///
-/// @notice A Verification contract within RIP-7755. 
+/// @notice A Verification contract within RIP-7755.
 ///
 /// This contract's sole purpose is to route requested transactions on destination chains and store record of their fulfillment.
 contract RIP7755Verifier {
     error RIP7755Verifier__InvalidChainId();
     error RIP7755Verifier__InvalidVerifyingContract();
     error RIP7755Verifier__CallAlreadyFulfilled();
-
-    /// @notice Stored on verifyingContract and proved against in originationContract
-    struct FulfillmentInfo {
-        /// @dev Block timestamp when fulfilled
-        uint96 timestamp;
-        /// @dev Msg.sender of fulfillment call
-        address filler;
-    }
 
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 

@@ -43,3 +43,11 @@ struct CrossChainCall {
     /// @dev Arbitrary encoded precheck data
     bytes precheckData;
 }
+
+/// @notice Stored on verifyingContract and proved against in originationContract
+struct FulfillmentInfo {
+    /// @dev Block timestamp when fulfilled
+    uint96 timestamp;
+    /// @dev Msg.sender of fulfillment call
+    address filler;
+}
