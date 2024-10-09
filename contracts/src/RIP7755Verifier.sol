@@ -20,12 +20,21 @@ contract RIP7755Verifier {
         address filler;
     }
 
+    /// @notice A mapping from the keccak256 hash of a `CrossChainCall` to its `FulfillmentInfo`. This can only be set once per call
     mapping(bytes32 callHash => FulfillmentInfo) private _fillInfo;
 
+    /// @notice Event emitted when a cross chain call is fulfilled
+    /// @param callHash The keccak256 hash of a `CrossChainCall`
+    /// @param fulfilledBy The address of the Filler that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 
+    /// @notice This error is thrown when a Filler submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
     error InvalidChainId();
+
+    /// @notice This error is thrown when a Filler submits a cross chain call with a `verifyingContract` different than this contract's address
     error InvalidVerifyingContract();
+
+    /// @notice This error is thrown when a Filler attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
