@@ -7,8 +7,11 @@ import {DeployRIP7755Verifier} from "../script/DeployRIP7755Verifier.s.sol";
 import {Call, CrossChainCall, FulfillmentInfo} from "../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
+import {MockPrecheck} from "./mocks/MockPrecheck.sol";
+
 contract RIP7755VerifierTest is Test {
     RIP7755Verifier verifier;
+    MockPrecheck precheck;
 
     Call[] calls;
     address FILLER = makeAddr("filler");
@@ -16,9 +19,10 @@ contract RIP7755VerifierTest is Test {
     function setUp() public {
         DeployRIP7755Verifier deployer = new DeployRIP7755Verifier();
         verifier = deployer.run();
+        precheck = new MockPrecheck();
     }
 
-    function test_fulfill_revertsIfInvalidChainId() external {
+    function test_fulfill_reverts_invalidChainId() external {
         CrossChainCall memory _request = _initRequest();
 
         _request.destinationChainId = 0;
@@ -28,13 +32,51 @@ contract RIP7755VerifierTest is Test {
         verifier.fulfill(_request);
     }
 
-    function test_fulfill_revertsIfInvalidDestinationAddress() external {
+    function test_fulfill_reverts_invalidDestinationAddress() external {
         CrossChainCall memory _request = _initRequest();
 
         _request.verifyingContract = address(0);
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755Verifier.RIP7755Verifier__InvalidVerifyingContract.selector);
+        verifier.fulfill(_request);
+    }
+
+    function test_fulfill_storesFulfillment_withSuccessfulPrecheck() external {
+        CrossChainCall memory _request = _initRequest();
+
+        _request.precheckContract = address(precheck);
+        _request.precheckData = abi.encode(FILLER);
+
+        vm.prank(FILLER);
+        verifier.fulfill(_request);
+
+        bytes32 callHash = verifier.callHashCalldata(_request);
+        FulfillmentInfo memory info = verifier.getFillInfo(callHash);
+
+        assertEq(info.filler, FILLER);
+        assertEq(info.timestamp, block.timestamp);
+    }
+
+    function test_fulfill_reverts_failedPrecheck() external {
+        CrossChainCall memory _request = _initRequest();
+
+        _request.precheckContract = address(precheck);
+        _request.precheckData = abi.encode(address(0));
+
+        vm.prank(FILLER);
+        vm.expectRevert();
+        verifier.fulfill(_request);
+    }
+
+    function test_reverts_callAlreadyFulfilled() external {
+        CrossChainCall memory _request = _initRequest();
+
+        vm.prank(FILLER);
+        verifier.fulfill(_request);
+
+        vm.prank(FILLER);
+        vm.expectRevert(RIP7755Verifier.RIP7755Verifier__CallAlreadyFulfilled.selector);
         verifier.fulfill(_request);
     }
 
