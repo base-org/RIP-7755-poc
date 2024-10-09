@@ -1,21 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.23;
 
-import {Call} from "./RIP7755Structs.sol";
+import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
 abstract contract RIP7755Source {
-    struct CrossChainCall {
+    struct CrossChainRequest {
         // Array of calls to make on the destination chain
         Call[] calls;
-        // The contract on origin chain where this cross-chain call request originated
-        address originationContract;
-        // The chainId of the origin chain
-        uint256 originChainId;
         // The chainId of the destination chain
         uint256 destinationChainId;
-        // The nonce of this call, to differentiate from other calls with the same values
-        uint256 nonce;
         // The L2 contract on destination chain that's storage will be used to verify whether or not this call was made
         address verifyingContract;
         // The L1 address of the contract that should have L2 block info stored
@@ -57,34 +51,41 @@ abstract contract RIP7755Source {
     mapping(bytes32 callHash => uint256 timestampSeconds) public cancelRequestedAt;
 
     /// @dev The duration, in excess of
-    /// CrossChainCall.finalityDelaySeconds, which must pass
+    /// CrossChainRequest.finalityDelaySeconds, which must pass
     /// between requesting and finalizing a request cancellation
     uint256 public cancelDelaySeconds = 1 days;
 
     address internal NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     uint256 internal _nonce;
 
-    function requestCrossChainCall(CrossChainCall memory crossChainCall) external payable {
-        crossChainCall.nonce = ++_nonce;
-        crossChainCall.originChainId = block.chainid;
-        crossChainCall.originationContract = address(this);
+    function requestCrossChainCall(CrossChainRequest calldata request) external payable {
+        CrossChainCall memory crossChainCall = CrossChainCall({
+            calls: request.calls,
+            originationContract: address(this),
+            originChainId: block.chainid,
+            destinationChainId: request.destinationChainId,
+            nonce: ++_nonce,
+            verifyingContract: request.verifyingContract,
+            precheckContract: request.precheckContract,
+            precheckData: request.precheckData
+        });
 
-        bytes32 hash = callHash(crossChainCall);
+        bytes32 hash = callHash(request);
         requestStatus[hash] = CrossChainCallStatus.Requested;
 
-        if (crossChainCall.rewardAsset == NATIVE_ASSET) {
-            if (crossChainCall.rewardAmount != msg.value) {
-                revert InvalidValue(crossChainCall.rewardAmount, msg.value);
+        if (request.rewardAsset == NATIVE_ASSET) {
+            if (request.rewardAmount != msg.value) {
+                revert InvalidValue(request.rewardAmount, msg.value);
             }
         } else {
-            _pullERC20(msg.sender, crossChainCall.rewardAsset, crossChainCall.rewardAmount);
+            _pullERC20(msg.sender, request.rewardAsset, request.rewardAmount);
         }
 
         emit CrossChainCallRequested(hash, crossChainCall);
     }
 
     function claimReward(
-        CrossChainCall calldata crossChainCall,
+        CrossChainRequest calldata crossChainCall,
         RIP7755Verifier.FulfillmentInfo calldata fillInfo,
         bytes calldata storageProofData,
         address payTo
@@ -107,7 +108,7 @@ abstract contract RIP7755Source {
         }
     }
 
-    function requestCancel(CrossChainCall calldata crossChainCall) external {
+    function requestCancel(CrossChainRequest calldata crossChainCall) external {
         bytes32 hash = callHashCalldata(crossChainCall);
         CrossChainCallStatus status = requestStatus[hash];
         if (status != CrossChainCallStatus.Requested) {
@@ -119,7 +120,7 @@ abstract contract RIP7755Source {
         emit CrossChainCallCancelRequested(hash);
     }
 
-    function finalizeCancel(CrossChainCall calldata crossChainCall) external {
+    function finalizeCancel(CrossChainRequest calldata crossChainCall) external {
         bytes32 hash = callHashCalldata(crossChainCall);
         CrossChainCallStatus status = requestStatus[hash];
         if (status != CrossChainCallStatus.CancelRequested) {
@@ -131,11 +132,11 @@ abstract contract RIP7755Source {
         emit CrossChainCallCancelFinalized(hash);
     }
 
-    function callHash(CrossChainCall memory crossChainCall) public pure returns (bytes32) {
+    function callHash(CrossChainRequest memory crossChainCall) public pure returns (bytes32) {
         return keccak256(abi.encode(crossChainCall));
     }
 
-    function callHashCalldata(CrossChainCall calldata crossChainCall) public pure returns (bytes32) {
+    function callHashCalldata(CrossChainRequest calldata crossChainCall) public pure returns (bytes32) {
         return keccak256(abi.encode(crossChainCall));
     }
 
@@ -148,7 +149,7 @@ abstract contract RIP7755Source {
     function _validate(
         bytes32 verifyingContractStorageKey,
         RIP7755Verifier.FulfillmentInfo calldata fillInfo,
-        CrossChainCall calldata crossChainCall,
+        CrossChainRequest calldata crossChainCall,
         bytes calldata storageProofData
     ) internal view virtual;
 
