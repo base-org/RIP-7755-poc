@@ -18,7 +18,16 @@ contract RIP7755Verifier {
 
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 
-    mapping(bytes32 callHash => FulfillmentInfo) public fillInfo;
+    mapping(bytes32 callHash => FulfillmentInfo) private fillInfo;
+
+    /// @notice Returns the stored fulfillment info for a passed in call hash
+    ///
+    /// @param _callHash A keccak256 hash of a CrossChainCall request
+    ///
+    /// @return _ Fulfillment info stored for the call hash
+    function getFillInfo(bytes32 _callHash) external view returns (FulfillmentInfo memory) {
+        return fillInfo[_callHash];
+    }
 
     /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
     ///
