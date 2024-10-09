@@ -8,10 +8,12 @@ import {Call, CrossChainCall, FulfillmentInfo} from "../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
+import {MockTarget} from "./mocks/MockTarget.sol";
 
 contract RIP7755VerifierTest is Test {
     RIP7755Verifier verifier;
     MockPrecheck precheck;
+    MockTarget target;
 
     Call[] calls;
     address FILLER = makeAddr("filler");
@@ -22,6 +24,7 @@ contract RIP7755VerifierTest is Test {
         DeployRIP7755Verifier deployer = new DeployRIP7755Verifier();
         verifier = deployer.run();
         precheck = new MockPrecheck();
+        target = new MockTarget();
     }
 
     function test_fulfill_reverts_invalidChainId() external {
@@ -79,6 +82,31 @@ contract RIP7755VerifierTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755Verifier.RIP7755Verifier__CallAlreadyFulfilled.selector);
+        verifier.fulfill(_request);
+    }
+
+    function test_fulfill_callsTargetContract(uint256 inputNum) external {
+        CrossChainCall memory _request = _initRequest();
+        calls.push(
+            Call({to: address(target), data: abi.encodeWithSelector(target.target.selector, inputNum), value: 0})
+        );
+        _request.calls = calls;
+
+        vm.prank(FILLER);
+        verifier.fulfill(_request);
+
+        assertEq(target.number(), inputNum);
+    }
+
+    function test_fulfill_reverts_ifTargetContractReverts() external {
+        CrossChainCall memory _request = _initRequest();
+        calls.push(
+            Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0})
+        );
+        _request.calls = calls;
+
+        vm.prank(FILLER);
+        vm.expectRevert(MockTarget.MockTarget__Error.selector);
         verifier.fulfill(_request);
     }
 
