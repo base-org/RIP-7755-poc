@@ -71,13 +71,13 @@ contract RIP7755Verifier {
             revert CallAlreadyFulfilled();
         }
 
-        for (uint256 i; i < request.calls.length; i++) {
-            _call(request.calls[i].to, request.calls[i].value, request.calls[i].data);
-        }
-
         _fillInfo[callHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
 
         emit CallFulfilled({callHash: callHash, fulfilledBy: msg.sender});
+
+        for (uint256 i; i < request.calls.length; i++) {
+            _call(request.calls[i].to, request.calls[i].value, request.calls[i].data);
+        }
     }
 
     /// @notice Hashes a cross chain call request.
