@@ -2,7 +2,7 @@
 pragma solidity ^0.8.23;
 
 import {IPrecheckContract} from "./IPrecheckContract.sol";
-import {CrossChainCall, FulfillmentInfo} from "./RIP7755Structs.sol";
+import {CrossChainCall} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Verifier
 ///
@@ -12,13 +12,21 @@ import {CrossChainCall, FulfillmentInfo} from "./RIP7755Structs.sol";
 ///
 /// This contract's sole purpose is to route requested transactions on destination chains and store record of their fulfillment.
 contract RIP7755Verifier {
-    error RIP7755Verifier__InvalidChainId();
-    error RIP7755Verifier__InvalidVerifyingContract();
-    error RIP7755Verifier__CallAlreadyFulfilled();
+    /// @notice Stored on verifyingContract and proved against in originationContract
+    struct FulfillmentInfo {
+        /// @dev Block timestamp when fulfilled
+        uint96 timestamp;
+        /// @dev Msg.sender of fulfillment call
+        address filler;
+    }
+
+    mapping(bytes32 callHash => FulfillmentInfo) private fillInfo;
 
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 
-    mapping(bytes32 callHash => FulfillmentInfo) private fillInfo;
+    error InvalidChainId();
+    error InvalidVerifyingContract();
+    error CallAlreadyFulfilled();
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
@@ -34,11 +42,11 @@ contract RIP7755Verifier {
     /// @param _request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
     function fulfill(CrossChainCall calldata _request) external payable {
         if (block.chainid != _request.destinationChainId) {
-            revert RIP7755Verifier__InvalidChainId();
+            revert InvalidChainId();
         }
 
         if (address(this) != _request.verifyingContract) {
-            revert RIP7755Verifier__InvalidVerifyingContract();
+            revert InvalidVerifyingContract();
         }
 
         // Run precheck - call expected to revert if precheck condition(s) not met.
@@ -51,7 +59,7 @@ contract RIP7755Verifier {
         bytes32 _callHash = callHashCalldata(_request);
 
         if (fillInfo[_callHash].timestamp != 0) {
-            revert RIP7755Verifier__CallAlreadyFulfilled();
+            revert CallAlreadyFulfilled();
         }
 
         for (uint256 i; i < _request.calls.length; i++) {

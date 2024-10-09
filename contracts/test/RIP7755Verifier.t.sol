@@ -4,7 +4,7 @@ pragma solidity ^0.8.23;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployRIP7755Verifier} from "../script/DeployRIP7755Verifier.s.sol";
-import {Call, CrossChainCall, FulfillmentInfo} from "../src/RIP7755Structs.sol";
+import {Call, CrossChainCall} from "../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
@@ -57,7 +57,7 @@ contract RIP7755VerifierTest is Test {
         verifier.fulfill(_request);
 
         bytes32 callHash = verifier.callHashCalldata(_request);
-        FulfillmentInfo memory info = verifier.getFillInfo(callHash);
+        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFillInfo(callHash);
 
         assertEq(info.filler, FILLER);
         assertEq(info.timestamp, block.timestamp);
@@ -100,9 +100,7 @@ contract RIP7755VerifierTest is Test {
 
     function test_fulfill_reverts_ifTargetContractReverts() external {
         CrossChainCall memory _request = _initRequest();
-        calls.push(
-            Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0})
-        );
+        calls.push(Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0}));
         _request.calls = calls;
 
         vm.prank(FILLER);
@@ -117,7 +115,7 @@ contract RIP7755VerifierTest is Test {
         verifier.fulfill(_request);
 
         bytes32 callHash = verifier.callHashCalldata(_request);
-        FulfillmentInfo memory info = verifier.getFillInfo(callHash);
+        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFillInfo(callHash);
 
         assertEq(info.filler, FILLER);
         assertEq(info.timestamp, block.timestamp);
