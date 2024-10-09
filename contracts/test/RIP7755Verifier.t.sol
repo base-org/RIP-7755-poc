@@ -16,6 +16,8 @@ contract RIP7755VerifierTest is Test {
     Call[] calls;
     address FILLER = makeAddr("filler");
 
+    event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
+
     function setUp() public {
         DeployRIP7755Verifier deployer = new DeployRIP7755Verifier();
         verifier = deployer.run();
@@ -91,6 +93,16 @@ contract RIP7755VerifierTest is Test {
 
         assertEq(info.filler, FILLER);
         assertEq(info.timestamp, block.timestamp);
+    }
+
+    function test_fulfill_emitsEvent() external {
+        CrossChainCall memory _request = _initRequest();
+        bytes32 callHash = verifier.callHashCalldata(_request);
+
+        vm.prank(FILLER);
+        vm.expectEmit(true, true, false, false);
+        emit CallFulfilled({callHash: callHash, fulfilledBy: FILLER});
+        verifier.fulfill(_request);
     }
 
     function _initRequest() private view returns (CrossChainCall memory) {
