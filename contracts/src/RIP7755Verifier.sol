@@ -6,7 +6,7 @@ import {CrossChainCall} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Verifier
 ///
-/// @author Coinbase (https://github.com/base-org/7755-poc)
+/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice A Verification contract within RIP-7755.
 ///
