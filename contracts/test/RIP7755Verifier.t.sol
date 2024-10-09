@@ -141,11 +141,6 @@ contract RIP7755VerifierTest is Test {
             destinationChainId: block.chainid,
             nonce: 0,
             verifyingContract: address(verifier),
-            l2Oracle: address(0),
-            l2OracleStorageKey: bytes32(0),
-            rewardAsset: address(0),
-            rewardAmount: 0,
-            finalityDelaySeconds: 0,
             precheckContract: address(0),
             precheckData: ""
         });

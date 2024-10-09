@@ -25,17 +25,6 @@ struct CrossChainCall {
     uint256 nonce;
     /// @dev The L2 contract on destination chain that's storage will be used to verify whether or not this call was made
     address verifyingContract;
-    /// @dev The L1 address of the contract that should have L2 block info stored
-    address l2Oracle;
-    /// @dev The storage key at which we expect to find the L2 block info on the l2Oracle
-    bytes32 l2OracleStorageKey;
-    /// @dev The address of the ERC20 reward asset to be paid to whoever proves they filled this call
-    /// @dev Native asset specified as in ERC-7528 format
-    address rewardAsset;
-    /// @dev The reward amount to pay
-    uint256 rewardAmount;
-    /// @dev The minimum age of the L1 block used for the proof
-    uint256 finalityDelaySeconds;
     /// @dev An optional pre-check contract address on the destination chain
     /// @dev Zero address represents no pre-check contract desired
     /// @dev Can be used for arbitrary validation of fill conditions
