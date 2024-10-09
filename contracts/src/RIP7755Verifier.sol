@@ -20,7 +20,7 @@ contract RIP7755Verifier {
         address filler;
     }
 
-    mapping(bytes32 callHash => FulfillmentInfo) private fillInfo;
+    mapping(bytes32 callHash => FulfillmentInfo) private _fillInfo;
 
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 
@@ -30,61 +30,61 @@ contract RIP7755Verifier {
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
-    /// @param _callHash A keccak256 hash of a CrossChainCall request
+    /// @param callHash A keccak256 hash of a CrossChainCall request
     ///
     /// @return _ Fulfillment info stored for the call hash
-    function getFillInfo(bytes32 _callHash) external view returns (FulfillmentInfo memory) {
-        return fillInfo[_callHash];
+    function getFillInfo(bytes32 callHash) external view returns (FulfillmentInfo memory) {
+        return _fillInfo[callHash];
     }
 
     /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
     ///
-    /// @param _request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
-    function fulfill(CrossChainCall calldata _request) external payable {
-        if (block.chainid != _request.destinationChainId) {
+    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
+    function fulfill(CrossChainCall calldata request) external payable {
+        if (block.chainid != request.destinationChainId) {
             revert InvalidChainId();
         }
 
-        if (address(this) != _request.verifyingContract) {
+        if (address(this) != request.verifyingContract) {
             revert InvalidVerifyingContract();
         }
 
         // Run precheck - call expected to revert if precheck condition(s) not met.
-        if (_request.precheckContract != address(0)) {
-            IPrecheckContract(_request.precheckContract).precheckCall(_request, msg.sender);
+        if (request.precheckContract != address(0)) {
+            IPrecheckContract(request.precheckContract).precheckCall(request, msg.sender);
         }
 
         // TODO: Check for trusted originationContract
 
-        bytes32 _callHash = callHashCalldata(_request);
+        bytes32 callHash = callHashCalldata(request);
 
-        if (fillInfo[_callHash].timestamp != 0) {
+        if (_fillInfo[callHash].timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
 
-        for (uint256 i; i < _request.calls.length; i++) {
-            _call(_request.calls[i].to, _request.calls[i].value, _request.calls[i].data);
+        for (uint256 i; i < request.calls.length; i++) {
+            _call(request.calls[i].to, request.calls[i].value, request.calls[i].data);
         }
 
-        fillInfo[_callHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
+        _fillInfo[callHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
 
-        emit CallFulfilled({callHash: _callHash, fulfilledBy: msg.sender});
+        emit CallFulfilled({callHash: callHash, fulfilledBy: msg.sender});
     }
 
     /// @notice Hashes a cross chain call request.
     ///
-    /// @param _request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
+    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
     ///
     /// @return _ A keccak256 hash of the cross chain call request.
-    function callHashCalldata(CrossChainCall calldata _request) public pure returns (bytes32) {
-        return keccak256(abi.encode(_request));
+    function callHashCalldata(CrossChainCall calldata request) public pure returns (bytes32) {
+        return keccak256(abi.encode(request));
     }
 
-    function _call(address _target, uint256 _value, bytes memory _data) internal {
-        (bool _success, bytes memory _result) = _target.call{value: _value}(_data);
-        if (!_success) {
+    function _call(address target, uint256 value, bytes memory data) private {
+        (bool success, bytes memory result) = target.call{value: value}(data);
+        if (!success) {
             assembly ("memory-safe") {
-                revert(add(_result, 32), mload(_result))
+                revert(add(result, 32), mload(result))
             }
         }
     }
