@@ -12,7 +12,7 @@ import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice A source contract for initiating RIP7755 Cross Chain Requests as well as reward fulfillment to Fillers that 
+/// @notice A source contract for initiating RIP7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
 abstract contract RIP7755Source {
     using Address for address payable;
@@ -154,10 +154,10 @@ abstract contract RIP7755Source {
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.Requested` state
     ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    function requestCancel(CrossChainRequest calldata request) external {
-        bytes32 callHash = hashCalldataCall(request);
+    /// @param callHash The keccak256 hash of a `CrossChainRequest`
+    function requestCancel(bytes32 callHash) external {
         CrossChainCallStatus status = requestStatus[callHash];
+
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(status);
         }
@@ -171,10 +171,10 @@ abstract contract RIP7755Source {
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.CancelRequested` state
     ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    function finalizeCancel(CrossChainRequest calldata request) external {
-        bytes32 callHash = hashCalldataCall(request);
+    /// @param callHash The keccak256 hash of a `CrossChainRequest`
+    function finalizeCancel(bytes32 callHash) external {
         CrossChainCallStatus status = requestStatus[callHash];
+
         if (status != CrossChainCallStatus.CancelRequested) {
             revert InvalidStatusForFinalizeCancel(status);
         }
