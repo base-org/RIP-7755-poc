@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.24;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
@@ -12,10 +14,11 @@ import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice A source contract for initiating RIP7755 Cross Chain Requests as well as reward fulfillment to Fillers that
+/// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
 abstract contract RIP7755Source {
     using Address for address payable;
+    using SafeERC20 for IERC20;
 
     /// @notice A cross chain call request formatted following the RIP-7755 spec
     struct CrossChainRequest {
@@ -56,10 +59,10 @@ abstract contract RIP7755Source {
     }
 
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current `CrossChainCallStatus`
-    mapping(bytes32 requestHash => CrossChainCallStatus status) public requestStatus;
+    mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
 
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to the timestamp it was requested to be cancelled at
-    mapping(bytes32 requestHash => uint256 timestampSeconds) public cancelRequestedAt;
+    mapping(bytes32 requestHash => uint256 timestampSeconds) private _cancelRequestedAt;
 
     /// @notice The duration, in excess of CrossChainRequest.finalityDelaySeconds, which must pass between requesting
     /// and finalizing a request cancellation
@@ -105,7 +108,7 @@ abstract contract RIP7755Source {
         CrossChainCall memory crossChainCall = _convertToCrossChainCallAndAssignNonce(request);
 
         bytes32 callHash = hashCalldataCall(request);
-        requestStatus[callHash] = CrossChainCallStatus.Requested;
+        _requestStatus[callHash] = CrossChainCallStatus.Requested;
 
         if (request.rewardAsset == _NATIVE_ASSET) {
             if (request.rewardAmount != msg.value) {
@@ -131,7 +134,7 @@ abstract contract RIP7755Source {
         RIP7755Verifier.FulfillmentInfo calldata fillInfo,
         bytes calldata storageProofData,
         address payTo
-    ) external payable {
+    ) external {
         bytes32 callHash = hashCalldataCall(request);
         bytes32 storageKey = keccak256(
             abi.encodePacked(
@@ -141,7 +144,7 @@ abstract contract RIP7755Source {
         );
 
         _validate(storageKey, fillInfo, request, storageProofData);
-        requestStatus[callHash] = CrossChainCallStatus.Completed;
+        _requestStatus[callHash] = CrossChainCallStatus.Completed;
 
         if (request.rewardAsset == _NATIVE_ASSET) {
             payable(payTo).sendValue(request.rewardAmount);
@@ -156,13 +159,13 @@ abstract contract RIP7755Source {
     ///
     /// @param callHash The keccak256 hash of a `CrossChainRequest`
     function requestCancel(bytes32 callHash) external {
-        CrossChainCallStatus status = requestStatus[callHash];
+        CrossChainCallStatus status = _requestStatus[callHash];
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(status);
         }
 
-        requestStatus[callHash] = CrossChainCallStatus.CancelRequested;
+        _requestStatus[callHash] = CrossChainCallStatus.CancelRequested;
 
         emit CrossChainCallCancelRequested(callHash);
     }
@@ -173,15 +176,24 @@ abstract contract RIP7755Source {
     ///
     /// @param callHash The keccak256 hash of a `CrossChainRequest`
     function finalizeCancel(bytes32 callHash) external {
-        CrossChainCallStatus status = requestStatus[callHash];
+        CrossChainCallStatus status = _requestStatus[callHash];
 
         if (status != CrossChainCallStatus.CancelRequested) {
             revert InvalidStatusForFinalizeCancel(status);
         }
 
-        requestStatus[callHash] = CrossChainCallStatus.Canceled;
+        _requestStatus[callHash] = CrossChainCallStatus.Canceled;
 
         emit CrossChainCallCancelFinalized(callHash);
+    }
+
+    /// @notice Returns the cross chain call request status for a hashed request
+    ///
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    ///
+    /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
+    function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
+        return _requestStatus[requestHash];
     }
 
     /// @notice Hashes a `CrossChainRequest` request to use as a request identifier
@@ -209,14 +221,14 @@ abstract contract RIP7755Source {
     ) internal view virtual;
 
     /// @notice Pulls `amount` of `asset` from `owner` to address(this)
-    ///
-    /// @dev Left abstract to minimize imports and maximize simplicity for this example
-    function _pullERC20(address owner, address asset, uint256 amount) internal virtual;
+    function _pullERC20(address owner, address asset, uint256 amount) private {
+        IERC20(asset).safeTransferFrom(owner, address(this), amount);
+    }
 
     /// @notice Sends `amount` of `asset` to `to`
-    ///
-    /// @dev Left abstract to minimize imports and maximize simplicity for this example
-    function _sendERC20(address to, address asset, uint256 amount) internal virtual;
+    function _sendERC20(address to, address asset, uint256 amount) private {
+        IERC20(asset).safeTransfer(to, amount);
+    }
 
     function _convertToCrossChainCallAndAssignNonce(CrossChainRequest calldata request)
         private
@@ -228,7 +240,7 @@ abstract contract RIP7755Source {
     }
 
     function _convertToCrossChainCall(CrossChainRequest calldata request)
-        internal
+        private
         view
         returns (CrossChainCall memory)
     {
