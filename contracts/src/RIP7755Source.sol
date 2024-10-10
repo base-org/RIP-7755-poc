@@ -8,10 +8,6 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
-// TODO: Should `msg.value` be allowed if not using native currency for reward ?
-// TODO: Potential edge case: cross chain call to send native currency but pay reward in erc20
-// TODO: Potential edge case: cross chain call to send native currency to chain with different native currency ?
-
 /// @title RIP7755Source
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
@@ -74,7 +70,7 @@ abstract contract RIP7755Source {
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its stored metadata
     mapping(bytes32 requestHash => RequestMeta metadata) private _requestMetadata;
 
-    /// @notice The address representing the native currency of the blockchain this contract is deployed on
+    /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
@@ -114,9 +110,10 @@ abstract contract RIP7755Source {
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = ++_nonce;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
+        uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
-        if (usingNativeCurrency && request.rewardAmount != msg.value) {
-            revert InvalidValue(request.rewardAmount, msg.value);
+        if (msg.value != expectedValue) {
+            revert InvalidValue(expectedValue, msg.value);
         }
 
         bytes32 requestHash = hashRequestMemory(request);

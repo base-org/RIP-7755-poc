@@ -67,6 +67,19 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall(request);
     }
 
+    function test_requestCrossChainCall_reverts_ifNativeCurrencyIncludedUnnecessarily(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        if (rewardAmount < 2) return;
+
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(RIP7755Source.InvalidValue.selector, 0, 1));
+        mockSource.requestCrossChainCall{value: 1}(request);
+    }
+
     function test_requestCrossChainCall_setMetadata_erc20Reward(uint256 rewardAmount)
         external
         fundAlice(rewardAmount)
