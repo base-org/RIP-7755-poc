@@ -6,6 +6,7 @@ import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 
 import {RIP7755Source} from "../src/RIP7755Source.sol";
 import {Call, CrossChainCall} from "../src/RIP7755Structs.sol";
+import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
 import {MockSource} from "./mocks/MockSource.sol";
 
@@ -15,9 +16,11 @@ contract RIP7755SourceTest is Test {
 
     Call[] calls;
     address ALICE = makeAddr("alice");
+    address FILLER = makeAddr("filler");
     address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     event CrossChainCallRequested(bytes32 indexed callHash, CrossChainCall call);
+    event CrossChainCallCanceled(bytes32 indexed callHash);
 
     function setUp() public {
         mockSource = new MockSource();
@@ -136,6 +139,227 @@ contract RIP7755SourceTest is Test {
         assertEq(contractBalAfter - contractBalBefore, rewardAmount);
     }
 
+    function test_claimReward_reverts_requestDoesNotExist(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        vm.prank(FILLER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.InvalidStatusForClaim.selector, RIP7755Source.CrossChainCallStatus.None
+            )
+        );
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_claimReward_reverts_requestAlreadyCompleted(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        vm.prank(FILLER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.InvalidStatusForClaim.selector, RIP7755Source.CrossChainCallStatus.Completed
+            )
+        );
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_claimReward_reverts_requestCancelled(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+
+        vm.prank(ALICE);
+        mockSource.cancelRequest(requestHash);
+
+        vm.prank(FILLER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.InvalidStatusForClaim.selector, RIP7755Source.CrossChainCallStatus.Canceled
+            )
+        );
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_claimReward_reverts_ifValidationFails(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(false);
+
+        vm.prank(FILLER);
+        vm.expectRevert();
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_claimReward_storesCompletedStatus_pendingState(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+        assert(mockSource.getRequestStatus(requestHash) == RIP7755Source.CrossChainCallStatus.Completed);
+    }
+
+    function test_claimReward_sendsNativeAssetRewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        request.rewardAsset = _NATIVE_ASSET;
+
+        vm.prank(ALICE);
+        mockSource.requestCrossChainCall{value: rewardAmount}(request);
+
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        uint256 fillerBalBefore = FILLER.balance;
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        uint256 fillerBalAfter = FILLER.balance;
+
+        assertEq(fillerBalAfter - fillerBalBefore, rewardAmount);
+    }
+
+    function test_claimReward_sendsNativeAssetRewardFromContract(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        request.rewardAsset = _NATIVE_ASSET;
+
+        vm.prank(ALICE);
+        mockSource.requestCrossChainCall{value: rewardAmount}(request);
+
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        uint256 contractBalBefore = address(mockSource).balance;
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        uint256 contractBalAfter = address(mockSource).balance;
+
+        assertEq(contractBalBefore - contractBalAfter, rewardAmount);
+    }
+
+    function test_claimReward_sendsERC20RewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        uint256 fillerBalBefore = mockErc20.balanceOf(FILLER);
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        uint256 fillerBalAfter = mockErc20.balanceOf(FILLER);
+
+        assertEq(fillerBalAfter - fillerBalBefore, rewardAmount);
+    }
+
+    function test_claimReward_sendsERC20RewardFromContract(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        uint256 contractBalBefore = mockErc20.balanceOf(address(mockSource));
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        uint256 contractBalAfter = mockErc20.balanceOf(address(mockSource));
+
+        assertEq(contractBalBefore - contractBalAfter, rewardAmount);
+    }
+
+    function test_cancelRequest_reverts_requestDoesNotExist(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.None
+            )
+        );
+        mockSource.cancelRequest(requestHash);
+    }
+
+    function test_cancelRequest_reverts_requestAlreadyCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+
+        mockSource.cancelRequest(requestHash);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.Canceled
+            )
+        );
+        mockSource.cancelRequest(requestHash);
+    }
+
+    function test_cancelRequest_reverts_requestAlreadyCompleted(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = abi.encode(true);
+
+        vm.prank(FILLER);
+        mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.Completed
+            )
+        );
+        mockSource.cancelRequest(requestHash);
+    }
+
+    function test_cancelRequest_setsStatusAsCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+
+        mockSource.cancelRequest(requestHash);
+
+        assert(mockSource.getRequestStatus(requestHash) == RIP7755Source.CrossChainCallStatus.Canceled);
+    }
+
+    function test_cancelRequest_emitsCanceledEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        bytes32 requestHash = mockSource.hashCalldataCall(request);
+
+        vm.expectEmit(true, false, false, false);
+        emit CrossChainCallCanceled(requestHash);
+        mockSource.cancelRequest(requestHash);
+    }
+
+    function _submitRequest(uint256 rewardAmount) private returns (RIP7755Source.CrossChainRequest memory) {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+
+        vm.prank(ALICE);
+        mockSource.requestCrossChainCall(request);
+
+        return request;
+    }
+
     function _initRequest(uint256 rewardAmount) private view returns (RIP7755Source.CrossChainRequest memory) {
         return RIP7755Source.CrossChainRequest({
             calls: calls,
@@ -147,8 +371,13 @@ contract RIP7755SourceTest is Test {
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
             nonce: 0,
+            validDuration: 10,
             precheckContract: address(0),
             precheckData: ""
         });
+    }
+
+    function _initFulfillmentInfo() private view returns (RIP7755Verifier.FulfillmentInfo memory) {
+        return RIP7755Verifier.FulfillmentInfo({timestamp: 0, filler: FILLER});
     }
 }

@@ -5,10 +5,18 @@ import {RIP7755Source} from "../../src/RIP7755Source.sol";
 import {RIP7755Verifier} from "../../src/RIP7755Verifier.sol";
 
 contract MockSource is RIP7755Source {
+    error InvalidProof();
+
     function _validate(
-        bytes32 verifyingContractStorageKey,
-        RIP7755Verifier.FulfillmentInfo calldata fillInfo,
-        CrossChainRequest calldata crossChainCall,
+        bytes32,
+        RIP7755Verifier.FulfillmentInfo calldata,
+        CrossChainRequest calldata,
         bytes calldata storageProofData
-    ) internal view override {}
+    ) internal pure override {
+        bool validProof = abi.decode(storageProofData, (bool));
+
+        if (!validProof) {
+            revert InvalidProof();
+        }
+    }
 }

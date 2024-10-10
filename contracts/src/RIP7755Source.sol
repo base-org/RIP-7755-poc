@@ -8,8 +8,12 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
-// TODO: Only requester should be able to cancel a request ?
 // TODO: Should `msg.value` be allowed if not using native currency for reward ?
+// TODO: Potential edge case: cross chain call to send native currency but pay reward in erc20
+// TODO: Potential edge case: cross chain call to send native currency to chain with different native currency ?
+// TODO: Add time validation to finalize cancel
+// TODO: combine mappings
+// TODO: Return asset from request cancel
 
 /// @title RIP7755Source
 ///
@@ -42,6 +46,8 @@ abstract contract RIP7755Source {
         uint256 finalityDelaySeconds;
         /// @dev The nonce of this call, to differentiate from other calls with the same values
         uint256 nonce;
+        /// @dev The amount of seconds this request remains valid for
+        uint256 validDuration;
         /// @dev An optional pre-check contract address on the destination chain
         /// @dev Zero address represents no pre-check contract desired
         /// @dev Can be used for arbitrary validation of fill conditions
@@ -54,7 +60,6 @@ abstract contract RIP7755Source {
     enum CrossChainCallStatus {
         None,
         Requested,
-        CancelRequested,
         Canceled,
         Completed
     }
@@ -62,31 +67,23 @@ abstract contract RIP7755Source {
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current `CrossChainCallStatus`
     mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
 
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to the timestamp it was requested to be cancelled at
-    mapping(bytes32 requestHash => uint256 timestampSeconds) private _cancelRequestedAt;
-
-    /// @notice The duration, in excess of CrossChainRequest.finalityDelaySeconds, which must pass between requesting
-    /// and finalizing a request cancellation
-    uint256 public cancelDelaySeconds = 1 days;
+    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to the timestamp it expires at
+    mapping(bytes32 requestHash => uint256 expiryTimestamp) private _requestExpiry;
 
     /// @notice The address representing the native currency of the blockchain this contract is deployed on
     address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
-    uint256 internal _nonce;
+    uint256 private _nonce;
 
     /// @notice Event emitted when a user requests a cross chain call to be made by a filler
-    /// @param callHash The keccak256 hash of a `CrossChainRequest`
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     /// @param call The requested call converted to a `CrossChainCall` structure
-    event CrossChainCallRequested(bytes32 indexed callHash, CrossChainCall call);
+    event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainCall call);
 
-    /// @notice Event emitted when a user requests a pending cross chain call to be cancelled
-    /// @param callHash The keccak256 hash of a `CrossChainRequest`
-    event CrossChainCallCancelRequested(bytes32 indexed callHash);
-
-    /// @notice Event emitted when a pending cross chain call cancellation is finalized
-    /// @param callHash The keccak256 hash of a `CrossChainRequest`
-    event CrossChainCallCancelFinalized(bytes32 indexed callHash);
+    /// @notice Event emitted when an expired cross chain call request is canceled
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    event CrossChainCallCanceled(bytes32 indexed requestHash);
 
     /// @notice This error is thrown when a cross chain request specifies the native currency as the reward type but
     /// does not send the correct `msg.value`
@@ -98,9 +95,9 @@ abstract contract RIP7755Source {
     /// @param status The `CrossChainCallStatus` status that the request has
     error InvalidStatusForRequestCancel(CrossChainCallStatus status);
 
-    /// @notice This error is thrown if a user attempts to finalize a cancel request for a request that is not in the `CrossChainCallStatus.CancelRequested` state
-    /// @param status The `CrossChainCallStatus` status that the request has
-    error InvalidStatusForFinalizeCancel(CrossChainCallStatus status);
+    /// @notice This error is thrown if a Filler attempts to claim a reward for a request that is not in a `CrossChainCallStatus.Requested` state
+    /// @param status The `CrossChainCallStatus` status of the request
+    error InvalidStatusForClaim(CrossChainCallStatus status);
 
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
@@ -113,10 +110,11 @@ abstract contract RIP7755Source {
             revert InvalidValue(request.rewardAmount, msg.value);
         }
 
-        bytes32 callHash = hashCalldataCall(request);
-        _requestStatus[callHash] = CrossChainCallStatus.Requested;
+        bytes32 requestHash = hashCalldataCall(request);
+        _requestStatus[requestHash] = CrossChainCallStatus.Requested;
+        _requestExpiry[requestHash] = block.timestamp + request.validDuration;
 
-        emit CrossChainCallRequested(callHash, crossChainCall);
+        emit CrossChainCallRequested(requestHash, crossChainCall);
 
         if (!usingNativeCurrency) {
             _pullERC20(msg.sender, request.rewardAsset, request.rewardAmount);
@@ -137,16 +135,18 @@ abstract contract RIP7755Source {
         bytes calldata storageProofData,
         address payTo
     ) external {
-        bytes32 callHash = hashCalldataCall(request);
+        bytes32 requestHash = hashCalldataCall(request);
         bytes32 storageKey = keccak256(
             abi.encodePacked(
-                callHash,
+                requestHash,
                 uint256(0) // Must be at slot 0
             )
         );
 
+        _checkValidStatusForClaim(requestHash);
+
         _validate(storageKey, fillInfo, request, storageProofData);
-        _requestStatus[callHash] = CrossChainCallStatus.Completed;
+        _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         if (request.rewardAsset == _NATIVE_ASSET) {
             payable(payTo).sendValue(request.rewardAmount);
@@ -155,38 +155,21 @@ abstract contract RIP7755Source {
         }
     }
 
-    /// @notice Requests that a pending cross chain call be cancelled
+    /// @notice Cancels a pending request that has expired
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.Requested` state
     ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
-    function requestCancel(bytes32 requestHash) external {
+    function cancelRequest(bytes32 requestHash) external {
         CrossChainCallStatus status = _requestStatus[requestHash];
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(status);
         }
 
-        _requestStatus[requestHash] = CrossChainCallStatus.CancelRequested;
-
-        emit CrossChainCallCancelRequested(requestHash);
-    }
-
-    /// @notice Finalizes a pending cross chain call cancellation
-    ///
-    /// @dev Can only be called if the request is in the `CrossChainCallStatus.CancelRequested` state
-    ///
-    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
-    function finalizeCancel(bytes32 requestHash) external {
-        CrossChainCallStatus status = _requestStatus[requestHash];
-
-        if (status != CrossChainCallStatus.CancelRequested) {
-            revert InvalidStatusForFinalizeCancel(status);
-        }
-
         _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
 
-        emit CrossChainCallCancelFinalized(requestHash);
+        emit CrossChainCallCanceled(requestHash);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request
@@ -257,5 +240,13 @@ abstract contract RIP7755Source {
         CrossChainCall memory crossChainCall = convertToCrossChainCall(request);
         crossChainCall.nonce = ++_nonce;
         return crossChainCall;
+    }
+
+    function _checkValidStatusForClaim(bytes32 requestHash) private view {
+        CrossChainCallStatus status = _requestStatus[requestHash];
+
+        if (status != CrossChainCallStatus.Requested) {
+            revert InvalidStatusForClaim(status);
+        }
     }
 }
