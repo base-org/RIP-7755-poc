@@ -16,7 +16,7 @@ contract RIP7755VerifierTest is Test {
     MockTarget target;
 
     Call[] calls;
-    address FILLER = makeAddr("filler");
+    address FULFILLER = makeAddr("fulfiller");
 
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 
@@ -32,7 +32,7 @@ contract RIP7755VerifierTest is Test {
 
         request.destinationChainId = 0;
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Verifier.InvalidChainId.selector);
         verifier.fulfill(request);
     }
@@ -42,7 +42,7 @@ contract RIP7755VerifierTest is Test {
 
         request.verifyingContract = address(0);
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Verifier.InvalidVerifyingContract.selector);
         verifier.fulfill(request);
     }
@@ -51,15 +51,15 @@ contract RIP7755VerifierTest is Test {
         CrossChainCall memory request = _initRequest();
 
         request.precheckContract = address(precheck);
-        request.precheckData = abi.encode(FILLER);
+        request.precheckData = abi.encode(FULFILLER);
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         verifier.fulfill(request);
 
         bytes32 callHash = verifier.callHashCalldata(request);
-        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFillInfo(callHash);
+        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(callHash);
 
-        assertEq(info.filler, FILLER);
+        assertEq(info.filler, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
@@ -69,7 +69,7 @@ contract RIP7755VerifierTest is Test {
         request.precheckContract = address(precheck);
         request.precheckData = abi.encode(address(0));
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         vm.expectRevert();
         verifier.fulfill(request);
     }
@@ -77,10 +77,10 @@ contract RIP7755VerifierTest is Test {
     function test_reverts_callAlreadyFulfilled() external {
         CrossChainCall memory request = _initRequest();
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         verifier.fulfill(request);
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Verifier.CallAlreadyFulfilled.selector);
         verifier.fulfill(request);
     }
@@ -92,7 +92,7 @@ contract RIP7755VerifierTest is Test {
         );
         request.calls = calls;
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         verifier.fulfill(request);
 
         assertEq(target.number(), inputNum);
@@ -103,7 +103,7 @@ contract RIP7755VerifierTest is Test {
         calls.push(Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0}));
         request.calls = calls;
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         vm.expectRevert(MockTarget.MockError.selector);
         verifier.fulfill(request);
     }
@@ -111,13 +111,13 @@ contract RIP7755VerifierTest is Test {
     function test_fulfill_storesFulfillment() external {
         CrossChainCall memory request = _initRequest();
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         verifier.fulfill(request);
 
         bytes32 callHash = verifier.callHashCalldata(request);
-        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFillInfo(callHash);
+        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(callHash);
 
-        assertEq(info.filler, FILLER);
+        assertEq(info.filler, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
@@ -125,9 +125,9 @@ contract RIP7755VerifierTest is Test {
         CrossChainCall memory request = _initRequest();
         bytes32 callHash = verifier.callHashCalldata(request);
 
-        vm.prank(FILLER);
+        vm.prank(FULFILLER);
         vm.expectEmit(true, true, false, false);
-        emit CallFulfilled({callHash: callHash, fulfilledBy: FILLER});
+        emit CallFulfilled({callHash: callHash, fulfilledBy: FULFILLER});
         verifier.fulfill(request);
     }
 

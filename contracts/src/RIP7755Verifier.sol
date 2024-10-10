@@ -10,9 +10,8 @@ import {CrossChainCall} from "./RIP7755Structs.sol";
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice A Verification contract within RIP-7755.
-///
-/// This contract's sole purpose is to route requested transactions on destination chains and store record of their fulfillment.
+/// @notice A Verification contract within RIP-7755. This contract's sole purpose is to route requested transactions on
+/// destination chains and store record of their fulfillment.
 contract RIP7755Verifier {
     using Address for address;
 
@@ -25,20 +24,20 @@ contract RIP7755Verifier {
     }
 
     /// @notice A mapping from the keccak256 hash of a `CrossChainCall` to its `FulfillmentInfo`. This can only be set once per call
-    mapping(bytes32 callHash => FulfillmentInfo) private _fillInfo;
+    mapping(bytes32 callHash => FulfillmentInfo) private _fulfillmentInfo;
 
     /// @notice Event emitted when a cross chain call is fulfilled
     /// @param callHash The keccak256 hash of a `CrossChainCall`
-    /// @param fulfilledBy The address of the Filler that fulfilled the cross chain call
+    /// @param fulfilledBy The account that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
 
-    /// @notice This error is thrown when a Filler submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
+    /// @notice This error is thrown when an account submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
     error InvalidChainId();
 
-    /// @notice This error is thrown when a Filler submits a cross chain call with a `verifyingContract` different than this contract's address
+    /// @notice This error is thrown when an account submits a cross chain call with a `verifyingContract` different than this contract's address
     error InvalidVerifyingContract();
 
-    /// @notice This error is thrown when a Filler attempts to submit a cross chain call that has already been fulfilled
+    /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
@@ -46,8 +45,8 @@ contract RIP7755Verifier {
     /// @param callHash A keccak256 hash of a CrossChainCall request
     ///
     /// @return _ Fulfillment info stored for the call hash
-    function getFillInfo(bytes32 callHash) external view returns (FulfillmentInfo memory) {
-        return _fillInfo[callHash];
+    function getFulfillmentInfo(bytes32 callHash) external view returns (FulfillmentInfo memory) {
+        return _fulfillmentInfo[callHash];
     }
 
     /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
@@ -71,11 +70,11 @@ contract RIP7755Verifier {
 
         bytes32 callHash = callHashCalldata(request);
 
-        if (_fillInfo[callHash].timestamp != 0) {
+        if (_fulfillmentInfo[callHash].timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
 
-        _fillInfo[callHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
+        _fulfillmentInfo[callHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
 
         emit CallFulfilled({callHash: callHash, fulfilledBy: msg.sender});
 
