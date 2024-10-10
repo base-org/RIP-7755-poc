@@ -11,7 +11,6 @@ import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 // TODO: Should `msg.value` be allowed if not using native currency for reward ?
 // TODO: Potential edge case: cross chain call to send native currency but pay reward in erc20
 // TODO: Potential edge case: cross chain call to send native currency to chain with different native currency ?
-// TODO: Return asset from request cancel
 
 /// @title RIP7755Source
 ///
@@ -161,19 +160,16 @@ abstract contract RIP7755Source {
         _validate(storageKey, fillInfo, request, storageProofData);
         _requestMetadata[requestHash].status = CrossChainCallStatus.Completed;
 
-        if (request.rewardAsset == _NATIVE_ASSET) {
-            payable(payTo).sendValue(request.rewardAmount);
-        } else {
-            _sendERC20(payTo, request.rewardAsset, request.rewardAmount);
-        }
+        _sendReward(request, payTo);
     }
 
     /// @notice Cancels a pending request that has expired
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.Requested` state
     ///
-    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
-    function cancelRequest(bytes32 requestHash) external {
+    /// @param request A cross chain request structured as a `CrossChainRequest`
+    function cancelRequest(CrossChainRequest calldata request) external {
+        bytes32 requestHash = hashRequest(request);
         RequestMeta memory meta = _requestMetadata[requestHash];
 
         if (meta.status != CrossChainCallStatus.Requested) {
@@ -184,8 +180,10 @@ abstract contract RIP7755Source {
         }
 
         _requestMetadata[requestHash].status = CrossChainCallStatus.Canceled;
-
         emit CrossChainCallCanceled(requestHash);
+
+        // Return the stored reward back to the original requester
+        _sendReward(request, meta.requester);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request
@@ -263,6 +261,14 @@ abstract contract RIP7755Source {
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForClaim(status);
+        }
+    }
+
+    function _sendReward(CrossChainRequest calldata request, address to) private {
+        if (request.rewardAsset == _NATIVE_ASSET) {
+            payable(to).sendValue(request.rewardAmount);
+        } else {
+            _sendERC20(to, request.rewardAsset, request.rewardAmount);
         }
     }
 }

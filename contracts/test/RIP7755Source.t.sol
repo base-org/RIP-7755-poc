@@ -180,11 +180,9 @@ contract RIP7755SourceTest is Test {
         RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
-        bytes32 requestHash = mockSource.hashRequest(request);
-
         vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
 
         vm.prank(FILLER);
         vm.expectRevert(
@@ -296,29 +294,27 @@ contract RIP7755SourceTest is Test {
 
     function test_cancelRequest_reverts_requestDoesNotExist(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
-        bytes32 requestHash = mockSource.hashRequest(request);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.None
             )
         );
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
     }
 
     function test_cancelRequest_reverts_requestAlreadyCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
-        bytes32 requestHash = mockSource.hashRequest(request);
 
         vm.warp(block.timestamp + request.validDuration);
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
 
         vm.expectRevert(
             abi.encodeWithSelector(
                 RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.Canceled
             )
         );
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
     }
 
     function test_cancelRequest_reverts_requestAlreadyCompleted(uint256 rewardAmount)
@@ -326,7 +322,6 @@ contract RIP7755SourceTest is Test {
         fundAlice(rewardAmount)
     {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
-        bytes32 requestHash = mockSource.hashRequest(request);
         RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
@@ -338,12 +333,11 @@ contract RIP7755SourceTest is Test {
                 RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.Completed
             )
         );
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
     }
 
     function test_cancelRequest_reverts_requestStillActive(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
-        bytes32 requestHash = mockSource.hashRequest(request);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -352,7 +346,7 @@ contract RIP7755SourceTest is Test {
                 block.timestamp + request.validDuration
             )
         );
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
     }
 
     function test_cancelRequest_setsStatusAsCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -360,7 +354,7 @@ contract RIP7755SourceTest is Test {
         bytes32 requestHash = mockSource.hashRequest(request);
 
         vm.warp(block.timestamp + request.validDuration);
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
 
         RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
         assert(meta.status == RIP7755Source.CrossChainCallStatus.Canceled);
@@ -373,7 +367,73 @@ contract RIP7755SourceTest is Test {
         vm.warp(block.timestamp + request.validDuration);
         vm.expectEmit(true, false, false, false);
         emit CrossChainCallCanceled(requestHash);
-        mockSource.cancelRequest(requestHash);
+        mockSource.cancelRequest(request);
+    }
+
+    function test_cancelRequest_returnsNativeCurrencyToRequester(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        request.rewardAsset = _NATIVE_ASSET;
+
+        vm.prank(ALICE);
+        mockSource.requestCrossChainCall{value: rewardAmount}(request);
+
+        uint256 aliceBalBefore = ALICE.balance;
+
+        vm.warp(block.timestamp + request.validDuration);
+        mockSource.cancelRequest(request);
+
+        uint256 aliceBalAfter = ALICE.balance;
+
+        assertEq(aliceBalAfter - aliceBalBefore, rewardAmount);
+    }
+
+    function test_cancelRequest_returnsNativeCurrencyFromContract(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        request.rewardAsset = _NATIVE_ASSET;
+
+        vm.prank(ALICE);
+        mockSource.requestCrossChainCall{value: rewardAmount}(request);
+
+        uint256 contractBalBefore = address(mockSource).balance;
+
+        vm.warp(block.timestamp + request.validDuration);
+        mockSource.cancelRequest(request);
+
+        uint256 contractBalAfter = address(mockSource).balance;
+
+        assertEq(contractBalBefore - contractBalAfter, rewardAmount);
+    }
+
+    function test_cancelRequest_returnsERC20ToRequester(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+
+        uint256 aliceBalBefore = mockErc20.balanceOf(ALICE);
+
+        vm.warp(block.timestamp + request.validDuration);
+        mockSource.cancelRequest(request);
+
+        uint256 aliceBalAfter = mockErc20.balanceOf(ALICE);
+
+        assertEq(aliceBalAfter - aliceBalBefore, rewardAmount);
+    }
+
+    function test_cancelRequest_returnsERC20FromContract(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+
+        uint256 contractBalBefore = mockErc20.balanceOf(address(mockSource));
+
+        vm.warp(block.timestamp + request.validDuration);
+        mockSource.cancelRequest(request);
+
+        uint256 contractBalAfter = mockErc20.balanceOf(address(mockSource));
+
+        assertEq(contractBalBefore - contractBalAfter, rewardAmount);
     }
 
     function test_convertToCrossChainCall_returnsProperConversion(uint256 rewardAmount)
