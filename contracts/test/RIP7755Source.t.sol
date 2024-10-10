@@ -67,7 +67,7 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall(request);
     }
 
-    function test_requestCrossChainCall_setStatusToRequested_erc20Reward(uint256 rewardAmount)
+    function test_requestCrossChainCall_setMetadata_erc20Reward(uint256 rewardAmount)
         external
         fundAlice(rewardAmount)
     {
@@ -77,7 +77,10 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall(request);
 
         bytes32 requestHash = mockSource.hashRequest(request);
-        assert(mockSource.getRequestStatus(requestHash) == RIP7755Source.CrossChainCallStatus.Requested);
+        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
+        assert(meta.status == RIP7755Source.CrossChainCallStatus.Requested);
+        assert(meta.expiryTimestamp == block.timestamp + request.validDuration);
+        assertEq(meta.requester, ALICE);
     }
 
     function test_requestCrossChainCall_setStatusToRequested_nativeAssetReward(uint256 rewardAmount)
@@ -91,7 +94,10 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall{value: rewardAmount}(request);
 
         bytes32 requestHash = mockSource.hashRequest(request);
-        assert(mockSource.getRequestStatus(requestHash) == RIP7755Source.CrossChainCallStatus.Requested);
+        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
+        assert(meta.status == RIP7755Source.CrossChainCallStatus.Requested);
+        assert(meta.expiryTimestamp == block.timestamp + request.validDuration);
+        assertEq(meta.requester, ALICE);
     }
 
     function test_requestCrossChainCall_emitsEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -210,7 +216,8 @@ contract RIP7755SourceTest is Test {
         mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
 
         bytes32 requestHash = mockSource.hashRequest(request);
-        assert(mockSource.getRequestStatus(requestHash) == RIP7755Source.CrossChainCallStatus.Completed);
+        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
+        assert(meta.status == RIP7755Source.CrossChainCallStatus.Completed);
     }
 
     function test_claimReward_sendsNativeAssetRewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -338,7 +345,8 @@ contract RIP7755SourceTest is Test {
 
         mockSource.cancelRequest(requestHash);
 
-        assert(mockSource.getRequestStatus(requestHash) == RIP7755Source.CrossChainCallStatus.Canceled);
+        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
+        assert(meta.status == RIP7755Source.CrossChainCallStatus.Canceled);
     }
 
     function test_cancelRequest_emitsCanceledEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -350,7 +358,10 @@ contract RIP7755SourceTest is Test {
         mockSource.cancelRequest(requestHash);
     }
 
-    function test_convertToCrossChainCall_returnsProperConversion(uint256 rewardAmount) external fundAlice(rewardAmount) {
+    function test_convertToCrossChainCall_returnsProperConversion(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
         RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
 
         CrossChainCall memory call = mockSource.convertToCrossChainCall(request);

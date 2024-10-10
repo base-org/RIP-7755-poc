@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
@@ -12,7 +12,6 @@ import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 // TODO: Potential edge case: cross chain call to send native currency but pay reward in erc20
 // TODO: Potential edge case: cross chain call to send native currency to chain with different native currency ?
 // TODO: Add time validation to finalize cancel
-// TODO: combine mappings
 // TODO: Return asset from request cancel
 
 /// @title RIP7755Source
@@ -64,11 +63,18 @@ abstract contract RIP7755Source {
         Completed
     }
 
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current `CrossChainCallStatus`
-    mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
+    /// @notice Metadata about a cross chain request
+    struct RequestMeta {
+        /// @dev The request status
+        CrossChainCallStatus status;
+        /// @dev Represents the timestamp when the request expires. The request may be canceled after this timestamp
+        uint40 expiryTimestamp;
+        /// @dev The original caller that submitted the request
+        address requester;
+    }
 
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to the timestamp it expires at
-    mapping(bytes32 requestHash => uint256 expiryTimestamp) private _requestExpiry;
+    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its stored metadata
+    mapping(bytes32 requestHash => RequestMeta metadata) private _requestMetadata;
 
     /// @notice The address representing the native currency of the blockchain this contract is deployed on
     address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -111,8 +117,11 @@ abstract contract RIP7755Source {
         }
 
         bytes32 requestHash = hashRequestMemory(request);
-        _requestStatus[requestHash] = CrossChainCallStatus.Requested;
-        _requestExpiry[requestHash] = block.timestamp + request.validDuration;
+        _requestMetadata[requestHash] = RequestMeta({
+            status: CrossChainCallStatus.Requested,
+            expiryTimestamp: uint40(block.timestamp + request.validDuration),
+            requester: msg.sender
+        });
 
         emit CrossChainCallRequested(requestHash, request);
 
@@ -146,7 +155,7 @@ abstract contract RIP7755Source {
         _checkValidStatusForClaim(requestHash);
 
         _validate(storageKey, fillInfo, request, storageProofData);
-        _requestStatus[requestHash] = CrossChainCallStatus.Completed;
+        _requestMetadata[requestHash].status = CrossChainCallStatus.Completed;
 
         if (request.rewardAsset == _NATIVE_ASSET) {
             payable(payTo).sendValue(request.rewardAmount);
@@ -161,13 +170,13 @@ abstract contract RIP7755Source {
     ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     function cancelRequest(bytes32 requestHash) external {
-        CrossChainCallStatus status = _requestStatus[requestHash];
+        CrossChainCallStatus status = _requestMetadata[requestHash].status;
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(status);
         }
 
-        _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
+        _requestMetadata[requestHash].status = CrossChainCallStatus.Canceled;
 
         emit CrossChainCallCanceled(requestHash);
     }
@@ -177,8 +186,8 @@ abstract contract RIP7755Source {
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     ///
     /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
-    function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
-        return _requestStatus[requestHash];
+    function getRequestMetadata(bytes32 requestHash) external view returns (RequestMeta memory) {
+        return _requestMetadata[requestHash];
     }
 
     /// @notice Converts a `CrossChainRequest` to a `CrossChainCall`
@@ -243,7 +252,7 @@ abstract contract RIP7755Source {
     }
 
     function _checkValidStatusForClaim(bytes32 requestHash) private view {
-        CrossChainCallStatus status = _requestStatus[requestHash];
+        CrossChainCallStatus status = _requestMetadata[requestHash].status;
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForClaim(status);
