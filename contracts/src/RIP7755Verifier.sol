@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+
 import {IPrecheckContract} from "./IPrecheckContract.sol";
 import {CrossChainCall} from "./RIP7755Structs.sol";
 
@@ -12,6 +14,8 @@ import {CrossChainCall} from "./RIP7755Structs.sol";
 ///
 /// This contract's sole purpose is to route requested transactions on destination chains and store record of their fulfillment.
 contract RIP7755Verifier {
+    using Address for address;
+
     /// @notice Stored on verifyingContract and proved against in originationContract
     struct FulfillmentInfo {
         /// @dev Block timestamp when fulfilled
@@ -76,7 +80,7 @@ contract RIP7755Verifier {
         emit CallFulfilled({callHash: callHash, fulfilledBy: msg.sender});
 
         for (uint256 i; i < request.calls.length; i++) {
-            _call(request.calls[i].to, request.calls[i].value, request.calls[i].data);
+            request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
         }
     }
 
@@ -87,14 +91,5 @@ contract RIP7755Verifier {
     /// @return _ A keccak256 hash of the cross chain call request.
     function callHashCalldata(CrossChainCall calldata request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
-    }
-
-    function _call(address target, uint256 value, bytes memory data) private {
-        (bool success, bytes memory result) = target.call{value: value}(data);
-        if (!success) {
-            assembly ("memory-safe") {
-                revert(add(result, 32), mload(result))
-            }
-        }
     }
 }
