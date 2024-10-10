@@ -78,8 +78,8 @@ abstract contract RIP7755Source {
 
     /// @notice Event emitted when a user requests a cross chain call to be made by a filler
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
-    /// @param call The requested call converted to a `CrossChainCall` structure
-    event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainCall call);
+    /// @param request The requested cross chain call
+    event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainRequest request);
 
     /// @notice Event emitted when an expired cross chain call request is canceled
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
@@ -102,22 +102,22 @@ abstract contract RIP7755Source {
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
-    function requestCrossChainCall(CrossChainRequest calldata request) external payable {
-        CrossChainCall memory crossChainCall = _convertToCrossChainCallAndAssignNonce(request);
+    function requestCrossChainCall(CrossChainRequest memory request) external payable {
+        request.nonce = ++_nonce;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
 
         if (usingNativeCurrency && request.rewardAmount != msg.value) {
             revert InvalidValue(request.rewardAmount, msg.value);
         }
 
-        bytes32 requestHash = hashCalldataCall(request);
+        bytes32 requestHash = hashRequestMemory(request);
         _requestStatus[requestHash] = CrossChainCallStatus.Requested;
         _requestExpiry[requestHash] = block.timestamp + request.validDuration;
 
-        emit CrossChainCallRequested(requestHash, crossChainCall);
+        emit CrossChainCallRequested(requestHash, request);
 
         if (!usingNativeCurrency) {
-            _pullERC20(msg.sender, request.rewardAsset, request.rewardAmount);
+            _pullERC20({owner: msg.sender, asset: request.rewardAsset, amount: request.rewardAmount});
         }
     }
 
@@ -135,7 +135,7 @@ abstract contract RIP7755Source {
         bytes calldata storageProofData,
         address payTo
     ) external {
-        bytes32 requestHash = hashCalldataCall(request);
+        bytes32 requestHash = hashRequest(request);
         bytes32 storageKey = keccak256(
             abi.encodePacked(
                 requestHash,
@@ -204,7 +204,16 @@ abstract contract RIP7755Source {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     ///
     /// @return _ A keccak256 hash of the `CrossChainRequest`
-    function hashCalldataCall(CrossChainRequest calldata request) public pure returns (bytes32) {
+    function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
+        return keccak256(abi.encode(request));
+    }
+
+    /// @notice Hashes a `CrossChainRequest` request to use as a request identifier
+    ///
+    /// @param request A cross chain request structured as a `CrossChainRequest`
+    ///
+    /// @return _ A keccak256 hash of the `CrossChainRequest`
+    function hashRequestMemory(CrossChainRequest memory request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
     }
 
@@ -231,15 +240,6 @@ abstract contract RIP7755Source {
     /// @notice Sends `amount` of `asset` to `to`
     function _sendERC20(address to, address asset, uint256 amount) private {
         IERC20(asset).safeTransfer(to, amount);
-    }
-
-    function _convertToCrossChainCallAndAssignNonce(CrossChainRequest calldata request)
-        private
-        returns (CrossChainCall memory)
-    {
-        CrossChainCall memory crossChainCall = convertToCrossChainCall(request);
-        crossChainCall.nonce = ++_nonce;
-        return crossChainCall;
     }
 
     function _checkValidStatusForClaim(bytes32 requestHash) private view {
