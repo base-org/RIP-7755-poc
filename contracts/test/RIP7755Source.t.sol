@@ -183,6 +183,7 @@ contract RIP7755SourceTest is Test {
         bytes32 requestHash = mockSource.hashRequest(request);
 
         vm.prank(ALICE);
+        vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(requestHash);
 
         vm.prank(FILLER);
@@ -309,6 +310,7 @@ contract RIP7755SourceTest is Test {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
         bytes32 requestHash = mockSource.hashRequest(request);
 
+        vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(requestHash);
 
         vm.expectRevert(
@@ -339,10 +341,25 @@ contract RIP7755SourceTest is Test {
         mockSource.cancelRequest(requestHash);
     }
 
+    function test_cancelRequest_reverts_requestStillActive(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+        bytes32 requestHash = mockSource.hashRequest(request);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RIP7755Source.CannotCancelRequestBeforeExpiry.selector,
+                block.timestamp,
+                block.timestamp + request.validDuration
+            )
+        );
+        mockSource.cancelRequest(requestHash);
+    }
+
     function test_cancelRequest_setsStatusAsCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
         bytes32 requestHash = mockSource.hashRequest(request);
 
+        vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(requestHash);
 
         RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
@@ -353,6 +370,7 @@ contract RIP7755SourceTest is Test {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
         bytes32 requestHash = mockSource.hashRequest(request);
 
+        vm.warp(block.timestamp + request.validDuration);
         vm.expectEmit(true, false, false, false);
         emit CrossChainCallCanceled(requestHash);
         mockSource.cancelRequest(requestHash);

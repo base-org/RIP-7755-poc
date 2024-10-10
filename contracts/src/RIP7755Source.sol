@@ -11,7 +11,6 @@ import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 // TODO: Should `msg.value` be allowed if not using native currency for reward ?
 // TODO: Potential edge case: cross chain call to send native currency but pay reward in erc20
 // TODO: Potential edge case: cross chain call to send native currency to chain with different native currency ?
-// TODO: Add time validation to finalize cancel
 // TODO: Return asset from request cancel
 
 /// @title RIP7755Source
@@ -105,6 +104,11 @@ abstract contract RIP7755Source {
     /// @param status The `CrossChainCallStatus` status of the request
     error InvalidStatusForClaim(CrossChainCallStatus status);
 
+    /// @notice This error is thrown if an attempt to cancel a request is made before the request's expiry timestamp
+    /// @param currentTimestamp The current block timestamp
+    /// @param expiry The timestamp at which the request expires
+    error CannotCancelRequestBeforeExpiry(uint256 currentTimestamp, uint256 expiry);
+
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
@@ -170,10 +174,13 @@ abstract contract RIP7755Source {
     ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     function cancelRequest(bytes32 requestHash) external {
-        CrossChainCallStatus status = _requestMetadata[requestHash].status;
+        RequestMeta memory meta = _requestMetadata[requestHash];
 
-        if (status != CrossChainCallStatus.Requested) {
-            revert InvalidStatusForRequestCancel(status);
+        if (meta.status != CrossChainCallStatus.Requested) {
+            revert InvalidStatusForRequestCancel(meta.status);
+        }
+        if (meta.expiryTimestamp > block.timestamp) {
+            revert CannotCancelRequestBeforeExpiry(block.timestamp, meta.expiryTimestamp);
         }
 
         _requestMetadata[requestHash].status = CrossChainCallStatus.Canceled;
