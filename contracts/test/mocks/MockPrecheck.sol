@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.24;
 
 import {IPrecheckContract} from "../../src/IPrecheckContract.sol";
 import {CrossChainCall} from "../../src/RIP7755Structs.sol";

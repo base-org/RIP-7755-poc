@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.24;
 
 /// @notice Low-level call specs representing the desired transaction on destination chain
 struct Call {
