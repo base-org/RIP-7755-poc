@@ -9,6 +9,7 @@ import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
 // TODO: Only requester should be able to cancel a request ?
+// TODO: Should `msg.value` be allowed if not using native currency for reward ?
 
 /// @title RIP7755Source
 ///
@@ -106,19 +107,20 @@ abstract contract RIP7755Source {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest calldata request) external payable {
         CrossChainCall memory crossChainCall = _convertToCrossChainCallAndAssignNonce(request);
+        bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
+
+        if (usingNativeCurrency && request.rewardAmount != msg.value) {
+            revert InvalidValue(request.rewardAmount, msg.value);
+        }
 
         bytes32 callHash = hashCalldataCall(request);
         _requestStatus[callHash] = CrossChainCallStatus.Requested;
 
-        if (request.rewardAsset == _NATIVE_ASSET) {
-            if (request.rewardAmount != msg.value) {
-                revert InvalidValue(request.rewardAmount, msg.value);
-            }
-        } else {
+        emit CrossChainCallRequested(callHash, crossChainCall);
+
+        if (!usingNativeCurrency) {
             _pullERC20(msg.sender, request.rewardAsset, request.rewardAmount);
         }
-
-        emit CrossChainCallRequested(callHash, crossChainCall);
     }
 
     /// @notice To be called by a Filler that successfully submitted a cross chain request to the destination chain and
@@ -157,34 +159,34 @@ abstract contract RIP7755Source {
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.Requested` state
     ///
-    /// @param callHash The keccak256 hash of a `CrossChainRequest`
-    function requestCancel(bytes32 callHash) external {
-        CrossChainCallStatus status = _requestStatus[callHash];
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    function requestCancel(bytes32 requestHash) external {
+        CrossChainCallStatus status = _requestStatus[requestHash];
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(status);
         }
 
-        _requestStatus[callHash] = CrossChainCallStatus.CancelRequested;
+        _requestStatus[requestHash] = CrossChainCallStatus.CancelRequested;
 
-        emit CrossChainCallCancelRequested(callHash);
+        emit CrossChainCallCancelRequested(requestHash);
     }
 
     /// @notice Finalizes a pending cross chain call cancellation
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.CancelRequested` state
     ///
-    /// @param callHash The keccak256 hash of a `CrossChainRequest`
-    function finalizeCancel(bytes32 callHash) external {
-        CrossChainCallStatus status = _requestStatus[callHash];
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    function finalizeCancel(bytes32 requestHash) external {
+        CrossChainCallStatus status = _requestStatus[requestHash];
 
         if (status != CrossChainCallStatus.CancelRequested) {
             revert InvalidStatusForFinalizeCancel(status);
         }
 
-        _requestStatus[callHash] = CrossChainCallStatus.Canceled;
+        _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
 
-        emit CrossChainCallCancelFinalized(callHash);
+        emit CrossChainCallCancelFinalized(requestHash);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request
@@ -194,6 +196,24 @@ abstract contract RIP7755Source {
     /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
     function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
         return _requestStatus[requestHash];
+    }
+
+    /// @notice Converts a `CrossChainRequest` to a `CrossChainCall`
+    ///
+    /// @param request A cross chain request structured as a `CrossChainRequest`
+    ///
+    /// @return _ The converted `CrossChainCall` to be submitted to destination chain
+    function convertToCrossChainCall(CrossChainRequest calldata request) public view returns (CrossChainCall memory) {
+        return CrossChainCall({
+            calls: request.calls,
+            originationContract: address(this),
+            originChainId: block.chainid,
+            destinationChainId: request.destinationChainId,
+            nonce: request.nonce,
+            verifyingContract: request.verifyingContract,
+            precheckContract: request.precheckContract,
+            precheckData: request.precheckData
+        });
     }
 
     /// @notice Hashes a `CrossChainRequest` request to use as a request identifier
@@ -234,25 +254,8 @@ abstract contract RIP7755Source {
         private
         returns (CrossChainCall memory)
     {
-        CrossChainCall memory crossChainCall = _convertToCrossChainCall(request);
+        CrossChainCall memory crossChainCall = convertToCrossChainCall(request);
         crossChainCall.nonce = ++_nonce;
         return crossChainCall;
-    }
-
-    function _convertToCrossChainCall(CrossChainRequest calldata request)
-        private
-        view
-        returns (CrossChainCall memory)
-    {
-        return CrossChainCall({
-            calls: request.calls,
-            originationContract: address(this),
-            originChainId: block.chainid,
-            destinationChainId: request.destinationChainId,
-            nonce: request.nonce,
-            verifyingContract: request.verifyingContract,
-            precheckContract: request.precheckContract,
-            precheckData: request.precheckData
-        });
     }
 }
