@@ -73,6 +73,7 @@ abstract contract RIP7755Source {
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @notice The storage slot of the `_fulfillmentInfo` mapping in `RIP7755Verifier`
     uint256 private constant _RIP7755_VERIFIER_STORAGE_SLOT = 0;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
