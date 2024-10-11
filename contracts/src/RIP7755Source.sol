@@ -71,7 +71,9 @@ abstract contract RIP7755Source {
     mapping(bytes32 requestHash => RequestMeta metadata) private _requestMetadata;
 
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
-    address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    uint256 private constant _RIP7755_VERIFIER_STORAGE_SLOT = 0;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
@@ -145,12 +147,8 @@ abstract contract RIP7755Source {
         address payTo
     ) external {
         bytes32 requestHash = hashRequest(request);
-        bytes32 storageKey = keccak256(
-            abi.encodePacked(
-                requestHash,
-                uint256(0) // Must be at slot 0
-            )
-        );
+        bytes32 callHash = keccak256(abi.encode(convertToCrossChainCall(request)));
+        bytes32 storageKey = keccak256(abi.encodePacked(callHash, _RIP7755_VERIFIER_STORAGE_SLOT));
 
         _checkValidStatusForClaim(requestHash);
 
