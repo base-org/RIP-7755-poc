@@ -8,6 +8,9 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
+// TODO: add nonce getter
+// TODO: standardize status validation
+
 /// @title RIP7755Source
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
@@ -59,14 +62,8 @@ abstract contract RIP7755Source {
         Completed
     }
 
-    /// @notice Metadata about a cross chain request
-    struct RequestMeta {
-        /// @dev The request status
-        CrossChainCallStatus status;
-    }
-
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its stored metadata
-    mapping(bytes32 requestHash => RequestMeta metadata) private _requestMetadata;
+    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current status
+    mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
 
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -130,7 +127,7 @@ abstract contract RIP7755Source {
         }
 
         bytes32 requestHash = hashRequestMemory(request);
-        _requestMetadata[requestHash] = RequestMeta({status: CrossChainCallStatus.Requested});
+        _requestStatus[requestHash] = CrossChainCallStatus.Requested;
 
         if (!usingNativeCurrency) {
             _pullERC20({owner: msg.sender, asset: request.rewardAsset, amount: request.rewardAmount});
@@ -164,7 +161,7 @@ abstract contract RIP7755Source {
         _checkValidStatusForClaim(requestHash);
 
         _validate(storageKey, fillInfo, request, storageProofData);
-        _requestMetadata[requestHash].status = CrossChainCallStatus.Completed;
+        _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
     }
@@ -176,10 +173,10 @@ abstract contract RIP7755Source {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function cancelRequest(CrossChainRequest calldata request) external {
         bytes32 requestHash = hashRequest(request);
-        RequestMeta memory meta = _requestMetadata[requestHash];
+        CrossChainCallStatus status = _requestStatus[requestHash];
 
-        if (meta.status != CrossChainCallStatus.Requested) {
-            revert InvalidStatusForRequestCancel(meta.status);
+        if (status != CrossChainCallStatus.Requested) {
+            revert InvalidStatusForRequestCancel(status);
         }
         if (msg.sender != request.requester) {
             revert InvalidCaller(msg.sender, request.requester);
@@ -188,7 +185,7 @@ abstract contract RIP7755Source {
             revert CannotCancelRequestBeforeExpiry(block.timestamp, request.expiry);
         }
 
-        _requestMetadata[requestHash].status = CrossChainCallStatus.Canceled;
+        _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
         emit CrossChainCallCanceled(requestHash);
 
         // Return the stored reward back to the original requester
@@ -200,8 +197,8 @@ abstract contract RIP7755Source {
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     ///
     /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
-    function getRequestMetadata(bytes32 requestHash) external view returns (RequestMeta memory) {
-        return _requestMetadata[requestHash];
+    function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
+        return _requestStatus[requestHash];
     }
 
     /// @notice Converts a `CrossChainRequest` to a `CrossChainCall`
@@ -266,7 +263,7 @@ abstract contract RIP7755Source {
     }
 
     function _checkValidStatusForClaim(bytes32 requestHash) private view {
-        CrossChainCallStatus status = _requestMetadata[requestHash].status;
+        CrossChainCallStatus status = _requestStatus[requestHash];
 
         if (status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForClaim(status);

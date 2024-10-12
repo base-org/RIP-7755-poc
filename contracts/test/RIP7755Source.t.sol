@@ -102,8 +102,8 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall(request);
 
         bytes32 requestHash = mockSource.hashRequest(request);
-        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
-        assert(meta.status == RIP7755Source.CrossChainCallStatus.Requested);
+        RIP7755Source.CrossChainCallStatus status = mockSource.getRequestStatus(requestHash);
+        assert(status == RIP7755Source.CrossChainCallStatus.Requested);
     }
 
     function test_requestCrossChainCall_setStatusToRequested_nativeAssetReward(uint256 rewardAmount)
@@ -117,8 +117,8 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall{value: rewardAmount}(request);
 
         bytes32 requestHash = mockSource.hashRequest(request);
-        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
-        assert(meta.status == RIP7755Source.CrossChainCallStatus.Requested);
+        RIP7755Source.CrossChainCallStatus status = mockSource.getRequestStatus(requestHash);
+        assert(status == RIP7755Source.CrossChainCallStatus.Requested);
     }
 
     function test_requestCrossChainCall_emitsEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -236,8 +236,8 @@ contract RIP7755SourceTest is Test {
         mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
 
         bytes32 requestHash = mockSource.hashRequest(request);
-        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
-        assert(meta.status == RIP7755Source.CrossChainCallStatus.Completed);
+        RIP7755Source.CrossChainCallStatus status = mockSource.getRequestStatus(requestHash);
+        assert(status == RIP7755Source.CrossChainCallStatus.Completed);
     }
 
     function test_claimReward_sendsNativeAssetRewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -387,8 +387,8 @@ contract RIP7755SourceTest is Test {
         vm.prank(ALICE);
         mockSource.cancelRequest(request);
 
-        RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
-        assert(meta.status == RIP7755Source.CrossChainCallStatus.Canceled);
+        RIP7755Source.CrossChainCallStatus status = mockSource.getRequestStatus(requestHash);
+        assert(status == RIP7755Source.CrossChainCallStatus.Canceled);
     }
 
     function test_cancelRequest_emitsCanceledEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
