@@ -5,7 +5,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {CrossChainCall, Call} from "./RIP7755Structs.sol";
+import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
 /// @title RIP7755Source
@@ -18,37 +18,6 @@ abstract contract RIP7755Source {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
-    /// @notice A cross chain call request formatted following the RIP-7755 spec
-    struct CrossChainRequest {
-        /// @dev Array of calls to make on the destination chain
-        Call[] calls;
-        /// @dev The chainId of the destination chain
-        uint256 destinationChainId;
-        /// @dev The L2 contract on destination chain that's storage will be used to verify whether or not this call was made
-        address verifyingContract;
-        /// @dev The L1 address of the contract that should have L2 block info stored
-        address l2Oracle;
-        /// @dev The storage key at which we expect to find the L2 block info on the l2Oracle
-        bytes32 l2OracleStorageKey;
-        /// @dev The address of the ERC20 reward asset to be paid to whoever proves they filled this call
-        /// @dev Native asset specified as in ERC-7528 format
-        address rewardAsset;
-        /// @dev The reward amount to pay
-        uint256 rewardAmount;
-        /// @dev The minimum age of the L1 block used for the proof
-        uint256 finalityDelaySeconds;
-        /// @dev The nonce of this call, to differentiate from other calls with the same values
-        uint256 nonce;
-        /// @dev The amount of seconds this request remains valid for
-        uint256 validDuration;
-        /// @dev An optional pre-check contract address on the destination chain
-        /// @dev Zero address represents no pre-check contract desired
-        /// @dev Can be used for arbitrary validation of fill conditions
-        address precheckContract;
-        /// @dev Arbitrary encoded precheck data
-        bytes precheckData;
-    }
-
     /// @notice An enum representing the status of an RIP-7755 cross chain call
     enum CrossChainCallStatus {
         None,
@@ -57,24 +26,18 @@ abstract contract RIP7755Source {
         Completed
     }
 
-    /// @notice Metadata about a cross chain request
-    struct RequestMeta {
-        /// @dev The request status
-        CrossChainCallStatus status;
-        /// @dev Represents the timestamp when the request expires. The request may be canceled after this timestamp
-        uint40 expiryTimestamp;
-        /// @dev The original caller that submitted the request
-        address requester;
-    }
-
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its stored metadata
-    mapping(bytes32 requestHash => RequestMeta metadata) private _requestMetadata;
+    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current status
+    mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
 
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    /// @notice The storage slot of the `_fulfillmentInfo` mapping in `RIP7755Verifier`
-    uint256 private constant _RIP7755_VERIFIER_STORAGE_SLOT = 0;
+    // Main storage location in `RIP7755Verifier` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
+    bytes32 private constant _VERIFIER_STORAGE_LOCATION =
+        0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+
+    /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
+    uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
@@ -94,43 +57,51 @@ abstract contract RIP7755Source {
     /// @param received The actual `msg.value` that was sent with the transaction
     error InvalidValue(uint256 expected, uint256 received);
 
-    /// @notice This error is thrown if a user attempts to cancel a request that is not in the `CrossChainCallStatus.Requested` state
-    /// @param status The `CrossChainCallStatus` status that the request has
-    error InvalidStatusForRequestCancel(CrossChainCallStatus status);
-
-    /// @notice This error is thrown if a Filler attempts to claim a reward for a request that is not in a `CrossChainCallStatus.Requested` state
-    /// @param status The `CrossChainCallStatus` status of the request
-    error InvalidStatusForClaim(CrossChainCallStatus status);
+    /// @notice This error is thrown if a user attempts to cancel a request or a Filler attempts to claim a reward for
+    /// a request that is not in the `CrossChainCallStatus.Requested` state
+    /// @param expected The expected status during the transaction
+    /// @param actual The actual request status during the transaction
+    error InvalidStatus(CrossChainCallStatus expected, CrossChainCallStatus actual);
 
     /// @notice This error is thrown if an attempt to cancel a request is made before the request's expiry timestamp
     /// @param currentTimestamp The current block timestamp
     /// @param expiry The timestamp at which the request expires
     error CannotCancelRequestBeforeExpiry(uint256 currentTimestamp, uint256 expiry);
 
+    /// @notice This error is thrown if an account attempts to cancel a request that did not originate from that account
+    /// @param caller The account attempting the request cancellation
+    /// @param expectedCaller The account that created the request
+    error InvalidCaller(address caller, address expectedCaller);
+
+    /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
+    error ExpiryTooSoon();
+
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
-        request.nonce = ++_nonce;
+        request.nonce = _getNextNonce();
+        request.requester = msg.sender;
+        request.originationContract = address(this);
+        request.originChainId = block.chainid;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
         if (msg.value != expectedValue) {
             revert InvalidValue(expectedValue, msg.value);
         }
+        if (request.expiry < block.timestamp + request.finalityDelaySeconds) {
+            revert ExpiryTooSoon();
+        }
 
         bytes32 requestHash = hashRequestMemory(request);
-        _requestMetadata[requestHash] = RequestMeta({
-            status: CrossChainCallStatus.Requested,
-            expiryTimestamp: uint40(block.timestamp + request.validDuration),
-            requester: msg.sender
-        });
-
-        emit CrossChainCallRequested(requestHash, request);
+        _requestStatus[requestHash] = CrossChainCallStatus.Requested;
 
         if (!usingNativeCurrency) {
             _pullERC20({owner: msg.sender, asset: request.rewardAsset, amount: request.rewardAmount});
         }
+
+        emit CrossChainCallRequested(requestHash, request);
     }
 
     /// @notice To be called by a Filler that successfully submitted a cross chain request to the destination chain and
@@ -148,13 +119,12 @@ abstract contract RIP7755Source {
         address payTo
     ) external {
         bytes32 requestHash = hashRequest(request);
-        bytes32 callHash = keccak256(abi.encode(convertToCrossChainCall(request)));
-        bytes32 storageKey = keccak256(abi.encodePacked(callHash, _RIP7755_VERIFIER_STORAGE_SLOT));
+        bytes32 storageKey = keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION));
 
-        _checkValidStatusForClaim(requestHash);
+        _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
         _validate(storageKey, fillInfo, request, storageProofData);
-        _requestMetadata[requestHash].status = CrossChainCallStatus.Completed;
+        _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
     }
@@ -166,20 +136,24 @@ abstract contract RIP7755Source {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function cancelRequest(CrossChainRequest calldata request) external {
         bytes32 requestHash = hashRequest(request);
-        RequestMeta memory meta = _requestMetadata[requestHash];
 
-        if (meta.status != CrossChainCallStatus.Requested) {
-            revert InvalidStatusForRequestCancel(meta.status);
+        _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
+        if (msg.sender != request.requester) {
+            revert InvalidCaller({caller: msg.sender, expectedCaller: request.requester});
         }
-        if (meta.expiryTimestamp > block.timestamp) {
-            revert CannotCancelRequestBeforeExpiry(block.timestamp, meta.expiryTimestamp);
+        if (block.timestamp < request.expiry + CANCEL_DELAY_SECONDS) {
+            revert CannotCancelRequestBeforeExpiry({
+                currentTimestamp: block.timestamp,
+                expiry: request.expiry + CANCEL_DELAY_SECONDS
+            });
         }
 
-        _requestMetadata[requestHash].status = CrossChainCallStatus.Canceled;
-        emit CrossChainCallCanceled(requestHash);
+        _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
 
         // Return the stored reward back to the original requester
-        _sendReward(request, meta.requester);
+        _sendReward(request, request.requester);
+
+        emit CrossChainCallCanceled(requestHash);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request
@@ -187,26 +161,8 @@ abstract contract RIP7755Source {
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     ///
     /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
-    function getRequestMetadata(bytes32 requestHash) external view returns (RequestMeta memory) {
-        return _requestMetadata[requestHash];
-    }
-
-    /// @notice Converts a `CrossChainRequest` to a `CrossChainCall`
-    ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    ///
-    /// @return _ The converted `CrossChainCall` to be submitted to destination chain
-    function convertToCrossChainCall(CrossChainRequest calldata request) public view returns (CrossChainCall memory) {
-        return CrossChainCall({
-            calls: request.calls,
-            originationContract: address(this),
-            originChainId: block.chainid,
-            destinationChainId: request.destinationChainId,
-            nonce: request.nonce,
-            verifyingContract: request.verifyingContract,
-            precheckContract: request.precheckContract,
-            precheckData: request.precheckData
-        });
+    function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
+        return _requestStatus[requestHash];
     }
 
     /// @notice Hashes a `CrossChainRequest` request to use as a request identifier
@@ -252,11 +208,19 @@ abstract contract RIP7755Source {
         IERC20(asset).safeTransfer(to, amount);
     }
 
-    function _checkValidStatusForClaim(bytes32 requestHash) private view {
-        CrossChainCallStatus status = _requestMetadata[requestHash].status;
+    function _getNextNonce() private returns (uint256) {
+        unchecked {
+            // It would take ~3,671,743,063,080,802,746,815,416,825,491,118,336,290,905,145,409,708,398,004 years
+            // with a sustained request rate of 1 trillion requests per second to overflow the nonce counter
+            return ++_nonce;
+        }
+    }
 
-        if (status != CrossChainCallStatus.Requested) {
-            revert InvalidStatusForClaim(status);
+    function _checkValidStatus(bytes32 requestHash, CrossChainCallStatus expectedStatus) private view {
+        CrossChainCallStatus status = _requestStatus[requestHash];
+
+        if (status != expectedStatus) {
+            revert InvalidStatus({expected: expectedStatus, actual: status});
         }
     }
 
