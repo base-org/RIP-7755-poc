@@ -319,6 +319,7 @@ contract RIP7755SourceTest is Test {
     function test_cancelRequest_reverts_requestAlreadyCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(request);
 
@@ -349,9 +350,18 @@ contract RIP7755SourceTest is Test {
         mockSource.cancelRequest(request);
     }
 
+    function test_cancelRequest_reverts_invalidCaller(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
+
+        vm.prank(FILLER);
+        vm.expectRevert(abi.encodeWithSelector(RIP7755Source.InvalidCaller.selector, FILLER, ALICE));
+        mockSource.cancelRequest(request);
+    }
+
     function test_cancelRequest_reverts_requestStillActive(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
 
+        vm.prank(ALICE);
         vm.expectRevert(
             abi.encodeWithSelector(
                 RIP7755Source.CannotCancelRequestBeforeExpiry.selector,
@@ -366,6 +376,7 @@ contract RIP7755SourceTest is Test {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
         bytes32 requestHash = mockSource.hashRequest(request);
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(request);
 
@@ -377,6 +388,7 @@ contract RIP7755SourceTest is Test {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
         bytes32 requestHash = mockSource.hashRequest(request);
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         vm.expectEmit(true, false, false, false);
         emit CrossChainCallCanceled(requestHash);
@@ -395,6 +407,7 @@ contract RIP7755SourceTest is Test {
 
         uint256 aliceBalBefore = ALICE.balance;
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(request);
 
@@ -415,6 +428,7 @@ contract RIP7755SourceTest is Test {
 
         uint256 contractBalBefore = address(mockSource).balance;
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(request);
 
@@ -428,6 +442,7 @@ contract RIP7755SourceTest is Test {
 
         uint256 aliceBalBefore = mockErc20.balanceOf(ALICE);
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(request);
 
@@ -441,6 +456,7 @@ contract RIP7755SourceTest is Test {
 
         uint256 contractBalBefore = mockErc20.balanceOf(address(mockSource));
 
+        vm.prank(ALICE);
         vm.warp(block.timestamp + request.validDuration);
         mockSource.cancelRequest(request);
 

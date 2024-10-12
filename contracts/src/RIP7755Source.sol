@@ -104,6 +104,11 @@ abstract contract RIP7755Source {
     /// @param expiry The timestamp at which the request expires
     error CannotCancelRequestBeforeExpiry(uint256 currentTimestamp, uint256 expiry);
 
+    /// @notice This error is thrown if an account attempts to cancel a request that did not originate from that account
+    /// @param caller The account attempting the request cancellation
+    /// @param expectedCaller The account that created the request
+    error InvalidCaller(address caller, address expectedCaller);
+
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
@@ -171,6 +176,9 @@ abstract contract RIP7755Source {
 
         if (meta.status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(meta.status);
+        }
+        if (msg.sender != meta.requester) {
+            revert InvalidCaller(msg.sender, meta.requester);
         }
         if (meta.expiryTimestamp > block.timestamp) {
             revert CannotCancelRequestBeforeExpiry(block.timestamp, meta.expiryTimestamp);
