@@ -32,6 +32,10 @@ abstract contract RIP7755Source {
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    // Main storage location in `RIP7755Verifier` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
+    bytes32 private constant _VERIFIER_STORAGE_LOCATION =
+        0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
 
@@ -115,12 +119,7 @@ abstract contract RIP7755Source {
         address payTo
     ) external {
         bytes32 requestHash = hashRequest(request);
-        bytes32 storageKey = keccak256(
-            abi.encodePacked(
-                requestHash,
-                uint256(0) // Must be at slot 0
-            )
-        );
+        bytes32 storageKey = keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION));
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 

@@ -15,6 +15,11 @@ import {CrossChainRequest} from "./RIP7755Structs.sol";
 contract RIP7755Verifier {
     using Address for address;
 
+    struct MainStorage {
+        /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
+        mapping(bytes32 requestHash => FulfillmentInfo) fulfillmentInfo;
+    }
+
     /// @notice Stored on verifyingContract and proved against in originationContract
     struct FulfillmentInfo {
         /// @dev Block timestamp when fulfilled
@@ -23,8 +28,8 @@ contract RIP7755Verifier {
         address filler;
     }
 
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
-    mapping(bytes32 requestHash => FulfillmentInfo) private _fulfillmentInfo;
+    // Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
+    bytes32 private constant _MAIN_STORAGE_LOCATION = 0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
     /// @notice Event emitted when a cross chain call is fulfilled
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
@@ -46,7 +51,7 @@ contract RIP7755Verifier {
     ///
     /// @return _ Fulfillment info stored for the call hash
     function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
-        return _fulfillmentInfo[requestHash];
+        return _getFulfillmentInfo(requestHash);
     }
 
     /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
@@ -70,11 +75,11 @@ contract RIP7755Verifier {
 
         bytes32 requestHash = hashRequest(request);
 
-        if (_fulfillmentInfo[requestHash].timestamp != 0) {
+        if (_getFulfillmentInfo(requestHash).timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
 
-        _fulfillmentInfo[requestHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
+        _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender}));
 
         emit CallFulfilled({requestHash: requestHash, fulfilledBy: msg.sender});
 
@@ -90,5 +95,21 @@ contract RIP7755Verifier {
     /// @return _ A keccak256 hash of the cross chain call request.
     function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
+    }
+
+    function _getMainStorage() private pure returns (MainStorage storage $) {
+        assembly {
+            $.slot := _MAIN_STORAGE_LOCATION
+        }
+    }
+
+    function _getFulfillmentInfo(bytes32 requestHash) private view returns (FulfillmentInfo memory) {
+        MainStorage storage $ = _getMainStorage();
+        return $.fulfillmentInfo[requestHash];
+    }
+
+    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
+        MainStorage storage $ = _getMainStorage();
+        $.fulfillmentInfo[requestHash] = fulfillmentInfo;
     }
 }
