@@ -123,11 +123,11 @@ abstract contract RIP7755Source {
             requester: msg.sender
         });
 
-        emit CrossChainCallRequested(requestHash, request);
-
         if (!usingNativeCurrency) {
             _pullERC20({owner: msg.sender, asset: request.rewardAsset, amount: request.rewardAmount});
         }
+
+        emit CrossChainCallRequested(requestHash, request);
     }
 
     /// @notice To be called by a Filler that successfully submitted a cross chain request to the destination chain and
