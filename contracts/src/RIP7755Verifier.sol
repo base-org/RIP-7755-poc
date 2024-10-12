@@ -82,11 +82,11 @@ contract RIP7755Verifier {
 
         _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender}));
 
-        emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
-
         for (uint256 i; i < request.calls.length; i++) {
             request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
         }
+
+        emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
     }
 
     /// @notice Hashes a cross chain call request.
