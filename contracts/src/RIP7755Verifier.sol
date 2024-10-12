@@ -57,7 +57,8 @@ contract RIP7755Verifier {
     /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
     ///
     /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
-    function fulfill(CrossChainRequest calldata request) external payable {
+    /// @param fulfiller The address that the fulfiller expects to use to claim their reward on the source chain.
+    function fulfill(CrossChainRequest calldata request, address fulfiller) external payable {
         if (block.chainid != request.destinationChainId) {
             revert InvalidChainId();
         }
@@ -81,7 +82,7 @@ contract RIP7755Verifier {
 
         _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender}));
 
-        emit CallFulfilled({requestHash: requestHash, fulfilledBy: msg.sender});
+        emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
 
         for (uint256 i; i < request.calls.length; i++) {
             request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);

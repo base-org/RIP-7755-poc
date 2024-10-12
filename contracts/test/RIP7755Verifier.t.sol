@@ -35,7 +35,7 @@ contract RIP7755VerifierTest is Test {
 
         vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Verifier.InvalidChainId.selector);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
     }
 
     function test_fulfill_reverts_invalidDestinationAddress() external {
@@ -45,7 +45,7 @@ contract RIP7755VerifierTest is Test {
 
         vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Verifier.InvalidVerifyingContract.selector);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
     }
 
     function test_fulfill_storesFulfillment_withSuccessfulPrecheck() external {
@@ -55,7 +55,7 @@ contract RIP7755VerifierTest is Test {
         request.precheckData = abi.encode(FULFILLER);
 
         vm.prank(FULFILLER);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
 
         bytes32 requestHash = verifier.hashRequest(request);
         RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(requestHash);
@@ -72,18 +72,18 @@ contract RIP7755VerifierTest is Test {
 
         vm.prank(FULFILLER);
         vm.expectRevert();
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
     }
 
     function test_reverts_callAlreadyFulfilled() external {
         CrossChainRequest memory request = _initRequest();
 
         vm.prank(FULFILLER);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
 
         vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Verifier.CallAlreadyFulfilled.selector);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
     }
 
     function test_fulfill_callsTargetContract(uint256 inputNum) external {
@@ -94,7 +94,7 @@ contract RIP7755VerifierTest is Test {
         request.calls = calls;
 
         vm.prank(FULFILLER);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
 
         assertEq(target.number(), inputNum);
     }
@@ -106,14 +106,14 @@ contract RIP7755VerifierTest is Test {
 
         vm.prank(FULFILLER);
         vm.expectRevert(MockTarget.MockError.selector);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
     }
 
     function test_fulfill_storesFulfillment() external {
         CrossChainRequest memory request = _initRequest();
 
         vm.prank(FULFILLER);
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
 
         bytes32 requestHash = verifier.hashRequest(request);
         RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(requestHash);
@@ -129,7 +129,7 @@ contract RIP7755VerifierTest is Test {
         vm.prank(FULFILLER);
         vm.expectEmit(true, true, false, false);
         emit CallFulfilled({requestHash: requestHash, fulfilledBy: FULFILLER});
-        verifier.fulfill(request);
+        verifier.fulfill(request, FULFILLER);
     }
 
     function _initRequest() private view returns (CrossChainRequest memory) {
