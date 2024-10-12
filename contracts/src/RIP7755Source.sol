@@ -142,7 +142,10 @@ abstract contract RIP7755Source {
             revert InvalidCaller({caller: msg.sender, expectedCaller: request.requester});
         }
         if (block.timestamp < request.expiry + CANCEL_DELAY_SECONDS) {
-            revert CannotCancelRequestBeforeExpiry({currentTimestamp: block.timestamp, expiry: request.expiry + CANCEL_DELAY_SECONDS});
+            revert CannotCancelRequestBeforeExpiry({
+                currentTimestamp: block.timestamp,
+                expiry: request.expiry + CANCEL_DELAY_SECONDS
+            });
         }
 
         _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
