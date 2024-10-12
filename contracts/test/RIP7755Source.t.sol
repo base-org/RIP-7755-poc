@@ -378,12 +378,15 @@ contract RIP7755SourceTest is Test {
 
     function test_cancelRequest_reverts_requestStillActive(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
+        uint256 cancelDelaySeconds = mockSource.CANCEL_DELAY_SECONDS();
 
-        vm.warp(request.expiry + mockSource.CANCEL_DELAY_SECONDS() - 1);
+        vm.warp(request.expiry + cancelDelaySeconds - 1);
         vm.prank(ALICE);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.CannotCancelRequestBeforeExpiry.selector, block.timestamp, request.expiry
+                RIP7755Source.CannotCancelRequestBeforeExpiry.selector,
+                block.timestamp,
+                request.expiry + cancelDelaySeconds
             )
         );
         mockSource.cancelRequest(request);
