@@ -139,17 +139,18 @@ abstract contract RIP7755Source {
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
         if (msg.sender != request.requester) {
-            revert InvalidCaller(msg.sender, request.requester);
+            revert InvalidCaller({caller: msg.sender, expectedCaller: request.requester});
         }
         if (block.timestamp < request.expiry + CANCEL_DELAY_SECONDS) {
-            revert CannotCancelRequestBeforeExpiry(block.timestamp, request.expiry + CANCEL_DELAY_SECONDS);
+            revert CannotCancelRequestBeforeExpiry({currentTimestamp: block.timestamp, expiry: request.expiry + CANCEL_DELAY_SECONDS});
         }
 
         _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
-        emit CrossChainCallCanceled(requestHash);
 
         // Return the stored reward back to the original requester
         _sendReward(request, request.requester);
+
+        emit CrossChainCallCanceled(requestHash);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request
