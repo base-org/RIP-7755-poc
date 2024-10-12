@@ -20,6 +20,8 @@ abstract contract RIP7755Source {
 
     /// @notice A cross chain call request formatted following the RIP-7755 spec
     struct CrossChainRequest {
+        /// @dev The account submitting the cross chain request
+        address requester;
         /// @dev Array of calls to make on the destination chain
         Call[] calls;
         /// @dev The chainId of the destination chain
@@ -63,8 +65,6 @@ abstract contract RIP7755Source {
         CrossChainCallStatus status;
         /// @dev Represents the timestamp when the request expires. The request may be canceled after this timestamp
         uint40 expiryTimestamp;
-        /// @dev The original caller that submitted the request
-        address requester;
     }
 
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its stored metadata
@@ -114,6 +114,7 @@ abstract contract RIP7755Source {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = ++_nonce;
+        request.requester = msg.sender;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
@@ -124,8 +125,7 @@ abstract contract RIP7755Source {
         bytes32 requestHash = hashRequestMemory(request);
         _requestMetadata[requestHash] = RequestMeta({
             status: CrossChainCallStatus.Requested,
-            expiryTimestamp: uint40(block.timestamp + request.validDuration),
-            requester: msg.sender
+            expiryTimestamp: uint40(block.timestamp + request.validDuration)
         });
 
         if (!usingNativeCurrency) {
@@ -177,8 +177,8 @@ abstract contract RIP7755Source {
         if (meta.status != CrossChainCallStatus.Requested) {
             revert InvalidStatusForRequestCancel(meta.status);
         }
-        if (msg.sender != meta.requester) {
-            revert InvalidCaller(msg.sender, meta.requester);
+        if (msg.sender != request.requester) {
+            revert InvalidCaller(msg.sender, request.requester);
         }
         if (meta.expiryTimestamp > block.timestamp) {
             revert CannotCancelRequestBeforeExpiry(block.timestamp, meta.expiryTimestamp);
@@ -188,7 +188,7 @@ abstract contract RIP7755Source {
         emit CrossChainCallCanceled(requestHash);
 
         // Return the stored reward back to the original requester
-        _sendReward(request, meta.requester);
+        _sendReward(request, request.requester);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request

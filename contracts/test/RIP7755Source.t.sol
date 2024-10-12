@@ -93,7 +93,6 @@ contract RIP7755SourceTest is Test {
         RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
         assert(meta.status == RIP7755Source.CrossChainCallStatus.Requested);
         assert(meta.expiryTimestamp == block.timestamp + request.validDuration);
-        assertEq(meta.requester, ALICE);
     }
 
     function test_requestCrossChainCall_setStatusToRequested_nativeAssetReward(uint256 rewardAmount)
@@ -110,7 +109,6 @@ contract RIP7755SourceTest is Test {
         RIP7755Source.RequestMeta memory meta = mockSource.getRequestMetadata(requestHash);
         assert(meta.status == RIP7755Source.CrossChainCallStatus.Requested);
         assert(meta.expiryTimestamp == block.timestamp + request.validDuration);
-        assertEq(meta.requester, ALICE);
     }
 
     function test_requestCrossChainCall_emitsEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -497,6 +495,7 @@ contract RIP7755SourceTest is Test {
 
     function _initRequest(uint256 rewardAmount) private view returns (RIP7755Source.CrossChainRequest memory) {
         return RIP7755Source.CrossChainRequest({
+            requester: ALICE,
             calls: calls,
             destinationChainId: 0,
             verifyingContract: address(0),
