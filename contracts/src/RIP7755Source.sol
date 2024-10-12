@@ -41,8 +41,8 @@ abstract contract RIP7755Source {
         uint256 finalityDelaySeconds;
         /// @dev The nonce of this call, to differentiate from other calls with the same values
         uint256 nonce;
-        /// @dev The amount of seconds this request remains valid for
-        uint256 validDuration;
+        /// @dev The timestamp at which this request will expire
+        uint256 expiry;
         /// @dev An optional pre-check contract address on the destination chain
         /// @dev Zero address represents no pre-check contract desired
         /// @dev Can be used for arbitrary validation of fill conditions
@@ -63,15 +63,16 @@ abstract contract RIP7755Source {
     struct RequestMeta {
         /// @dev The request status
         CrossChainCallStatus status;
-        /// @dev Represents the timestamp when the request expires. The request may be canceled after this timestamp
-        uint40 expiryTimestamp;
     }
 
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its stored metadata
     mapping(bytes32 requestHash => RequestMeta metadata) private _requestMetadata;
 
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
-    address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
+    uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
@@ -123,10 +124,7 @@ abstract contract RIP7755Source {
         }
 
         bytes32 requestHash = hashRequestMemory(request);
-        _requestMetadata[requestHash] = RequestMeta({
-            status: CrossChainCallStatus.Requested,
-            expiryTimestamp: uint40(block.timestamp + request.validDuration)
-        });
+        _requestMetadata[requestHash] = RequestMeta({status: CrossChainCallStatus.Requested});
 
         if (!usingNativeCurrency) {
             _pullERC20({owner: msg.sender, asset: request.rewardAsset, amount: request.rewardAmount});
@@ -180,8 +178,8 @@ abstract contract RIP7755Source {
         if (msg.sender != request.requester) {
             revert InvalidCaller(msg.sender, request.requester);
         }
-        if (meta.expiryTimestamp > block.timestamp) {
-            revert CannotCancelRequestBeforeExpiry(block.timestamp, meta.expiryTimestamp);
+        if (block.timestamp < request.expiry + CANCEL_DELAY_SECONDS) {
+            revert CannotCancelRequestBeforeExpiry(block.timestamp, request.expiry);
         }
 
         _requestMetadata[requestHash].status = CrossChainCallStatus.Canceled;
