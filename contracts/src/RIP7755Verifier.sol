@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {IPrecheckContract} from "./IPrecheckContract.sol";
-import {CrossChainCall} from "./RIP7755Structs.sol";
+import {CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Verifier
 ///
@@ -23,13 +23,13 @@ contract RIP7755Verifier {
         address filler;
     }
 
-    /// @notice A mapping from the keccak256 hash of a `CrossChainCall` to its `FulfillmentInfo`. This can only be set once per call
-    mapping(bytes32 callHash => FulfillmentInfo) private _fulfillmentInfo;
+    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
+    mapping(bytes32 requestHash => FulfillmentInfo) private _fulfillmentInfo;
 
     /// @notice Event emitted when a cross chain call is fulfilled
-    /// @param callHash The keccak256 hash of a `CrossChainCall`
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     /// @param fulfilledBy The account that fulfilled the cross chain call
-    event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
+    event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
     /// @notice This error is thrown when an account submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
     error InvalidChainId();
@@ -42,17 +42,17 @@ contract RIP7755Verifier {
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
-    /// @param callHash A keccak256 hash of a CrossChainCall request
+    /// @param requestHash A keccak256 hash of a CrossChainRequest
     ///
     /// @return _ Fulfillment info stored for the call hash
-    function getFulfillmentInfo(bytes32 callHash) external view returns (FulfillmentInfo memory) {
-        return _fulfillmentInfo[callHash];
+    function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
+        return _fulfillmentInfo[requestHash];
     }
 
     /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
     ///
-    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
-    function fulfill(CrossChainCall calldata request) external payable {
+    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
+    function fulfill(CrossChainRequest calldata request) external payable {
         if (block.chainid != request.destinationChainId) {
             revert InvalidChainId();
         }
@@ -68,15 +68,15 @@ contract RIP7755Verifier {
 
         // TODO: Check for trusted originationContract
 
-        bytes32 callHash = callHashCalldata(request);
+        bytes32 requestHash = hashRequest(request);
 
-        if (_fulfillmentInfo[callHash].timestamp != 0) {
+        if (_fulfillmentInfo[requestHash].timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
 
-        _fulfillmentInfo[callHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
+        _fulfillmentInfo[requestHash] = FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender});
 
-        emit CallFulfilled({callHash: callHash, fulfilledBy: msg.sender});
+        emit CallFulfilled({requestHash: requestHash, fulfilledBy: msg.sender});
 
         for (uint256 i; i < request.calls.length; i++) {
             request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
@@ -85,10 +85,10 @@ contract RIP7755Verifier {
 
     /// @notice Hashes a cross chain call request.
     ///
-    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainCall}.
+    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
     ///
     /// @return _ A keccak256 hash of the cross chain call request.
-    function callHashCalldata(CrossChainCall calldata request) public pure returns (bytes32) {
+    function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
     }
 }

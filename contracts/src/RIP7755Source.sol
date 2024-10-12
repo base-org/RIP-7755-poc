@@ -5,7 +5,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {CrossChainCall, Call} from "./RIP7755Structs.sol";
+import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
 /// @title RIP7755Source
@@ -17,39 +17,6 @@ import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 abstract contract RIP7755Source {
     using Address for address payable;
     using SafeERC20 for IERC20;
-
-    /// @notice A cross chain call request formatted following the RIP-7755 spec
-    struct CrossChainRequest {
-        /// @dev The account submitting the cross chain request
-        address requester;
-        /// @dev Array of calls to make on the destination chain
-        Call[] calls;
-        /// @dev The chainId of the destination chain
-        uint256 destinationChainId;
-        /// @dev The L2 contract on destination chain that's storage will be used to verify whether or not this call was made
-        address verifyingContract;
-        /// @dev The L1 address of the contract that should have L2 block info stored
-        address l2Oracle;
-        /// @dev The storage key at which we expect to find the L2 block info on the l2Oracle
-        bytes32 l2OracleStorageKey;
-        /// @dev The address of the ERC20 reward asset to be paid to whoever proves they filled this call
-        /// @dev Native asset specified as in ERC-7528 format
-        address rewardAsset;
-        /// @dev The reward amount to pay
-        uint256 rewardAmount;
-        /// @dev The minimum age of the L1 block used for the proof
-        uint256 finalityDelaySeconds;
-        /// @dev The nonce of this call, to differentiate from other calls with the same values
-        uint256 nonce;
-        /// @dev The timestamp at which this request will expire
-        uint256 expiry;
-        /// @dev An optional pre-check contract address on the destination chain
-        /// @dev Zero address represents no pre-check contract desired
-        /// @dev Can be used for arbitrary validation of fill conditions
-        address precheckContract;
-        /// @dev Arbitrary encoded precheck data
-        bytes precheckData;
-    }
 
     /// @notice An enum representing the status of an RIP-7755 cross chain call
     enum CrossChainCallStatus {
@@ -111,6 +78,8 @@ abstract contract RIP7755Source {
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = _getNextNonce();
         request.requester = msg.sender;
+        request.originationContract = address(this);
+        request.originChainId = block.chainid;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
@@ -191,24 +160,6 @@ abstract contract RIP7755Source {
     /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
     function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
         return _requestStatus[requestHash];
-    }
-
-    /// @notice Converts a `CrossChainRequest` to a `CrossChainCall`
-    ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    ///
-    /// @return _ The converted `CrossChainCall` to be submitted to destination chain
-    function convertToCrossChainCall(CrossChainRequest calldata request) public view returns (CrossChainCall memory) {
-        return CrossChainCall({
-            calls: request.calls,
-            originationContract: address(this),
-            originChainId: block.chainid,
-            destinationChainId: request.destinationChainId,
-            nonce: request.nonce,
-            verifyingContract: request.verifyingContract,
-            precheckContract: request.precheckContract,
-            precheckData: request.precheckData
-        });
     }
 
     /// @notice Hashes a `CrossChainRequest` request to use as a request identifier

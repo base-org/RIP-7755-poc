@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployRIP7755Verifier} from "../script/DeployRIP7755Verifier.s.sol";
-import {Call, CrossChainCall} from "../src/RIP7755Structs.sol";
+import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
@@ -16,9 +16,10 @@ contract RIP7755VerifierTest is Test {
     MockTarget target;
 
     Call[] calls;
+    address ALICE = makeAddr("alice");
     address FULFILLER = makeAddr("fulfiller");
 
-    event CallFulfilled(bytes32 indexed callHash, address indexed fulfilledBy);
+    event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
     function setUp() public {
         DeployRIP7755Verifier deployer = new DeployRIP7755Verifier();
@@ -28,7 +29,7 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_fulfill_reverts_invalidChainId() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
 
         request.destinationChainId = 0;
 
@@ -38,7 +39,7 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_fulfill_reverts_invalidDestinationAddress() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
 
         request.verifyingContract = address(0);
 
@@ -48,7 +49,7 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_fulfill_storesFulfillment_withSuccessfulPrecheck() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
 
         request.precheckContract = address(precheck);
         request.precheckData = abi.encode(FULFILLER);
@@ -56,15 +57,15 @@ contract RIP7755VerifierTest is Test {
         vm.prank(FULFILLER);
         verifier.fulfill(request);
 
-        bytes32 callHash = verifier.callHashCalldata(request);
-        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(callHash);
+        bytes32 requestHash = verifier.hashRequest(request);
+        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(requestHash);
 
         assertEq(info.filler, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
     function test_fulfill_reverts_failedPrecheck() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
 
         request.precheckContract = address(precheck);
         request.precheckData = abi.encode(address(0));
@@ -75,7 +76,7 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_reverts_callAlreadyFulfilled() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
 
         vm.prank(FULFILLER);
         verifier.fulfill(request);
@@ -86,7 +87,7 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_fulfill_callsTargetContract(uint256 inputNum) external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
         calls.push(
             Call({to: address(target), data: abi.encodeWithSelector(target.target.selector, inputNum), value: 0})
         );
@@ -99,7 +100,7 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_fulfill_reverts_ifTargetContractReverts() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
         calls.push(Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0}));
         request.calls = calls;
 
@@ -109,36 +110,43 @@ contract RIP7755VerifierTest is Test {
     }
 
     function test_fulfill_storesFulfillment() external {
-        CrossChainCall memory request = _initRequest();
+        CrossChainRequest memory request = _initRequest();
 
         vm.prank(FULFILLER);
         verifier.fulfill(request);
 
-        bytes32 callHash = verifier.callHashCalldata(request);
-        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(callHash);
+        bytes32 requestHash = verifier.hashRequest(request);
+        RIP7755Verifier.FulfillmentInfo memory info = verifier.getFulfillmentInfo(requestHash);
 
         assertEq(info.filler, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
     function test_fulfill_emitsEvent() external {
-        CrossChainCall memory request = _initRequest();
-        bytes32 callHash = verifier.callHashCalldata(request);
+        CrossChainRequest memory request = _initRequest();
+        bytes32 requestHash = verifier.hashRequest(request);
 
         vm.prank(FULFILLER);
         vm.expectEmit(true, true, false, false);
-        emit CallFulfilled({callHash: callHash, fulfilledBy: FULFILLER});
+        emit CallFulfilled({requestHash: requestHash, fulfilledBy: FULFILLER});
         verifier.fulfill(request);
     }
 
-    function _initRequest() private view returns (CrossChainCall memory) {
-        return CrossChainCall({
+    function _initRequest() private view returns (CrossChainRequest memory) {
+        return CrossChainRequest({
+            requester: ALICE,
             calls: calls,
             originationContract: address(0),
             originChainId: 0,
             destinationChainId: block.chainid,
-            nonce: 0,
             verifyingContract: address(verifier),
+            l2Oracle: address(0),
+            l2OracleStorageKey: bytes32(0),
+            rewardAsset: address(0),
+            rewardAmount: 0,
+            finalityDelaySeconds: 0,
+            nonce: 0,
+            expiry: 0,
             precheckContract: address(0),
             precheckData: ""
         });
