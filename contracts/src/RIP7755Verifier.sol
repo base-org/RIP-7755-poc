@@ -80,7 +80,7 @@ contract RIP7755Verifier {
             revert CallAlreadyFulfilled();
         }
 
-        _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: msg.sender}));
+        _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: fulfiller}));
 
         for (uint256 i; i < request.calls.length; i++) {
             request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
