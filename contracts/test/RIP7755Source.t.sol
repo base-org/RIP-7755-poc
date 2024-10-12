@@ -173,7 +173,9 @@ contract RIP7755SourceTest is Test {
         vm.prank(FILLER);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.InvalidStatusForClaim.selector, RIP7755Source.CrossChainCallStatus.None
+                RIP7755Source.InvalidStatus.selector,
+                RIP7755Source.CrossChainCallStatus.Requested,
+                RIP7755Source.CrossChainCallStatus.None
             )
         );
         mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
@@ -190,13 +192,15 @@ contract RIP7755SourceTest is Test {
         vm.prank(FILLER);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.InvalidStatusForClaim.selector, RIP7755Source.CrossChainCallStatus.Completed
+                RIP7755Source.InvalidStatus.selector,
+                RIP7755Source.CrossChainCallStatus.Requested,
+                RIP7755Source.CrossChainCallStatus.Completed
             )
         );
         mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
-    function test_claimReward_reverts_requestCancelled(uint256 rewardAmount) external fundAlice(rewardAmount) {
+    function test_claimReward_reverts_requestCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         RIP7755Source.CrossChainRequest memory request = _submitRequest(rewardAmount);
         RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
@@ -208,7 +212,9 @@ contract RIP7755SourceTest is Test {
         vm.prank(FILLER);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.InvalidStatusForClaim.selector, RIP7755Source.CrossChainCallStatus.Canceled
+                RIP7755Source.InvalidStatus.selector,
+                RIP7755Source.CrossChainCallStatus.Requested,
+                RIP7755Source.CrossChainCallStatus.Canceled
             )
         );
         mockSource.claimReward(request, fillInfo, storageProofData, FILLER);
@@ -318,7 +324,9 @@ contract RIP7755SourceTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.None
+                RIP7755Source.InvalidStatus.selector,
+                RIP7755Source.CrossChainCallStatus.Requested,
+                RIP7755Source.CrossChainCallStatus.None
             )
         );
         mockSource.cancelRequest(request);
@@ -333,7 +341,9 @@ contract RIP7755SourceTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.Canceled
+                RIP7755Source.InvalidStatus.selector,
+                RIP7755Source.CrossChainCallStatus.Requested,
+                RIP7755Source.CrossChainCallStatus.Canceled
             )
         );
         mockSource.cancelRequest(request);
@@ -352,7 +362,9 @@ contract RIP7755SourceTest is Test {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Source.InvalidStatusForRequestCancel.selector, RIP7755Source.CrossChainCallStatus.Completed
+                RIP7755Source.InvalidStatus.selector,
+                RIP7755Source.CrossChainCallStatus.Requested,
+                RIP7755Source.CrossChainCallStatus.Completed
             )
         );
         mockSource.cancelRequest(request);

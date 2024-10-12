@@ -8,9 +8,6 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CrossChainCall, Call} from "./RIP7755Structs.sol";
 import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
-// TODO: add nonce getter
-// TODO: standardize status validation
-
 /// @title RIP7755Source
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
@@ -89,13 +86,11 @@ abstract contract RIP7755Source {
     /// @param received The actual `msg.value` that was sent with the transaction
     error InvalidValue(uint256 expected, uint256 received);
 
-    /// @notice This error is thrown if a user attempts to cancel a request that is not in the `CrossChainCallStatus.Requested` state
-    /// @param status The `CrossChainCallStatus` status that the request has
-    error InvalidStatusForRequestCancel(CrossChainCallStatus status);
-
-    /// @notice This error is thrown if a Filler attempts to claim a reward for a request that is not in a `CrossChainCallStatus.Requested` state
-    /// @param status The `CrossChainCallStatus` status of the request
-    error InvalidStatusForClaim(CrossChainCallStatus status);
+    /// @notice This error is thrown if a user attempts to cancel a request or a Filler attempts to claim a reward for
+    /// a request that is not in the `CrossChainCallStatus.Requested` state
+    /// @param expected The expected status during the transaction
+    /// @param actual The actual request status during the transaction
+    error InvalidStatus(CrossChainCallStatus expected, CrossChainCallStatus actual);
 
     /// @notice This error is thrown if an attempt to cancel a request is made before the request's expiry timestamp
     /// @param currentTimestamp The current block timestamp
@@ -114,7 +109,7 @@ abstract contract RIP7755Source {
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
-        request.nonce = ++_nonce;
+        request.nonce = _getNextNonce();
         request.requester = msg.sender;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
@@ -158,7 +153,7 @@ abstract contract RIP7755Source {
             )
         );
 
-        _checkValidStatusForClaim(requestHash);
+        _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
         _validate(storageKey, fillInfo, request, storageProofData);
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
@@ -173,11 +168,8 @@ abstract contract RIP7755Source {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function cancelRequest(CrossChainRequest calldata request) external {
         bytes32 requestHash = hashRequest(request);
-        CrossChainCallStatus status = _requestStatus[requestHash];
 
-        if (status != CrossChainCallStatus.Requested) {
-            revert InvalidStatusForRequestCancel(status);
-        }
+        _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
         if (msg.sender != request.requester) {
             revert InvalidCaller(msg.sender, request.requester);
         }
@@ -262,11 +254,19 @@ abstract contract RIP7755Source {
         IERC20(asset).safeTransfer(to, amount);
     }
 
-    function _checkValidStatusForClaim(bytes32 requestHash) private view {
+    function _getNextNonce() private returns (uint256) {
+        unchecked {
+            // It would take ~3,671,743,063,080,802,746,815,416,825,491,118,336,290,905,145,409,708,398,004 years
+            // with a sustained request rate of 1 trillion requests per second to overflow the nonce counter
+            return ++_nonce;
+        }
+    }
+
+    function _checkValidStatus(bytes32 requestHash, CrossChainCallStatus expectedStatus) private view {
         CrossChainCallStatus status = _requestStatus[requestHash];
 
-        if (status != CrossChainCallStatus.Requested) {
-            revert InvalidStatusForClaim(status);
+        if (status != expectedStatus) {
+            revert InvalidStatus({expected: expectedStatus, actual: status});
         }
     }
 
