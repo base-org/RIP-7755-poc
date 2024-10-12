@@ -80,6 +80,18 @@ contract RIP7755SourceTest is Test {
         mockSource.requestCrossChainCall{value: 1}(request);
     }
 
+    function test_requestCrossChainCall_reverts_ifExpiryTooSoon(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        RIP7755Source.CrossChainRequest memory request = _initRequest(rewardAmount);
+        request.expiry = block.timestamp + request.finalityDelaySeconds - 1;
+
+        vm.prank(ALICE);
+        vm.expectRevert(RIP7755Source.ExpiryTooSoon.selector);
+        mockSource.requestCrossChainCall(request);
+    }
+
     function test_requestCrossChainCall_setMetadata_erc20Reward(uint256 rewardAmount)
         external
         fundAlice(rewardAmount)

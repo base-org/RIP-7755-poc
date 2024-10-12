@@ -110,6 +110,9 @@ abstract contract RIP7755Source {
     /// @param expectedCaller The account that created the request
     error InvalidCaller(address caller, address expectedCaller);
 
+    /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
+    error ExpiryTooSoon();
+
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
@@ -121,6 +124,9 @@ abstract contract RIP7755Source {
 
         if (msg.value != expectedValue) {
             revert InvalidValue(expectedValue, msg.value);
+        }
+        if (request.expiry < block.timestamp + request.finalityDelaySeconds) {
+            revert ExpiryTooSoon();
         }
 
         bytes32 requestHash = hashRequestMemory(request);
