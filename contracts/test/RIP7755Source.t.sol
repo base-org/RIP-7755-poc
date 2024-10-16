@@ -508,7 +508,7 @@ contract RIP7755SourceTest is Test {
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
             nonce: 1,
-            expiry: 100,
+            expiry: block.timestamp + 11,
             precheckContract: address(0),
             precheckData: ""
         });
