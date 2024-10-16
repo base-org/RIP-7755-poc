@@ -61,9 +61,6 @@ library StateValidator {
     /// @notice This error is thrown when validation of the execution client's state root fails
     error ExecutionStateRootMerkleProofFailed();
 
-    /// @notice This error is thrown when the provided `accountProof` does not successfully produce an RLP-encoded account
-    error AccountProofVerificationFailed();
-
     /// @notice This error is thrown when the RLP-encoded account object returned from
     /// `AccountProofParameters.accountProof` is formatted incorrectly
     error InvalidAccountRLP();
@@ -114,7 +111,7 @@ library StateValidator {
         // Derive the account key that shows up in the execution client's merkle trie
         bytes memory accountKey = abi.encodePacked(keccak256(abi.encodePacked(account)));
         // Use the account proof to derive the RLP-encoded account metadata
-        bytes memory encodedAccount = _verifyAccountProof(accountKey, accountProofParams.accountProof, stateRoot);
+        bytes memory encodedAccount = MerkleTrie.get(accountKey, accountProofParams.accountProof, stateRoot);
 
         // Extract storage root from account data
         bytes32 storageRoot = _extractStorageRoot(encodedAccount);
@@ -166,27 +163,6 @@ library StateValidator {
         if (!isValid) {
             revert ExecutionStateRootMerkleProofFailed();
         }
-    }
-
-    /// @notice Using a provided account proof, derives an RLP-encoded account object containing evm account metadata
-    ///
-    /// @custom:reverts If no encoded account is found in the merkle trie
-    ///
-    /// @param accountKey The account key that shows up in the execution client's merkle trie
-    /// @param accountProof A proof used to derive an account's storage root
-    /// @param stateRoot The state root of Ethereum's execution client
-    ///
-    /// @return _ An RLP-encoded account object
-    function _verifyAccountProof(bytes memory accountKey, bytes[] memory accountProof, bytes32 stateRoot)
-        private
-        pure
-        returns (bytes memory)
-    {
-        bytes memory encodedAccount = MerkleTrie.get(accountKey, accountProof, stateRoot);
-        if (encodedAccount.length == 0) {
-            revert AccountProofVerificationFailed();
-        }
-        return encodedAccount;
     }
 
     /// @notice Extracts the storage root from an RLP-encoded account object
