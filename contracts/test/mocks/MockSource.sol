@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {RIP7755Source} from "../../src/RIP7755Source.sol";
+import {RIP7755Source} from "../../src/source/RIP7755Source.sol";
 import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../../src/RIP7755Verifier.sol";
 

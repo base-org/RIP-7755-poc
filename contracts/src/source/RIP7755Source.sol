@@ -5,8 +5,8 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
-import {RIP7755Verifier} from "./RIP7755Verifier.sol";
+import {Call, CrossChainRequest} from "../RIP7755Structs.sol";
+import {RIP7755Verifier} from "../RIP7755Verifier.sol";
 
 /// @title RIP7755Source
 ///
@@ -230,5 +230,14 @@ abstract contract RIP7755Source {
         } else {
             _sendERC20(to, request.rewardAsset, request.rewardAmount);
         }
+    }
+
+    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
+    function _encodeFulfillmentInfo(RIP7755Verifier.FulfillmentInfo calldata fulfillmentInfo)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
     }
 }

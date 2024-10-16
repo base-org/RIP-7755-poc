@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
-import {RIP7755Source} from "../src/RIP7755Source.sol";
+import {RIP7755Source} from "../src/source/RIP7755Source.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
