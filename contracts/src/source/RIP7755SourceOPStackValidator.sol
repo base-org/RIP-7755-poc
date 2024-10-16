@@ -38,7 +38,7 @@ contract RIP7755SourceOPStackValidator is RIP7755Source {
 
     /// @notice This error is thrown when verification of the authenticity of the l2Oracle for the destination L2 chain
     /// on Eth mainnet fails
-    error InvalidStateRoot();
+    error InvalidL1Storage();
 
     /// @notice This error is thrown when verification of the authenticity of the `RIP7755Verifier` storage on the
     /// destination L2 chain fails
@@ -90,7 +90,7 @@ contract RIP7755SourceOPStackValidator is RIP7755Source {
             request.l2Oracle.validateState(proofData.stateProofParams, proofData.dstL2StateRootProofParams);
 
         if (!validState) {
-            revert InvalidStateRoot();
+            revert InvalidL1Storage();
         }
 
         // As an intermediate step, we need to prove that `proofData.dstL2StateRootProofParams.storageValue` is linked

@@ -12,7 +12,7 @@ import {RIP7755SourceOPStackValidator} from "../src/source/RIP7755SourceOPStackV
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
-contract RIP7755SourceBaseValidatorTest is Test {
+contract RIP7755SourceOPStackValidatorTest is Test {
     using stdJson for string;
 
     RIP7755SourceOPStackValidator sourceContract;
@@ -22,11 +22,26 @@ contract RIP7755SourceBaseValidatorTest is Test {
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
     address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    string validProof;
+    string invalidL1StorageProof;
+    string invalidL2StateRootProof;
+    string invalidL2StorageProof;
+    uint256 private _REWARD_AMOUNT = 1 ether;
 
     function setUp() external {
         DeployRIP7755SourceBaseValidator deployer = new DeployRIP7755SourceBaseValidator();
         sourceContract = deployer.run();
         mockErc20 = new ERC20Mock();
+
+        string memory rootPath = vm.projectRoot();
+        string memory path = string.concat(rootPath, "/test/data/MockProof.json");
+        string memory invalidL1StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL1Storage.json");
+        string memory invalidL2StateRootPath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2StateRoot.json");
+        string memory invalidL2StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2Storage.json");
+        validProof = vm.readFile(path);
+        invalidL1StorageProof = vm.readFile(invalidL1StoragePath);
+        invalidL2StateRootProof = vm.readFile(invalidL2StateRootPath);
+        invalidL2StorageProof = vm.readFile(invalidL2StoragePath);
     }
 
     modifier fundAlice(uint256 amount) {
@@ -37,25 +52,62 @@ contract RIP7755SourceBaseValidatorTest is Test {
         _;
     }
 
-    function test_logData() external view {
-        uint256 rewardAmount = 1 ether;
-        CrossChainRequest memory request = _initRequest(rewardAmount);
-        bytes32 requestHash = sourceContract.hashRequest(request);
-        console2.log("hash");
-        console2.logBytes32(requestHash);
-        console2.log("filler");
-        console2.logAddress(FILLER);
+    function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
+        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        request.finalityDelaySeconds = 1 ether;
+        request.expiry = 2 ether;
+
+        vm.prank(ALICE);
+        sourceContract.requestCrossChainCall(request);
+
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = _buildProof(validProof);
+
+        vm.prank(FILLER);
+        vm.expectRevert(RIP7755SourceOPStackValidator.FinalityDelaySecondsInProgress.selector);
+        sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
-    function test_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(1 ether) {
-        string memory rootPath = vm.projectRoot();
-        string memory path = string.concat(rootPath, "/test/data/MockProof.json");
-        string memory json = vm.readFile(path);
-
-        uint256 rewardAmount = 1 ether;
-        CrossChainRequest memory request = _submitRequest(rewardAmount);
+    function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
+        CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
         RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = _buildProof(invalidL1StorageProof);
 
+        vm.prank(FILLER);
+        vm.expectRevert(RIP7755SourceOPStackValidator.InvalidL1Storage.selector);
+        sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
+        CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = _buildProof(invalidL2StateRootProof);
+
+        vm.prank(FILLER);
+        vm.expectRevert(RIP7755SourceOPStackValidator.InvalidL2StateRoot.selector);
+        sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
+        CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = _buildProof(invalidL2StorageProof);
+
+        vm.prank(FILLER);
+        vm.expectRevert(RIP7755SourceOPStackValidator.InvalidL2Storage.selector);
+        sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
+        CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
+        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        bytes memory storageProofData = _buildProof(validProof);
+
+        vm.prank(FILLER);
+        sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
+    }
+
+    function _buildProof(string memory json) private pure returns (bytes memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
@@ -83,10 +135,7 @@ contract RIP7755SourceBaseValidatorTest is Test {
             dstL2StateRootProofParams: dstL2StateRootParams,
             dstL2AccountProofParams: dstL2AccountProofParams
         });
-        bytes memory storageProofData = abi.encode(proofData);
-
-        vm.prank(FILLER);
-        sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
+        return abi.encode(proofData);
     }
 
     function _submitRequest(uint256 rewardAmount) private returns (CrossChainRequest memory) {

@@ -26,6 +26,9 @@ contract MockVerifier {
         return _getFulfillmentInfo(requestHash);
     }
 
+    // Including to block from coverage report
+    function test() external {}
+
     function _getMainStorage() private pure returns (MainStorage storage $) {
         assembly {
             $.slot := _MAIN_STORAGE_LOCATION
