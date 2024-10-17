@@ -242,13 +242,4 @@ contract RIP7755Outbox {
             _sendERC20(to, request.rewardAsset, request.rewardAmount);
         }
     }
-
-    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
-    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
-    }
 }
