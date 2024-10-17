@@ -5,16 +5,16 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
-import {DeployRIP7755SourceArbitrumValidator} from "../script/DeployRIP7755SourceArbitrumValidator.s.sol";
+import {DeployRIP7755OutboxArbitrumValidator} from "../script/DeployRIP7755SourceArbitrumValidator.s.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755SourceArbitrumValidator} from "../src/source/RIP7755SourceArbitrumValidator.sol";
+import {RIP7755OutboxArbitrumValidator} from "../src/source/RIP7755SourceArbitrumValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 
-contract RIP7755SourceArbitrumValidatorTest is Test {
+contract RIP7755OutboxArbitrumValidatorTest is Test {
     using stdJson for string;
 
-    RIP7755SourceArbitrumValidator sourceContract;
+    RIP7755OutboxArbitrumValidator sourceContract;
     ERC20Mock mockErc20;
 
     Call[] calls;
@@ -28,7 +28,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
     uint256 private _REWARD_AMOUNT = 1 ether;
 
     function setUp() external {
-        DeployRIP7755SourceArbitrumValidator deployer = new DeployRIP7755SourceArbitrumValidator();
+        DeployRIP7755OutboxArbitrumValidator deployer = new DeployRIP7755OutboxArbitrumValidator();
         sourceContract = deployer.run();
         mockErc20 = new ERC20Mock();
 
@@ -65,7 +65,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         bytes memory storageProofData = _buildProof(validProof);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755SourceArbitrumValidator.FinalityDelaySecondsInProgress.selector);
+        vm.expectRevert(RIP7755OutboxArbitrumValidator.FinalityDelaySecondsInProgress.selector);
         sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
@@ -75,7 +75,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         bytes memory storageProofData = _buildProof(invalidL1State);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755SourceArbitrumValidator.InvalidStateRoot.selector);
+        vm.expectRevert(RIP7755OutboxArbitrumValidator.InvalidStateRoot.selector);
         sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
@@ -85,7 +85,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         bytes memory storageProofData = _buildProof(invalidBlockHeaders);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755SourceArbitrumValidator.InvalidBlockFieldRLP.selector);
+        vm.expectRevert(RIP7755OutboxArbitrumValidator.InvalidBlockFieldRLP.selector);
         sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
@@ -95,7 +95,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         bytes memory storageProofData = _buildProof(invalidConfirmData);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755SourceArbitrumValidator.InvalidConfirmData.selector);
+        vm.expectRevert(RIP7755OutboxArbitrumValidator.InvalidConfirmData.selector);
         sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
@@ -106,7 +106,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         bytes memory storageProofData = _buildProof(validProof);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755SourceArbitrumValidator.InvalidL2Storage.selector);
+        vm.expectRevert(RIP7755OutboxArbitrumValidator.InvalidL2Storage.selector);
         sourceContract.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
@@ -139,7 +139,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
             storageProof: abi.decode(json.parseRaw(".dstL2AccountProofParams.storageProof"), (bytes[]))
         });
 
-        RIP7755SourceArbitrumValidator.RIP7755Proof memory proofData = RIP7755SourceArbitrumValidator.RIP7755Proof({
+        RIP7755OutboxArbitrumValidator.RIP7755Proof memory proofData = RIP7755OutboxArbitrumValidator.RIP7755Proof({
             sendRoot: json.readBytes(".sendRoot"),
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
             stateProofParams: stateProofParams,

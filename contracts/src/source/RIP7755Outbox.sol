@@ -8,13 +8,13 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../RIP7755Structs.sol";
 
-/// @title RIP7755Source
+/// @title RIP7755Outbox
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
-abstract contract RIP7755Source {
+abstract contract RIP7755Outbox {
     using Address for address payable;
     using SafeERC20 for IERC20;
 

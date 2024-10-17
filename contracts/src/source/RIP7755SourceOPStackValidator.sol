@@ -2,16 +2,16 @@
 pragma solidity 0.8.24;
 
 import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Source} from "./RIP7755Source.sol";
+import {RIP7755Outbox} from "./RIP7755Outbox.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
 
-/// @title RIP7755SourceOPStackValidator
+/// @title RIP7755OutboxOPStackValidator
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
-contract RIP7755SourceOPStackValidator is RIP7755Source {
+contract RIP7755OutboxOPStackValidator is RIP7755Outbox {
     using StateValidator for address;
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof

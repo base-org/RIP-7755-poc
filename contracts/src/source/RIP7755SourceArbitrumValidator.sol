@@ -4,16 +4,16 @@ pragma solidity 0.8.24;
 import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
 import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Source} from "./RIP7755Source.sol";
+import {RIP7755Outbox} from "./RIP7755Outbox.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
 
-/// @title RIP7755SourceArbitrumValidator
+/// @title RIP7755OutboxArbitrumValidator
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on Arbitrum
-contract RIP7755SourceArbitrumValidator is RIP7755Source {
+contract RIP7755OutboxArbitrumValidator is RIP7755Outbox {
     using StateValidator for address;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
