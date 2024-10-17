@@ -39,7 +39,7 @@ Transaction hash: 0x134599df38b0f3a23791a0a25720147add001332c81e52fdb0ffb428619a
 ```
 
 request hash used for test proof generation:
-0x30afd8ae26fc42a6908eab6bafc617694d2c4a25a93ecafe0df925106f592137
+0xd758704a57f68d8454a2e178564de8917b3f5403c103f296ec973c5c0844850c
 
 #### Optimism Sepolia MockVerifier:
 
