@@ -8,8 +8,8 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {DeployRIP7755SourceArbitrumValidator} from "../script/DeployRIP7755SourceArbitrumValidator.s.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755SourceArbitrumValidator} from "../src/source/RIP7755SourceArbitrumValidator.sol";
+import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
-import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
 contract RIP7755SourceArbitrumValidatorTest is Test {
     using stdJson for string;
@@ -61,7 +61,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         vm.prank(ALICE);
         sourceContract.requestCrossChainCall(request);
 
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(validProof);
 
         vm.prank(FILLER);
@@ -71,7 +71,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(invalidL1State);
 
         vm.prank(FILLER);
@@ -81,7 +81,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(invalidBlockHeaders);
 
         vm.prank(FILLER);
@@ -91,7 +91,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
 
     function test_reverts_ifInvalidConfirmData() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(invalidConfirmData);
 
         vm.prank(FILLER);
@@ -101,7 +101,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         fillInfo.timestamp++;
         bytes memory storageProofData = _buildProof(validProof);
 
@@ -112,7 +112,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(validProof);
 
         vm.prank(FILLER);
@@ -166,7 +166,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
             originationContract: address(sourceContract),
             originChainId: block.chainid,
             destinationChainId: 11155420,
-            verifyingContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Verifier on Arbitrum Sepolia
+            verifyingContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Arbitrum Sepolia
             l2Oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8, // Arbitrum Rollup on Sepolia
             l2OracleStorageKey: bytes32(uint256(118)), // Arbitrum Rollup _nodes storage slot
             rewardAsset: address(mockErc20),
@@ -179,7 +179,7 @@ contract RIP7755SourceArbitrumValidatorTest is Test {
         });
     }
 
-    function _initFulfillmentInfo() private view returns (RIP7755Verifier.FulfillmentInfo memory) {
-        return RIP7755Verifier.FulfillmentInfo({timestamp: 1729041967, filler: FILLER});
+    function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
+        return RIP7755Inbox.FulfillmentInfo({timestamp: 1729041967, filler: FILLER});
     }
 }

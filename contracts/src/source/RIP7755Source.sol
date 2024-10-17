@@ -5,8 +5,8 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
+import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../RIP7755Structs.sol";
-import {RIP7755Verifier} from "../RIP7755Verifier.sol";
 
 /// @title RIP7755Source
 ///
@@ -32,7 +32,7 @@ abstract contract RIP7755Source {
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    // Main storage location in `RIP7755Verifier` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
+    // Main storage location in `RIP7755Inbox` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
@@ -108,13 +108,13 @@ abstract contract RIP7755Source {
     /// can prove it with a valid nested storage proof
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
-    /// @param fillInfo The fill info that should be in storage in `RIP7755Verifier` on destination chain
+    /// @param fillInfo The fill info that should be in storage in `RIP7755Inbox` on destination chain
     /// @param storageProofData A storage proof that cryptographically verifies that `fillInfo` does, indeed, exist in
     /// storage on the destination chain
     /// @param payTo The address the Filler wants to receive the reward
     function claimReward(
         CrossChainRequest calldata request,
-        RIP7755Verifier.FulfillmentInfo calldata fillInfo,
+        RIP7755Inbox.FulfillmentInfo calldata fillInfo,
         bytes calldata storageProofData,
         address payTo
     ) external {
@@ -193,7 +193,7 @@ abstract contract RIP7755Source {
     /// @dev Implementation will vary by L2
     function _validate(
         bytes32 verifyingContractStorageKey,
-        RIP7755Verifier.FulfillmentInfo calldata fillInfo,
+        RIP7755Inbox.FulfillmentInfo calldata fillInfo,
         CrossChainRequest calldata crossChainCall,
         bytes calldata storageProofData
     ) internal view virtual;
@@ -233,7 +233,7 @@ abstract contract RIP7755Source {
     }
 
     /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
-    function _encodeFulfillmentInfo(RIP7755Verifier.FulfillmentInfo calldata fulfillmentInfo)
+    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
         internal
         pure
         returns (bytes memory)

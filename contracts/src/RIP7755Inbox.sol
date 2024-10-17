@@ -6,13 +6,13 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {IPrecheckContract} from "./IPrecheckContract.sol";
 import {CrossChainRequest} from "./RIP7755Structs.sol";
 
-/// @title RIP7755Verifier
+/// @title RIP7755Inbox
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice A Verification contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 /// destination chains and store record of their fulfillment.
-contract RIP7755Verifier {
+contract RIP7755Inbox {
     using Address for address;
 
     struct MainStorage {

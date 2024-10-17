@@ -5,8 +5,8 @@ import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/R
 
 import {StateValidator} from "../libraries/StateValidator.sol";
 import {RIP7755Source} from "./RIP7755Source.sol";
+import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
-import {RIP7755Verifier} from "../RIP7755Verifier.sol";
 
 /// @title RIP7755SourceArbitrumValidator
 ///
@@ -31,7 +31,7 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
         /// @dev Parameters needed to validate the authenticity of the l2Oracle for the destination L2 chain on Eth
         /// mainnet
         StateValidator.AccountProofParameters dstL2StateRootProofParams;
-        /// @dev Parameters needed to validate the authenticity of a specified storage location in `RIP7755Verifier` on
+        /// @dev Parameters needed to validate the authenticity of a specified storage location in `RIP7755Inbox` on
         /// the destination L2 chain
         StateValidator.AccountProofParameters dstL2AccountProofParams;
     }
@@ -47,7 +47,7 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
     /// on Eth mainnet fails
     error InvalidStateRoot();
 
-    /// @notice This error is thrown when verification of the authenticity of the `RIP7755Verifier` storage on the
+    /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
     /// destination L2 chain fails
     error InvalidL2Storage();
 
@@ -68,14 +68,14 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
     /// @dev Implementation will vary by L2
     ///
     /// @param verifyingContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Verifier` contract
+    /// `RIP7755Inbox` contract
     /// @param fulfillmentInfo The fulfillment info that should be located at `verifyingContractStorageKey` in storage
-    /// on the destination chain `RIP7755Verifier` contract
+    /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param storageProofData The storage proof to validate
     function _validate(
         bytes32 verifyingContractStorageKey,
-        RIP7755Verifier.FulfillmentInfo calldata fulfillmentInfo,
+        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData
     ) internal view override {
@@ -85,7 +85,7 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
 
         RIP7755Proof memory proofData = abi.decode(storageProofData, (RIP7755Proof));
 
-        // Set the expected storage key and value for the `RIP7755Verifier` on Arbitrum
+        // Set the expected storage key and value for the `RIP7755Inbox` on Arbitrum
         proofData.dstL2AccountProofParams.storageKey = abi.encodePacked(verifyingContractStorageKey);
         proofData.dstL2AccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
 
@@ -126,8 +126,8 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
         // Because the previous step confirmed L1 state, we do not need to repeat steps 1 and 2 again
         // We now just need to validate account storage on the destination L2 using StateValidator.validateAccountStorage
         // This library function will accomplish the following 2 steps:
-        //      5. Validate L2 account proof where `account` here is `RIP7755Verifier` on destination chain
-        //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Verifier` storage
+        //      5. Validate L2 account proof where `account` here is `RIP7755Inbox` on destination chain
+        //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Inbox` storage
         bool validL2Storage =
             request.verifyingContract.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
 

@@ -8,8 +8,8 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {DeployRIP7755SourceBaseValidator} from "../script/DeployRIP7755SourceBaseValidator.s.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755SourceOPStackValidator} from "../src/source/RIP7755SourceOPStackValidator.sol";
+import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
-import {RIP7755Verifier} from "../src/RIP7755Verifier.sol";
 
 contract RIP7755SourceOPStackValidatorTest is Test {
     using stdJson for string;
@@ -59,7 +59,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
         vm.prank(ALICE);
         sourceContract.requestCrossChainCall(request);
 
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
 
         vm.prank(FILLER);
@@ -69,7 +69,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         RIP7755SourceOPStackValidator.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
         bytes memory storageProofData = abi.encode(proofData);
@@ -81,7 +81,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         RIP7755SourceOPStackValidator.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
@@ -93,7 +93,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         RIP7755SourceOPStackValidator.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
@@ -105,7 +105,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1StorageProof);
 
         vm.prank(FILLER);
@@ -115,7 +115,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StateRootProof);
 
         vm.prank(FILLER);
@@ -125,7 +125,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StorageProof);
 
         vm.prank(FILLER);
@@ -135,7 +135,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _submitRequest(_REWARD_AMOUNT);
-        RIP7755Verifier.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
+        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
 
         vm.prank(FILLER);
@@ -193,7 +193,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
             originationContract: address(sourceContract),
             originChainId: block.chainid,
             destinationChainId: 11155420,
-            verifyingContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Verifier on Optimism Sepolia
+            verifyingContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Optimism Sepolia
             l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629, // Anchor State Registry on Sepolia
             l2OracleStorageKey: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49, // Anchor State Registry storage slot
             rewardAsset: address(mockErc20),
@@ -206,7 +206,7 @@ contract RIP7755SourceOPStackValidatorTest is Test {
         });
     }
 
-    function _initFulfillmentInfo() private view returns (RIP7755Verifier.FulfillmentInfo memory) {
-        return RIP7755Verifier.FulfillmentInfo({timestamp: 1728949124, filler: FILLER});
+    function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
+        return RIP7755Inbox.FulfillmentInfo({timestamp: 1728949124, filler: FILLER});
     }
 }

@@ -16,6 +16,6 @@ interface IPrecheckContract {
     /// @notice A precheck function declaration.
     ///
     /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
-    /// @param caller The address of the filler account that submitted the transaction to RIP7755Verifier.
+    /// @param caller The address of the filler account that submitted the transaction to RIP7755Inbox.
     function precheckCall(CrossChainRequest calldata request, address caller) external;
 }
