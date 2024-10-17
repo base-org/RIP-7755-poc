@@ -72,8 +72,6 @@ contract RIP7755Inbox {
             IPrecheckContract(request.precheckContract).precheckCall(request, msg.sender);
         }
 
-        // TODO: Check for trusted originationContract
-
         bytes32 requestHash = hashRequest(request);
 
         if (_getFulfillmentInfo(requestHash).timestamp != 0) {

@@ -7,7 +7,7 @@ import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
 
 contract MockProver is IProver {
     function isValidProof(
-        bytes32,
+        bytes memory,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata,
         bytes calldata

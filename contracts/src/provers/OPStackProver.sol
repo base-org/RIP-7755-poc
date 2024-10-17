@@ -50,21 +50,21 @@ contract OPStackProver is IProver {
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fulfillmentInfo not found at verifyingContractStorageKey on request.verifyingContract
+    /// @custom:reverts If fulfillmentInfo not found at inboxContractStorageKey on request.inboxContract
     /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
     /// chain block timestamp.
     /// @custom:reverts If the L2StateRoot does not correspond to the validated L1 storage slot
     ///
     /// @dev Implementation will vary by L2
     ///
-    /// @param verifyingContractStorageKey The storage location of the data to verify on the destination chain
+    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param fulfillmentInfo The fulfillment info that should be located at `verifyingContractStorageKey` in storage
+    /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param storageProofData The storage proof to validate
     function isValidProof(
-        bytes32 verifyingContractStorageKey,
+        bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData
@@ -77,7 +77,7 @@ contract OPStackProver is IProver {
 
         // Set the expected storage key and value for the `RIP7755Inbox` on the destination OP Stack chain
         // NOTE: the following two lines are temporarily commented out for hacky tests
-        // proofData.dstL2AccountProofParams.storageKey = abi.encodePacked(verifyingContractStorageKey);
+        // proofData.dstL2AccountProofParams.storageKey = inboxContractStorageKey;
         // proofData.dstL2AccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
 
         // We first need to validate knowledge of the destination L2 chain's state root.

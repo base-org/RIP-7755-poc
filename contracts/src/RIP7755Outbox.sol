@@ -77,7 +77,7 @@ contract RIP7755Outbox {
     /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
     error ExpiryTooSoon();
 
-    /// @notice This error is thrown if the prover contract fails to validate the storage proof for a cross chain call 
+    /// @notice This error is thrown if the prover contract fails to validate the storage proof for a cross chain call
     /// being submitted to `RIP7755Inbox`
     error ProofValidationFailed();
 
@@ -122,7 +122,7 @@ contract RIP7755Outbox {
         address payTo
     ) external {
         bytes32 requestHash = hashRequest(request);
-        bytes32 storageKey = keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION));
+        bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
@@ -189,19 +189,19 @@ contract RIP7755Outbox {
     /// @notice Validates storage proofs and verifies fill
     ///
     /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fillInfo not found at verifyingContractStorageKey on crossChainCall.verifyingContract
+    /// @custom:reverts If fillInfo not found at inboxContractStorageKey on crossChainCall.verifyingContract
     /// @custom:reverts If fillInfo.timestamp is less than
     /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
     ///
     /// @dev Implementation will vary by L2
     function _validate(
-        bytes32 verifyingContractStorageKey,
+        bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData
     ) private view {
         bool isValidProof = IProver(request.proverContract).isValidProof(
-            verifyingContractStorageKey, fulfillmentInfo, request, storageProofData
+            inboxContractStorageKey, fulfillmentInfo, request, storageProofData
         );
 
         if (!isValidProof) {

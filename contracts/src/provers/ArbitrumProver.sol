@@ -67,14 +67,14 @@ contract ArbitrumProver is IProver {
     ///
     /// @dev Implementation will vary by L2
     ///
-    /// @param verifyingContractStorageKey The storage location of the data to verify on the destination chain
+    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param fulfillmentInfo The fulfillment info that should be located at `verifyingContractStorageKey` in storage
+    /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param storageProofData The storage proof to validate
     function isValidProof(
-        bytes32 verifyingContractStorageKey,
+        bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData
@@ -86,7 +86,7 @@ contract ArbitrumProver is IProver {
         RIP7755Proof memory proofData = abi.decode(storageProofData, (RIP7755Proof));
 
         // Set the expected storage key and value for the `RIP7755Inbox` on Arbitrum
-        proofData.dstL2AccountProofParams.storageKey = abi.encodePacked(verifyingContractStorageKey);
+        proofData.dstL2AccountProofParams.storageKey = inboxContractStorageKey;
         proofData.dstL2AccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
 
         // Derive the L1 storage key to use in the storage proof. For Arbitrum, we will use the storage slot containing

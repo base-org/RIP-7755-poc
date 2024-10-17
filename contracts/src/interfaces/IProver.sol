@@ -6,7 +6,7 @@ import {CrossChainRequest} from "../RIP7755Structs.sol";
 
 interface IProver {
     function isValidProof(
-        bytes32 verifyingContractStorageKey,
+        bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData

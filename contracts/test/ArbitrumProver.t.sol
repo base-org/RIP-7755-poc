@@ -62,7 +62,7 @@ contract ArbitrumProverTest is Test {
 
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(validProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.FinalityDelaySecondsInProgress.selector);
@@ -73,7 +73,7 @@ contract ArbitrumProverTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(invalidL1State);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidStateRoot.selector);
@@ -84,7 +84,7 @@ contract ArbitrumProverTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(invalidBlockHeaders);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidBlockFieldRLP.selector);
@@ -95,7 +95,7 @@ contract ArbitrumProverTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(invalidConfirmData);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidConfirmData.selector);
@@ -107,7 +107,7 @@ contract ArbitrumProverTest is Test {
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         fillInfo.timestamp++;
         bytes memory storageProofData = _buildProof(validProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidL2Storage.selector);
@@ -118,7 +118,7 @@ contract ArbitrumProverTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProof(validProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
@@ -178,8 +178,8 @@ contract ArbitrumProverTest is Test {
         return RIP7755Inbox.FulfillmentInfo({timestamp: 1729041967, filler: FILLER});
     }
 
-    function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes32) {
+    function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
         bytes32 requestHash = keccak256(abi.encode(request));
-        return keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION));
+        return abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
     }
 }

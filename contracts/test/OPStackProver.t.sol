@@ -60,7 +60,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.FinalityDelaySecondsInProgress.selector);
@@ -73,7 +73,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
         bytes memory storageProofData = abi.encode(proofData);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert();
@@ -86,7 +86,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert();
@@ -99,7 +99,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert();
@@ -110,7 +110,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1StorageProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL1Storage.selector);
@@ -121,7 +121,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StateRootProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2StateRoot.selector);
@@ -132,7 +132,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StorageProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2Storage.selector);
@@ -143,7 +143,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
-        bytes32 inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
@@ -207,8 +207,8 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         return RIP7755Inbox.FulfillmentInfo({timestamp: 1728949124, filler: FILLER});
     }
 
-    function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes32) {
+    function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
         bytes32 requestHash = keccak256(abi.encode(request));
-        return keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION));
+        return abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
     }
 }
