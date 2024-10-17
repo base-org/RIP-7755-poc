@@ -1,66 +1,53 @@
-## Foundry
+# RIP-7755 Contracts
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+This repo consists of work-in-progress implementations of the smart contracts making up [RIP-7755](https://github.com/ethereum/RIPs/pull/31);
 
-Foundry consists of:
+## Getting Started
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+Install dependencies
 
-## Documentation
-
-https://book.getfoundry.sh/
-
-## Usage
-
-### Build
-
-```shell
-$ forge build
+```bash
+forge install
 ```
 
-### Test
+Compile contracts
 
-```shell
-$ forge test
+```bash
+forge build
 ```
 
-### Format
+Run tests
 
-```shell
-$ forge fmt
+```bash
+make test
 ```
 
-### Gas Snapshots
+Check coverage report
 
-```shell
-$ forge snapshot
+```bash
+make coverage
 ```
 
-### Anvil
+## Currently Deployed Contracts for Testing
 
-```shell
-$ anvil
+#### Arbitrum Sepolia MockVerifier:
+
+```txt
+Deployer: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721
+Deployed to: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874
+Transaction hash: 0x134599df38b0f3a23791a0a25720147add001332c81e52fdb0ffb428619a249b
 ```
 
-### Deploy
+request hash used for test proof generation:
+0xd758704a57f68d8454a2e178564de8917b3f5403c103f296ec973c5c0844850c
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+#### Optimism Sepolia MockVerifier:
+
+```txt
+Deployer: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721
+Deployed to: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874
+Transaction hash: 0x7067bff4047efd8559350008c1b3d233e5539885da7467881349bcc66fb9abba
 ```
 
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+request hash used for test proof generation:
+0xe38ad8c9e84178325f28799eb3aaae72551b2eea7920c43d88854edd350719f5

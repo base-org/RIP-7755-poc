@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {IPrecheckContract} from "../../src/IPrecheckContract.sol";
+import {IPrecheckContract} from "../../src/interfaces/IPrecheckContract.sol";
 import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
 
 contract MockPrecheck is IPrecheckContract {
