@@ -77,6 +77,8 @@ contract RIP7755Outbox {
     /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
     error ExpiryTooSoon();
 
+    /// @notice This error is thrown if the prover contract fails to validate the storage proof for a cross chain call 
+    /// being submitted to `RIP7755Inbox`
     error ProofValidationFailed();
 
     /// @notice Submits an RIP-7755 request for a cross chain call
