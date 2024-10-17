@@ -5,9 +5,9 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
-import {DeployRIP7755OutboxBaseValidator} from "../script/DeployRIP7755OutboxBaseValidator.s.sol";
+import {DeployRIP7755OutboxBaseValidator} from "../script/DeployRIP7755SourceBaseValidator.s.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxOPStackValidator} from "../src/source/RIP7755OutboxOPStackValidator.sol";
+import {RIP7755OutboxOPStackValidator} from "../src/source/RIP7755SourceOPStackValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 
