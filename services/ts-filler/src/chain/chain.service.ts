@@ -1,25 +1,16 @@
-import {
-  decodeEventLog,
-  toHex,
-  type Block,
-  type Hex,
-  type PublicClient,
-} from "viem";
+import { decodeEventLog, toHex, type PublicClient } from "viem";
 import { SupportedChains } from "../types/chains";
 import clients from "../common/clients";
 import addresses from "../common/addresses";
 import ArbitrumRollup from "../abis/ArbitrumRollup.json";
 import AnchorStateRegistry from "../abis/AnchorStateRegistry.json";
+import type {
+  DecodedNodeCreatedLog,
+  GetBeaconRootAndL2TimestampReturnType,
+  L2Block,
+} from "../types/chain";
 const { ssz } = await import("@lodestar/types");
 const { SignedBeaconBlock } = ssz.deneb;
-
-type L2Block = Block & { parentBeaconBlockRoot: Hex; number: bigint };
-
-export type GetBeaconRootAndL2TimestampReturnType = {
-  beaconRoot: Hex;
-  timestampForL2BeaconOracle: bigint;
-};
-type DecodedNodeCreatedLog = { args: { assertion: any } };
 
 const BEACON_API_URL = process.env.NODE || "";
 

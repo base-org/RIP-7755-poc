@@ -6,8 +6,6 @@ import {
   toRlp,
   type Address,
   type Block,
-  type GetProofReturnType,
-  type Hex,
 } from "viem";
 import type ChainService from "../chain/chain.service";
 import clients from "../common/clients";
@@ -15,28 +13,18 @@ import config from "../config";
 import { SupportedChains } from "../types/chains";
 import addresses from "../common/addresses";
 import constants from "../common/constants";
-import type { GetBeaconRootAndL2TimestampReturnType } from "../chain/chain.service";
+import type {
+  GetStorageProofsInput,
+  Proofs,
+  StateRootProofReturnType,
+} from "../types/prover";
+import type { GetBeaconRootAndL2TimestampReturnType } from "../types/chain";
+import { deriveOpSepoliaWethStorageSlot } from "../utils/deriveDstStorageSlot";
 const { ssz } = await import("@lodestar/types");
 const { BeaconBlock } = ssz.deneb;
 const { createProof, ProofType } = await import(
   "@chainsafe/persistent-merkle-tree"
 );
-
-export type StateRootProofReturnType = { proof: Hex[]; leaf: Hex };
-
-type Proofs = {
-  storageProof: GetProofReturnType;
-  l2StorageProof: GetProofReturnType;
-  l2MessagePasserStorageProof?: GetProofReturnType;
-};
-
-type GetStorageProofsInput = {
-  dstChain: SupportedChains;
-  l1BlockNumber: bigint;
-  l2Block: Block;
-  l2Slot: Address;
-  nodeIndex: bigint | null;
-};
 
 export default class ProverService {
   private readonly sourceClient: any;
@@ -64,8 +52,8 @@ export default class ProverService {
       dstChain,
       l1BlockNumber
     );
-    const l2Slot = this.deriveRIP7755VerifierStorageSlot(config.requestHash);
-    // const l2Slot = deriveOpSepoliaWethStorageSlot();
+    // const l2Slot = this.deriveRIP7755VerifierStorageSlot(config.requestHash);
+    const l2Slot = deriveOpSepoliaWethStorageSlot();
 
     // // Can be removed after testing /////
     if (dstChain === SupportedChains.OptimismSepolia) {
@@ -123,8 +111,8 @@ export default class ProverService {
         this.buildL1Proof(dstChain, l1BlockNumber, nodeIndex)
       ),
       dstClient.getProof({
-        // address: addresses[dstChain].opSepoliaWethAddr,
-        address: addresses[dstChain].rip7755VerifierContractAddr,
+        address: addresses[dstChain].opSepoliaWethAddr,
+        // address: addresses[dstChain].rip7755VerifierContractAddr,
         storageKeys: [l2Slot],
         blockNumber: l2Block.number,
       }),

@@ -1,8 +1,5 @@
-import { type Address } from "viem";
-
 import type { SupportedChains } from "../types/chains";
-
-type ChainAddresses = { [key: string]: Address };
+import type { ChainAddresses } from "../types/common";
 
 export default {
   arbitrumSepolia: {
