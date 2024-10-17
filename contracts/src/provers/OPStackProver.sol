@@ -62,18 +62,18 @@ contract OPStackProver is IProver {
     /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
-    /// @param storageProofData The storage proof to validate
+    /// @param proof The proof to validate
     function isValidProof(
         bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
-        bytes calldata storageProofData
+        bytes calldata proof
     ) external view returns (bool) {
         if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
             revert FinalityDelaySecondsInProgress();
         }
 
-        RIP7755Proof memory proofData = abi.decode(storageProofData, (RIP7755Proof));
+        RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
         // Set the expected storage key and value for the `RIP7755Inbox` on the destination OP Stack chain
         // NOTE: the following two lines are temporarily commented out for hacky tests

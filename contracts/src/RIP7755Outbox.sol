@@ -111,14 +111,14 @@ contract RIP7755Outbox {
     /// can prove it with a valid nested storage proof
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
-    /// @param fillInfo The fill info that should be in storage in `RIP7755Inbox` on destination chain
-    /// @param storageProofData A storage proof that cryptographically verifies that `fillInfo` does, indeed, exist in
+    /// @param fulfillmentInfo The fill info that should be in storage in `RIP7755Inbox` on destination chain
+    /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     /// storage on the destination chain
     /// @param payTo The address the Filler wants to receive the reward
     function claimReward(
         CrossChainRequest calldata request,
-        RIP7755Inbox.FulfillmentInfo calldata fillInfo,
-        bytes calldata storageProofData,
+        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
+        bytes calldata proof,
         address payTo
     ) external {
         bytes32 requestHash = hashRequest(request);
@@ -126,7 +126,7 @@ contract RIP7755Outbox {
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validate(storageKey, fillInfo, request, storageProofData);
+        _validate(storageKey, fulfillmentInfo, request, proof);
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
@@ -198,11 +198,10 @@ contract RIP7755Outbox {
         bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
-        bytes calldata storageProofData
+        bytes calldata proof
     ) private view {
-        bool isValidProof = IProver(request.proverContract).isValidProof(
-            inboxContractStorageKey, fulfillmentInfo, request, storageProofData
-        );
+        bool isValidProof =
+            IProver(request.proverContract).isValidProof(inboxContractStorageKey, fulfillmentInfo, request, proof);
 
         if (!isValidProof) {
             revert ProofValidationFailed();
