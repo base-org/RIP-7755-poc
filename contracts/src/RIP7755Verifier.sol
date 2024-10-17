@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {IPrecheckContract} from "./IPrecheckContract.sol";
+import {IRIP7755Registry} from "./IRIP7755Registry.sol";
 import {CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Verifier
@@ -31,6 +32,9 @@ contract RIP7755Verifier {
     // Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
     bytes32 private constant _MAIN_STORAGE_LOCATION = 0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
+    // Address of the RIP7755Registry contract 
+    IRIP7755Registry private _registry;
+
     /// @notice Event emitted when a cross chain call is fulfilled
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     /// @param fulfilledBy The account that fulfilled the cross chain call
@@ -42,8 +46,15 @@ contract RIP7755Verifier {
     /// @notice This error is thrown when an account submits a cross chain call with a `verifyingContract` different than this contract's address
     error InvalidVerifyingContract();
 
+    /// @notice This error is thrown when an account submits a cross chain call with a `originationContract` untrusted contract's address
+    error UntrustedOriginationContract();
+
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
+
+    constructor(IRIP7755Registry registry) {
+        _registry = registry;
+    }
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
@@ -72,7 +83,10 @@ contract RIP7755Verifier {
             IPrecheckContract(request.precheckContract).precheckCall(request, msg.sender);
         }
 
-        // TODO: Check for trusted originationContract
+        // Check for trusted originationContract
+        if (!IRIP7755Registry(_registry).checkTrustedContract(request.originationContract)) {
+            revert UntrustedOriginationContract();
+        }
 
         bytes32 requestHash = hashRequest(request);
 
