@@ -3,14 +3,14 @@ pragma solidity 0.8.24;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {IPrecheckContract} from "./IPrecheckContract.sol";
+import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
 import {CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Inbox
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice A Verification contract within RIP-7755. This contract's sole purpose is to route requested transactions on
+/// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 /// destination chains and store record of their fulfillment.
 contract RIP7755Inbox {
     using Address for address;
@@ -39,8 +39,8 @@ contract RIP7755Inbox {
     /// @notice This error is thrown when an account submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
     error InvalidChainId();
 
-    /// @notice This error is thrown when an account submits a cross chain call with a `verifyingContract` different than this contract's address
-    error InvalidVerifyingContract();
+    /// @notice This error is thrown when an account submits a cross chain call with an `inboxContract` different than this contract's address
+    error InvalidInboxContract();
 
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
@@ -63,8 +63,8 @@ contract RIP7755Inbox {
             revert InvalidChainId();
         }
 
-        if (address(this) != request.verifyingContract) {
-            revert InvalidVerifyingContract();
+        if (address(this) != request.inboxContract) {
+            revert InvalidInboxContract();
         }
 
         // Run precheck - call expected to revert if precheck condition(s) not met.

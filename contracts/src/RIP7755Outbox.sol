@@ -5,8 +5,9 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {RIP7755Inbox} from "../RIP7755Inbox.sol";
-import {Call, CrossChainRequest} from "../RIP7755Structs.sol";
+import {IProver} from "./interfaces/IProver.sol";
+import {RIP7755Inbox} from "./RIP7755Inbox.sol";
+import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Outbox
 ///
@@ -14,7 +15,7 @@ import {Call, CrossChainRequest} from "../RIP7755Structs.sol";
 ///
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
-abstract contract RIP7755Outbox {
+contract RIP7755Outbox {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
@@ -76,14 +77,14 @@ abstract contract RIP7755Outbox {
     /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
     error ExpiryTooSoon();
 
+    error ProofValidationFailed();
+
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = _getNextNonce();
         request.requester = msg.sender;
-        request.originationContract = address(this);
-        request.originChainId = block.chainid;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
@@ -193,10 +194,18 @@ abstract contract RIP7755Outbox {
     /// @dev Implementation will vary by L2
     function _validate(
         bytes32 verifyingContractStorageKey,
-        RIP7755Inbox.FulfillmentInfo calldata fillInfo,
-        CrossChainRequest calldata crossChainCall,
+        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
+        CrossChainRequest calldata request,
         bytes calldata storageProofData
-    ) internal view virtual;
+    ) private view {
+        bool isValidProof = IProver(request.proverContract).isValidProof(
+            verifyingContractStorageKey, fulfillmentInfo, request, storageProofData
+        );
+
+        if (!isValidProof) {
+            revert ProofValidationFailed();
+        }
+    }
 
     /// @notice Pulls `amount` of `asset` from `owner` to address(this)
     function _pullERC20(address owner, address asset, uint256 amount) private {

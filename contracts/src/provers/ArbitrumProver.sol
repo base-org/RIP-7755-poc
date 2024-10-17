@@ -3,17 +3,17 @@ pragma solidity 0.8.24;
 
 import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
+import {IProver} from "../interfaces/IProver.sol";
 import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Outbox} from "./RIP7755Outbox.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
 
-/// @title RIP7755OutboxArbitrumValidator
+/// @title ArbitrumProver
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on Arbitrum
-contract RIP7755OutboxArbitrumValidator is RIP7755Outbox {
+contract ArbitrumProver is IProver {
     using StateValidator for address;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
@@ -73,12 +73,12 @@ contract RIP7755OutboxArbitrumValidator is RIP7755Outbox {
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param storageProofData The storage proof to validate
-    function _validate(
+    function isValidProof(
         bytes32 verifyingContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData
-    ) internal view override {
+    ) external view returns (bool) {
         if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
             revert FinalityDelaySecondsInProgress();
         }
@@ -129,11 +129,13 @@ contract RIP7755OutboxArbitrumValidator is RIP7755Outbox {
         //      5. Validate L2 account proof where `account` here is `RIP7755Inbox` on destination chain
         //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Inbox` storage
         bool validL2Storage =
-            request.verifyingContract.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
+            request.inboxContract.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
 
         if (!validL2Storage) {
             revert InvalidL2Storage();
         }
+
+        return true;
     }
 
     /// @notice Derives the L1 storageKey using the supplied `nodeIndex` and the `confirmData` storage slot offset
@@ -159,5 +161,14 @@ contract RIP7755OutboxArbitrumValidator is RIP7755Outbox {
         }
 
         return bytes32(blockFields[3].readBytes()); // state root is the fourth field
+    }
+
+    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
+    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
     }
 }

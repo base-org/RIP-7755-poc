@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {IProver} from "../interfaces/IProver.sol";
 import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Outbox} from "./RIP7755Outbox.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
 
@@ -11,7 +11,7 @@ import {CrossChainRequest} from "../RIP7755Structs.sol";
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
-contract RIP7755OutboxOPStackValidator is RIP7755Outbox {
+contract OPStackProver is IProver {
     using StateValidator for address;
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof
@@ -63,12 +63,12 @@ contract RIP7755OutboxOPStackValidator is RIP7755Outbox {
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param storageProofData The storage proof to validate
-    function _validate(
+    function isValidProof(
         bytes32 verifyingContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata storageProofData
-    ) internal view override {
+    ) external view returns (bool) {
         if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
             revert FinalityDelaySecondsInProgress();
         }
@@ -123,5 +123,7 @@ contract RIP7755OutboxOPStackValidator is RIP7755Outbox {
         if (!validL2Storage) {
             revert InvalidL2Storage();
         }
+
+        return true;
     }
 }

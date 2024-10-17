@@ -41,10 +41,10 @@ contract RIP7755InboxTest is Test {
     function test_fulfill_reverts_invalidDestinationAddress() external {
         CrossChainRequest memory request = _initRequest();
 
-        request.verifyingContract = address(0);
+        request.inboxContract = address(0);
 
         vm.prank(FULFILLER);
-        vm.expectRevert(RIP7755Inbox.InvalidVerifyingContract.selector);
+        vm.expectRevert(RIP7755Inbox.InvalidInboxContract.selector);
         inbox.fulfill(request, FULFILLER);
     }
 
@@ -136,10 +136,9 @@ contract RIP7755InboxTest is Test {
         return CrossChainRequest({
             requester: ALICE,
             calls: calls,
-            originationContract: address(0),
-            originChainId: 0,
+            proverContract: address(0),
             destinationChainId: block.chainid,
-            verifyingContract: address(inbox),
+            inboxContract: address(inbox),
             l2Oracle: address(0),
             l2OracleStorageKey: bytes32(0),
             rewardAsset: address(0),

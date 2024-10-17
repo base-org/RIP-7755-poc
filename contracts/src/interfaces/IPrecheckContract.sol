@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {CrossChainRequest} from "./RIP7755Structs.sol";
+import {CrossChainRequest} from "../RIP7755Structs.sol";
 
 /// @title IPrecheckContract
 ///
@@ -9,7 +9,7 @@ import {CrossChainRequest} from "./RIP7755Structs.sol";
 ///
 /// @notice A standardized interface for a valid Precheck Contract compatible with RIP-7755.
 ///
-/// A cross-chain-call can optionally specify a Precheck Contract used to verify some arbitrary fill condition during the `fulfill` transaction.
+/// A cross-chain-call can optionally specify a Precheck Contract used to verify some arbitrary fulfillment condition during the `fulfill` transaction.
 /// To specify a Precheck contract, set its address in `CrossChainRequest.precheckContract`.
 /// In order for the cross chain call to succeed with a precheck, the Precheck contract must inherit this interface and implement `precheckCall`.
 interface IPrecheckContract {
