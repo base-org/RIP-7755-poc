@@ -126,7 +126,7 @@ contract RIP7755Outbox {
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validate(storageKey, fulfillmentInfo, request, proof);
+        IProver(request.proverContract).validateProof(storageKey, fulfillmentInfo, request, proof);
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
@@ -184,28 +184,6 @@ contract RIP7755Outbox {
     /// @return _ A keccak256 hash of the `CrossChainRequest`
     function hashRequestMemory(CrossChainRequest memory request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
-    }
-
-    /// @notice Validates storage proofs and verifies fill
-    ///
-    /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fillInfo not found at inboxContractStorageKey on crossChainCall.verifyingContract
-    /// @custom:reverts If fillInfo.timestamp is less than
-    /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
-    ///
-    /// @dev Implementation will vary by L2
-    function _validate(
-        bytes memory inboxContractStorageKey,
-        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
-        CrossChainRequest calldata request,
-        bytes calldata proof
-    ) private view {
-        bool isValidProof =
-            IProver(request.proverContract).isValidProof(inboxContractStorageKey, fulfillmentInfo, request, proof);
-
-        if (!isValidProof) {
-            revert ProofValidationFailed();
-        }
     }
 
     /// @notice Pulls `amount` of `asset` from `owner` to address(this)

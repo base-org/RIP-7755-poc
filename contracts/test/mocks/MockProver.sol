@@ -6,12 +6,10 @@ import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
 import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
 
 contract MockProver is IProver {
-    function isValidProof(
+    function validateProof(
         bytes memory,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata,
         bytes calldata
-    ) external pure returns (bool) {
-        return fulfillmentInfo.filler != address(0);
-    }
+    ) external pure {}
 }

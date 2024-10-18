@@ -23,10 +23,10 @@ interface IProver {
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param proofData The proof to validate
-    function isValidProof(
+    function validateProof(
         bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata proofData
-    ) external view returns (bool);
+    ) external view;
 }

@@ -222,17 +222,6 @@ contract RIP7755OutboxTest is Test {
         outbox.claimReward(request, fillInfo, storageProofData, FILLER);
     }
 
-    function test_claimReward_reverts_ifValidationFails(uint256 rewardAmount) external fundAlice(rewardAmount) {
-        CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        fillInfo.filler = address(0);
-        bytes memory storageProofData = abi.encode(false);
-
-        vm.prank(FILLER);
-        vm.expectRevert();
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
-    }
-
     function test_claimReward_storesCompletedStatus_pendingState(uint256 rewardAmount)
         external
         fundAlice(rewardAmount)

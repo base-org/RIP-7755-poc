@@ -64,7 +64,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.FinalityDelaySecondsInProgress.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
@@ -77,7 +77,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
@@ -90,7 +90,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
@@ -103,7 +103,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
@@ -114,7 +114,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL1Storage.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
@@ -125,7 +125,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2StateRoot.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
@@ -136,7 +136,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2Storage.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
@@ -146,7 +146,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function _buildProofAndEncodeProof(string memory json) private pure returns (bytes memory) {

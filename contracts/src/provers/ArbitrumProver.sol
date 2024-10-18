@@ -71,12 +71,12 @@ contract ArbitrumProver is IProver {
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param proof The proof to validate
-    function isValidProof(
+    function validateProof(
         bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata proof
-    ) external view returns (bool) {
+    ) external view {
         if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
             revert FinalityDelaySecondsInProgress();
         }
@@ -132,8 +132,6 @@ contract ArbitrumProver is IProver {
         if (!validL2Storage) {
             revert InvalidL2Storage();
         }
-
-        return true;
     }
 
     /// @notice Derives the L1 storageKey using the supplied `nodeIndex` and the `confirmData` storage slot offset

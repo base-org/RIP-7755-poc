@@ -66,7 +66,7 @@ contract ArbitrumProverTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.FinalityDelaySecondsInProgress.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
@@ -77,7 +77,7 @@ contract ArbitrumProverTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidStateRoot.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
@@ -88,7 +88,7 @@ contract ArbitrumProverTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidBlockFieldRLP.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_reverts_ifInvalidConfirmData() external fundAlice(_REWARD_AMOUNT) {
@@ -99,7 +99,7 @@ contract ArbitrumProverTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidConfirmData.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
@@ -111,7 +111,7 @@ contract ArbitrumProverTest is Test {
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidL2Storage.selector);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
@@ -121,7 +121,7 @@ contract ArbitrumProverTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        prover.isValidProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function _buildProof(string memory json) private pure returns (bytes memory) {
