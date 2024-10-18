@@ -17,14 +17,12 @@ struct CrossChainRequest {
     address requester;
     /// @dev Array of calls to make on the destination chain
     Call[] calls;
-    /// @dev The contract on origin chain where this cross-chain call request originated
-    address originationContract;
-    /// @dev The chainId of the origin chain
-    uint256 originChainId;
+    /// @dev The source chain contract address that will verify state on the destination chain
+    address proverContract;
     /// @dev The chainId of the destination chain
     uint256 destinationChainId;
     /// @dev The L2 contract on destination chain that's storage will be used to verify whether or not this call was made
-    address verifyingContract;
+    address inboxContract;
     /// @dev The L1 address of the contract that should have L2 block info stored
     address l2Oracle;
     /// @dev The storage key at which we expect to find the L2 block info on the l2Oracle

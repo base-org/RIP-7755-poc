@@ -3,17 +3,17 @@ pragma solidity 0.8.24;
 
 import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
+import {IProver} from "../interfaces/IProver.sol";
 import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Source} from "./RIP7755Source.sol";
+import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
-import {RIP7755Verifier} from "../RIP7755Verifier.sol";
 
-/// @title RIP7755SourceArbitrumValidator
+/// @title ArbitrumProver
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on Arbitrum
-contract RIP7755SourceArbitrumValidator is RIP7755Source {
+contract ArbitrumProver is IProver {
     using StateValidator for address;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
@@ -31,7 +31,7 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
         /// @dev Parameters needed to validate the authenticity of the l2Oracle for the destination L2 chain on Eth
         /// mainnet
         StateValidator.AccountProofParameters dstL2StateRootProofParams;
-        /// @dev Parameters needed to validate the authenticity of a specified storage location in `RIP7755Verifier` on
+        /// @dev Parameters needed to validate the authenticity of a specified storage location in `RIP7755Inbox` on
         /// the destination L2 chain
         StateValidator.AccountProofParameters dstL2AccountProofParams;
     }
@@ -47,7 +47,7 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
     /// on Eth mainnet fails
     error InvalidStateRoot();
 
-    /// @notice This error is thrown when verification of the authenticity of the `RIP7755Verifier` storage on the
+    /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
     /// destination L2 chain fails
     error InvalidL2Storage();
 
@@ -65,28 +65,26 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
     /// chain block timestamp.
     /// @custom:reverts If the L2StorageRoot does not correspond to our validated L1 storage slot
     ///
-    /// @dev Implementation will vary by L2
-    ///
-    /// @param verifyingContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Verifier` contract
-    /// @param fulfillmentInfo The fulfillment info that should be located at `verifyingContractStorageKey` in storage
-    /// on the destination chain `RIP7755Verifier` contract
+    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
+    /// `RIP7755Inbox` contract
+    /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
+    /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
-    /// @param storageProofData The storage proof to validate
-    function _validate(
-        bytes32 verifyingContractStorageKey,
-        RIP7755Verifier.FulfillmentInfo calldata fulfillmentInfo,
+    /// @param proof The proof to validate
+    function validateProof(
+        bytes memory inboxContractStorageKey,
+        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
-        bytes calldata storageProofData
-    ) internal view override {
+        bytes calldata proof
+    ) external view {
         if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
             revert FinalityDelaySecondsInProgress();
         }
 
-        RIP7755Proof memory proofData = abi.decode(storageProofData, (RIP7755Proof));
+        RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
-        // Set the expected storage key and value for the `RIP7755Verifier` on Arbitrum
-        proofData.dstL2AccountProofParams.storageKey = abi.encodePacked(verifyingContractStorageKey);
+        // Set the expected storage key and value for the `RIP7755Inbox` on Arbitrum
+        proofData.dstL2AccountProofParams.storageKey = inboxContractStorageKey;
         proofData.dstL2AccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
 
         // Derive the L1 storage key to use in the storage proof. For Arbitrum, we will use the storage slot containing
@@ -126,10 +124,10 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
         // Because the previous step confirmed L1 state, we do not need to repeat steps 1 and 2 again
         // We now just need to validate account storage on the destination L2 using StateValidator.validateAccountStorage
         // This library function will accomplish the following 2 steps:
-        //      5. Validate L2 account proof where `account` here is `RIP7755Verifier` on destination chain
-        //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Verifier` storage
+        //      5. Validate L2 account proof where `account` here is `RIP7755Inbox` on destination chain
+        //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Inbox` storage
         bool validL2Storage =
-            request.verifyingContract.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
+            request.inboxContract.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
 
         if (!validL2Storage) {
             revert InvalidL2Storage();
@@ -159,5 +157,14 @@ contract RIP7755SourceArbitrumValidator is RIP7755Source {
         }
 
         return bytes32(blockFields[3].readBytes()); // state root is the fourth field
+    }
+
+    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
+    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
     }
 }
