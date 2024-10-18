@@ -8,13 +8,15 @@ import {
   type GetBeaconRootAndL2TimestampReturnType,
   type L2Block,
 } from "../types/chain";
+import type ConfigService from "../config/config.service";
 const { ssz } = await import("@lodestar/types");
 const { SignedBeaconBlock } = ssz.deneb;
 
-const BEACON_API_URL = process.env.NODE || "";
-
 export default class ChainService {
-  constructor(private readonly activeChains: ActiveChains) {}
+  constructor(
+    private readonly activeChains: ActiveChains,
+    private readonly configService: ConfigService
+  ) {}
 
   async getBeaconRootAndL2Timestamp(): Promise<GetBeaconRootAndL2TimestampReturnType> {
     console.log("getBeaconRootAndL2Timestamp");
@@ -28,7 +30,8 @@ export default class ChainService {
 
   async getBeaconBlock(tag: string) {
     console.log("getBeaconBlock");
-    const url = `${BEACON_API_URL}/eth/v2/beacon/blocks/${tag}`;
+    const beaconApiUrl = this.configService.getOrThrow("NODE");
+    const url = `${beaconApiUrl}/eth/v2/beacon/blocks/${tag}`;
     const req = { headers: { Accept: "application/octet-stream" } };
     const resp = await fetch(url, req);
 
@@ -113,12 +116,13 @@ export default class ChainService {
   }
 
   private async getLogs(index: bigint) {
+    const etherscanApiKey = this.configService.getOrThrow("ETHERSCAN_API_KEY");
     const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${
       this.activeChains.l1.contracts.arbRollupAddr
     }&topic0=0x4f4caa9e67fb994e349dd35d1ad0ce23053d4323f83ce11dc817b5435031d096&topic0_1_opr=and&topic1=${toHex(
       index,
       { size: 32 }
-    )}&page=1&apikey=${process.env.ETHERSCAN_API_KEY}`;
+    )}&page=1&apikey=${etherscanApiKey}`;
 
     const res = await fetch(url);
 
