@@ -3,6 +3,7 @@ import Prover from "../src/prover/prover.service";
 import config from "../src/config";
 import chains from "../src/chain/chains";
 import { SupportedChains } from "../src/types/chain";
+import ConfigService from "../src/config/config.service";
 
 // Generate and store proof in json file to be used for testing
 async function main() {
@@ -22,7 +23,8 @@ async function main() {
     throw new Error(`Invalid Destination Chain: ${Number(config.dstChain)}`);
   }
 
-  const chainService = new ChainService(activeChains);
+  const configService = new ConfigService();
+  const chainService = new ChainService(activeChains, configService);
   const prover = new Prover(activeChains, chainService);
   const proof = await prover.generateProof();
 
