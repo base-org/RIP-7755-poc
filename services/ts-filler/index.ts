@@ -3,17 +3,11 @@ import HandlerService from "./src/handler/handler.service";
 import SignerService from "./src/signer/signer.service";
 import DBService from "./src/database/db.service";
 import { parseEther, zeroAddress, type Address } from "viem";
+import chains from "./src/chain/chains";
+import { SupportedChains } from "./src/types/chain";
 
 async function main() {
   const sourceChainId = config.sourceChain;
-
-  const signerService = new SignerService();
-  const dbService = new DBService();
-  const handlerService = new HandlerService(
-    sourceChainId,
-    signerService,
-    dbService
-  );
 
   // This info will come from contract event
   const requestHash =
@@ -35,6 +29,32 @@ async function main() {
     precheckContract: zeroAddress,
     precheckData: "0x" as Address,
   };
+
+  const activeChains = {
+    src: chains[sourceChainId],
+    l1: chains[SupportedChains.Sepolia],
+    dst: chains[Number(request.destinationChainId)],
+  };
+
+  if (!activeChains.src) {
+    throw new Error(`Invalid Source Chain: ${sourceChainId}`);
+  }
+  if (!activeChains.l1) {
+    throw new Error(`Invalid L1 Chain: ${SupportedChains.Sepolia}`);
+  }
+  if (!activeChains.dst) {
+    throw new Error(
+      `Invalid Destination Chain: ${Number(request.destinationChainId)}`
+    );
+  }
+
+  const signerService = new SignerService();
+  const dbService = new DBService();
+  const handlerService = new HandlerService(
+    activeChains,
+    signerService,
+    dbService
+  );
 
   await handlerService.handleRequest(requestHash, request);
 }

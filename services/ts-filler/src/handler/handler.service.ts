@@ -1,44 +1,44 @@
 import type { Address } from "viem";
 
 import type { Request } from "../types/request";
-import chains from "../chain/chains";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
+import type { ActiveChains } from "../types/chain";
 
 export default class HandlerService {
   constructor(
-    private readonly sourceChainId: number,
+    private readonly activeChains: ActiveChains,
     private readonly signerService: SignerService,
     private readonly dbService: DBService
   ) {}
 
   async handleRequest(requestHash: Address, request: Request): Promise<void> {
-    const srcChainConfig = chains[this.sourceChainId];
-    const dstChainConfig = chains[Number(request.destinationChainId)];
-
-    if (!srcChainConfig) {
-      throw new Error("Unknown source chain");
-    }
-    if (!dstChainConfig) {
-      throw new Error("Unknown destination chain");
-    }
-
     // - Confirm valid proverContract address on source chain
-    if (!srcChainConfig.proverContracts[Number(request.destinationChainId)]) {
+    if (
+      !this.activeChains.src.proverContracts[Number(request.destinationChainId)]
+    ) {
       throw new Error("Unknown Prover contract");
     }
 
-    // - Use destination chain Id to instantiate wallet client
     // - Make sure inboxContract matches the trusted inbox for dst chain Id
-    if (dstChainConfig.inboxContract !== request.inboxContract) {
+    if (
+      this.activeChains.dst.inboxContract.toLowerCase() !==
+      request.inboxContract.toLowerCase()
+    ) {
       throw new Error("Unknown Inbox contract on dst chain");
     }
 
     // - Confirm l2Oracle and l2OracleStorageKey are valid for dst chain
-    if (request.l2Oracle !== dstChainConfig.l2Oracle) {
+    if (
+      request.l2Oracle.toLowerCase() !==
+      this.activeChains.dst.l2Oracle.toLowerCase()
+    ) {
       throw new Error("Unkown Oracle contract for dst chain");
     }
-    if (request.l2OracleStorageKey !== dstChainConfig.l2OracleStorageKey) {
+    if (
+      request.l2OracleStorageKey.toLowerCase() !==
+      this.activeChains.dst.l2OracleStorageKey.toLowerCase()
+    ) {
       throw new Error("Unknown storage key for dst L2Oracle");
     }
 
@@ -56,6 +56,9 @@ export default class HandlerService {
 
     // function fulfill(CrossChainRequest calldata request, address fulfiller) external
     // submit dst txn
+    console.log(
+      "Request passed validation - preparing transaction for submission to destination chain"
+    );
     const fulfillerAddr = this.signerService.getFulfillerAddress();
     const txnSuccess = await this.signerService.sendTransaction(
       Number(request.destinationChainId),
@@ -70,6 +73,10 @@ export default class HandlerService {
       throw new Error("Failed to submit transaction");
     }
 
+    console.log(
+      "Destination chain transaction successful! Storing record in DB"
+    );
+
     // record db instance to be picked up later for reward collection
     const dbSuccess = await this.dbService.storeSuccessfulCall(requestHash);
 
@@ -77,9 +84,12 @@ export default class HandlerService {
       // Probably want to retry here
       throw new Error("Failed to store successful call in db");
     }
+
+    console.log("Record successfully stored to DB");
   }
 
   private isValidReward(request: Request): boolean {
+    console.log("Validating reward");
     return true; // TODO
   }
 }

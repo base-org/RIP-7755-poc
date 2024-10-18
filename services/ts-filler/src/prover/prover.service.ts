@@ -8,17 +8,17 @@ import {
   type Block,
 } from "viem";
 import type ChainService from "../chain/chain.service";
-import clients from "../common/clients";
-import config from "../config";
-import { SupportedChains } from "../types/chains";
-import addresses from "../common/addresses";
 import constants from "../common/constants";
 import type {
   GetStorageProofsInput,
   Proofs,
   StateRootProofReturnType,
 } from "../types/prover";
-import type { GetBeaconRootAndL2TimestampReturnType } from "../types/chain";
+import {
+  SupportedChains,
+  type ActiveChains,
+  type GetBeaconRootAndL2TimestampReturnType,
+} from "../types/chain";
 import { deriveOpSepoliaWethStorageSlot } from "../utils/deriveDstStorageSlot";
 const { ssz } = await import("@lodestar/types");
 const { BeaconBlock } = ssz.deneb;
@@ -27,36 +27,28 @@ const { createProof, ProofType } = await import(
 );
 
 export default class ProverService {
-  private readonly sourceClient: any;
-
   constructor(
-    sourceChain: SupportedChains,
+    private readonly activeChains: ActiveChains,
     private readonly chainService: ChainService
-  ) {
-    this.sourceClient = clients[sourceChain];
-  }
+  ) {}
 
   async generateProof() {
-    const beaconData = await this.chainService.getBeaconRootAndL2Timestamp(
-      this.sourceClient
-    );
+    const beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
     const beaconBlock = await this.chainService.getBeaconBlock(
       beaconData.beaconRoot
     );
     const stateRootInclusion = this.getExecutionStateRootProof(beaconBlock);
 
-    const dstChain = config.dstChain;
     const l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber);
 
     const { l2Block, sendRoot, nodeIndex } = await this.chainService.getL2Block(
-      dstChain,
       l1BlockNumber
     );
     // const l2Slot = this.deriveRIP7755VerifierStorageSlot(config.requestHash);
     const l2Slot = deriveOpSepoliaWethStorageSlot();
 
     // // Can be removed after testing /////
-    if (dstChain === SupportedChains.OptimismSepolia) {
+    if (this.activeChains.dst.chainId === SupportedChains.OptimismSepolia) {
       // Target block on optimism sepolia
       const targetBlock = 18573292n;
       console.log({
@@ -68,7 +60,6 @@ export default class ProverService {
     // /////////////////////////////////////
 
     const storageProofOpts = {
-      dstChain,
       l1BlockNumber,
       l2Block,
       l2Slot,
@@ -102,26 +93,25 @@ export default class ProverService {
 
   private async getStorageProofs(opts: GetStorageProofsInput) {
     console.log("getStorageProofs");
-    const { dstChain, l1BlockNumber, l2Block, l2Slot, nodeIndex } = opts;
-    const { sepolia: sepoliaClient } = clients;
-    const dstClient = clients[dstChain];
+    const { l1BlockNumber, l2Block, l2Slot, nodeIndex } = opts;
+    const dstConfig = this.activeChains.dst;
 
     const calls = [
-      sepoliaClient.getProof(
-        this.buildL1Proof(dstChain, l1BlockNumber, nodeIndex)
+      this.activeChains.l1.publicClient.getProof(
+        this.buildL1Proof(l1BlockNumber, nodeIndex)
       ),
-      dstClient.getProof({
-        address: addresses[dstChain].opSepoliaWethAddr,
-        // address: addresses[dstChain].rip7755VerifierContractAddr,
+      dstConfig.publicClient.getProof({
+        // address: addresses[dstChain].opSepoliaWethAddr,
+        address: dstConfig.contracts.rip7755VerifierContractAddr,
         storageKeys: [l2Slot],
         blockNumber: l2Block.number,
       }),
     ];
 
-    if (dstChain === SupportedChains.OptimismSepolia) {
+    if (dstConfig.chainId === SupportedChains.OptimismSepolia) {
       calls.push(
-        dstClient.getProof({
-          address: addresses.optimismSepolia.l2MessagePasserAddr,
+        dstConfig.publicClient.getProof({
+          address: dstConfig.contracts.l2MessagePasserAddr,
           storageKeys: [],
           blockNumber: l2Block.number,
         })
@@ -135,19 +125,16 @@ export default class ProverService {
     return { storageProof, l2StorageProof, l2MessagePasserStorageProof };
   }
 
-  private buildL1Proof(
-    dstChain: SupportedChains,
-    l1BlockNumber: bigint,
-    nodeIndex: bigint | null
-  ) {
-    let address = addresses.sepolia.anchorStateRegistryAddr;
+  private buildL1Proof(l1BlockNumber: bigint, nodeIndex: bigint | null) {
+    const l1Config = this.activeChains.l1;
+    let address = l1Config.contracts.anchorStateRegistryAddr;
     let storageKeys = [constants.slots.anchorStateRegistrySlot];
 
-    if (dstChain === SupportedChains.ArbitrumSepolia) {
+    if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
       if (!nodeIndex) {
         throw new Error("Node index is required for Arbitrum proofs");
       }
-      address = addresses.sepolia.arbRollupAddr;
+      address = l1Config.contracts.arbRollupAddr;
       const slot = 118n;
       const offset = 2n; // confirmData is offset by 2 slots in Node struct
       const derivedSlotStart = keccak256(
@@ -212,7 +199,7 @@ export default class ProverService {
         proofs.l2MessagePasserStorageProof.storageHash;
     }
 
-    if (config.dstChain === SupportedChains.ArbitrumSepolia) {
+    if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
       if (!sendRoot) {
         throw new Error("Send Root is required for Arbitrum proofs");
       }

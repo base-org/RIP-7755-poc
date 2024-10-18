@@ -1,13 +1,12 @@
-import { decodeEventLog, toHex, type PublicClient } from "viem";
-import { SupportedChains } from "../types/chains";
-import clients from "../common/clients";
-import addresses from "../common/addresses";
+import { decodeEventLog, toHex } from "viem";
 import ArbitrumRollup from "../abis/ArbitrumRollup.json";
 import AnchorStateRegistry from "../abis/AnchorStateRegistry.json";
-import type {
-  DecodedNodeCreatedLog,
-  GetBeaconRootAndL2TimestampReturnType,
-  L2Block,
+import {
+  SupportedChains,
+  type ActiveChains,
+  type DecodedNodeCreatedLog,
+  type GetBeaconRootAndL2TimestampReturnType,
+  type L2Block,
 } from "../types/chain";
 const { ssz } = await import("@lodestar/types");
 const { SignedBeaconBlock } = ssz.deneb;
@@ -15,11 +14,12 @@ const { SignedBeaconBlock } = ssz.deneb;
 const BEACON_API_URL = process.env.NODE || "";
 
 export default class ChainService {
-  async getBeaconRootAndL2Timestamp(
-    l2ChainPublicClient: PublicClient
-  ): Promise<GetBeaconRootAndL2TimestampReturnType> {
+  constructor(private readonly activeChains: ActiveChains) {}
+
+  async getBeaconRootAndL2Timestamp(): Promise<GetBeaconRootAndL2TimestampReturnType> {
     console.log("getBeaconRootAndL2Timestamp");
-    const block = (await l2ChainPublicClient.getBlock()) as L2Block;
+    const config = this.activeChains.src;
+    const block = (await config.publicClient.getBlock()) as L2Block;
     return {
       beaconRoot: block.parentBeaconBlockRoot,
       timestampForL2BeaconOracle: block.timestamp,
@@ -45,10 +45,10 @@ export default class ChainService {
     return signedBlock.message;
   }
 
-  async getL2Block(chain: SupportedChains, blockNumber?: bigint) {
+  async getL2Block(blockNumber?: bigint) {
     console.log("getL2Block");
 
-    switch (chain) {
+    switch (this.activeChains.dst.chainId) {
       case SupportedChains.ArbitrumSepolia:
         return await this.getArbitrumSepoliaBlock();
       case SupportedChains.OptimismSepolia:
@@ -66,12 +66,10 @@ export default class ChainService {
 
   private async getArbitrumSepoliaBlock() {
     console.log("getArbitrumSepoliaBlock");
-    const { sepolia: sepoliaClient, arbitrumSepolia: arbitrumSepoliaClient } =
-      clients;
     // Need to get blockHash instead
     // 1. Get latest node from Rollup contract
-    const nodeIndex = (await sepoliaClient.readContract({
-      address: addresses.sepolia.arbRollupAddr,
+    const nodeIndex = (await this.activeChains.l1.publicClient.readContract({
+      address: this.activeChains.l1.contracts.arbRollupAddr,
       abi: ArbitrumRollup,
       functionName: "latestConfirmed",
     })) as bigint;
@@ -100,14 +98,15 @@ export default class ChainService {
     // 4. Parse blockHash from assertion
     const blockHash = assertion.afterState.globalState.bytes32Vals[0];
     const sendRoot = assertion.afterState.globalState.bytes32Vals[1];
-    const l2Block = await arbitrumSepoliaClient.getBlock({ blockHash });
+    const l2Block = await this.activeChains.dst.publicClient.getBlock({
+      blockHash,
+    });
     return { l2Block, sendRoot, nodeIndex };
   }
 
   private async getOptimismSepoliaBlock(blockNumber: bigint) {
-    const { optimismSepolia: optimismSepoliaClient } = clients;
     const l2BlockNumber = await this.getL2BlockNumber(blockNumber);
-    const l2Block = await optimismSepoliaClient.getBlock({
+    const l2Block = await this.activeChains.dst.publicClient.getBlock({
       blockNumber: l2BlockNumber,
     });
     return { l2Block, sendRoot: null, nodeIndex: null };
@@ -115,7 +114,7 @@ export default class ChainService {
 
   private async getLogs(index: bigint) {
     const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${
-      addresses.sepolia.arbRollupAddr
+      this.activeChains.l1.contracts.arbRollupAddr
     }&topic0=0x4f4caa9e67fb994e349dd35d1ad0ce23053d4323f83ce11dc817b5435031d096&topic0_1_opr=and&topic1=${toHex(
       index,
       { size: 32 }
@@ -137,9 +136,9 @@ export default class ChainService {
   }
 
   private async getL2BlockNumber(l1BlockNumber: bigint): Promise<bigint> {
-    const { sepolia: sepoliaClient } = clients;
-    const [, l2BlockNumber] = (await sepoliaClient.readContract({
-      address: addresses.sepolia.anchorStateRegistryAddr,
+    const config = this.activeChains.l1;
+    const [, l2BlockNumber] = (await config.publicClient.readContract({
+      address: config.contracts.anchorStateRegistryAddr,
       abi: AnchorStateRegistry,
       functionName: "anchors",
       args: [0n],
