@@ -45,6 +45,11 @@ contract RIP7755Inbox {
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
 
+    /// @notice This error is thrown if a fulfiller submits a `msg.value` greater than the total value needed for all the calls
+    /// @param expected The total value needed for all the calls
+    /// @param actual The received `msg.value`
+    error InvalidValue(uint256 expected, uint256 actual);
+
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
     /// @param requestHash A keccak256 hash of a CrossChainRequest
@@ -80,9 +85,7 @@ contract RIP7755Inbox {
 
         _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: fulfiller}));
 
-        for (uint256 i; i < request.calls.length; i++) {
-            request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
-        }
+        _sendCallsAndValidateMsgValue(request);
 
         emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
     }
@@ -94,6 +97,22 @@ contract RIP7755Inbox {
     /// @return _ A keccak256 hash of the cross chain call request.
     function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
+    }
+
+    function _sendCallsAndValidateMsgValue(CrossChainRequest calldata request) private {
+        uint256 valueSent;
+
+        for (uint256 i; i < request.calls.length; i++) {
+            request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
+
+            unchecked {
+                valueSent += request.calls[i].value;
+            }
+        }
+
+        if (valueSent != msg.value) {
+            revert InvalidValue(valueSent, msg.value);
+        }
     }
 
     function _getMainStorage() private pure returns (MainStorage storage $) {

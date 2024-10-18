@@ -122,6 +122,15 @@ contract RIP7755InboxTest is Test {
         assertEq(info.timestamp, block.timestamp);
     }
 
+    function test_fulfill_reverts_ifMsgValueTooHigh() external {
+        CrossChainRequest memory request = _initRequest();
+
+        vm.deal(FULFILLER, 1);
+        vm.prank(FULFILLER);
+        vm.expectRevert(abi.encodeWithSelector(RIP7755Inbox.InvalidValue.selector, 0, 1));
+        inbox.fulfill{value: 1}(request, FULFILLER);
+    }
+
     function test_fulfill_emitsEvent() external {
         CrossChainRequest memory request = _initRequest();
         bytes32 requestHash = inbox.hashRequest(request);
