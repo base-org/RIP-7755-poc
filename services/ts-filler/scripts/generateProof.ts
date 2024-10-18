@@ -1,11 +1,29 @@
 import ChainService from "../src/chain/chain.service";
 import Prover from "../src/prover/prover.service";
 import config from "../src/config";
+import chains from "../src/chain/chains";
+import { SupportedChains } from "../src/types/chain";
 
 // Generate and store proof in json file to be used for testing
 async function main() {
-  const chainService = new ChainService();
-  const prover = new Prover(config.sourceChain, chainService);
+  const activeChains = {
+    src: chains[config.sourceChain],
+    l1: chains[SupportedChains.Sepolia],
+    dst: chains[config.dstChain],
+  };
+
+  if (!activeChains.src) {
+    throw new Error(`Invalid Source Chain: ${config.sourceChain}`);
+  }
+  if (!activeChains.l1) {
+    throw new Error(`Invalid L1 Chain: ${SupportedChains.Sepolia}`);
+  }
+  if (!activeChains.dst) {
+    throw new Error(`Invalid Destination Chain: ${Number(config.dstChain)}`);
+  }
+
+  const chainService = new ChainService(activeChains);
+  const prover = new Prover(activeChains, chainService);
   const proof = await prover.generateProof();
 
   await Bun.write("./Proof.json", JSON.stringify(proof));
