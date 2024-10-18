@@ -5,16 +5,17 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
+import {IProver} from "./interfaces/IProver.sol";
+import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
-import {RIP7755Verifier} from "./RIP7755Verifier.sol";
 
-/// @title RIP7755Source
+/// @title RIP7755Outbox
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
-abstract contract RIP7755Source {
+contract RIP7755Outbox {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
@@ -32,7 +33,7 @@ abstract contract RIP7755Source {
     /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    // Main storage location in `RIP7755Verifier` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
+    // Main storage location in `RIP7755Inbox` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
@@ -76,14 +77,16 @@ abstract contract RIP7755Source {
     /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
     error ExpiryTooSoon();
 
+    /// @notice This error is thrown if the prover contract fails to validate the storage proof for a cross chain call
+    /// being submitted to `RIP7755Inbox`
+    error ProofValidationFailed();
+
     /// @notice Submits an RIP-7755 request for a cross chain call
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = _getNextNonce();
         request.requester = msg.sender;
-        request.originationContract = address(this);
-        request.originChainId = block.chainid;
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
@@ -108,22 +111,22 @@ abstract contract RIP7755Source {
     /// can prove it with a valid nested storage proof
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
-    /// @param fillInfo The fill info that should be in storage in `RIP7755Verifier` on destination chain
-    /// @param storageProofData A storage proof that cryptographically verifies that `fillInfo` does, indeed, exist in
+    /// @param fulfillmentInfo The fill info that should be in storage in `RIP7755Inbox` on destination chain
+    /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     /// storage on the destination chain
     /// @param payTo The address the Filler wants to receive the reward
     function claimReward(
         CrossChainRequest calldata request,
-        RIP7755Verifier.FulfillmentInfo calldata fillInfo,
-        bytes calldata storageProofData,
+        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
+        bytes calldata proof,
         address payTo
     ) external {
         bytes32 requestHash = hashRequest(request);
-        bytes32 storageKey = keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION));
+        bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validate(storageKey, fillInfo, request, storageProofData);
+        IProver(request.proverContract).validateProof(storageKey, fulfillmentInfo, request, proof);
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
@@ -182,21 +185,6 @@ abstract contract RIP7755Source {
     function hashRequestMemory(CrossChainRequest memory request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
     }
-
-    /// @notice Validates storage proofs and verifies fill
-    ///
-    /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fillInfo not found at verifyingContractStorageKey on crossChainCall.verifyingContract
-    /// @custom:reverts If fillInfo.timestamp is less than
-    /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
-    ///
-    /// @dev Implementation will vary by L2
-    function _validate(
-        bytes32 verifyingContractStorageKey,
-        RIP7755Verifier.FulfillmentInfo calldata fillInfo,
-        CrossChainRequest calldata crossChainCall,
-        bytes calldata storageProofData
-    ) internal view virtual;
 
     /// @notice Pulls `amount` of `asset` from `owner` to address(this)
     function _pullERC20(address owner, address asset, uint256 amount) private {

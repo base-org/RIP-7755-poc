@@ -3,16 +3,16 @@ pragma solidity 0.8.24;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {IPrecheckContract} from "./IPrecheckContract.sol";
+import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
 import {CrossChainRequest} from "./RIP7755Structs.sol";
 
-/// @title RIP7755Verifier
+/// @title RIP7755Inbox
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice A Verification contract within RIP-7755. This contract's sole purpose is to route requested transactions on
+/// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 /// destination chains and store record of their fulfillment.
-contract RIP7755Verifier {
+contract RIP7755Inbox {
     using Address for address;
 
     struct MainStorage {
@@ -39,11 +39,16 @@ contract RIP7755Verifier {
     /// @notice This error is thrown when an account submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
     error InvalidChainId();
 
-    /// @notice This error is thrown when an account submits a cross chain call with a `verifyingContract` different than this contract's address
-    error InvalidVerifyingContract();
+    /// @notice This error is thrown when an account submits a cross chain call with an `inboxContract` different than this contract's address
+    error InvalidInboxContract();
 
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
+
+    /// @notice This error is thrown if a fulfiller submits a `msg.value` greater than the total value needed for all the calls
+    /// @param expected The total value needed for all the calls
+    /// @param actual The received `msg.value`
+    error InvalidValue(uint256 expected, uint256 actual);
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
@@ -63,16 +68,14 @@ contract RIP7755Verifier {
             revert InvalidChainId();
         }
 
-        if (address(this) != request.verifyingContract) {
-            revert InvalidVerifyingContract();
+        if (address(this) != request.inboxContract) {
+            revert InvalidInboxContract();
         }
 
         // Run precheck - call expected to revert if precheck condition(s) not met.
         if (request.precheckContract != address(0)) {
             IPrecheckContract(request.precheckContract).precheckCall(request, msg.sender);
         }
-
-        // TODO: Check for trusted originationContract
 
         bytes32 requestHash = hashRequest(request);
 
@@ -82,9 +85,7 @@ contract RIP7755Verifier {
 
         _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: fulfiller}));
 
-        for (uint256 i; i < request.calls.length; i++) {
-            request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
-        }
+        _sendCallsAndValidateMsgValue(request);
 
         emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
     }
@@ -96,6 +97,22 @@ contract RIP7755Verifier {
     /// @return _ A keccak256 hash of the cross chain call request.
     function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
+    }
+
+    function _sendCallsAndValidateMsgValue(CrossChainRequest calldata request) private {
+        uint256 valueSent;
+
+        for (uint256 i; i < request.calls.length; i++) {
+            request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
+
+            unchecked {
+                valueSent += request.calls[i].value;
+            }
+        }
+
+        if (valueSent != msg.value) {
+            revert InvalidValue(valueSent, msg.value);
+        }
     }
 
     function _getMainStorage() private pure returns (MainStorage storage $) {
