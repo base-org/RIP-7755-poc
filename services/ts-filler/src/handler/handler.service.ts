@@ -14,15 +14,20 @@ export default class HandlerService {
 
   async handleRequest(requestHash: Address, request: Request): Promise<void> {
     // - Confirm valid proverContract address on source chain
+    const proverName = this.activeChains.dst.targetProver;
+    const expectedProverAddr =
+      this.activeChains.src.proverContracts[proverName].toLowerCase();
+
     if (
-      !this.activeChains.src.proverContracts[Number(request.destinationChainId)]
+      this.activeChains.src.proverContracts[proverName].toLowerCase() !==
+      expectedProverAddr
     ) {
       throw new Error("Unknown Prover contract");
     }
 
     // - Make sure inboxContract matches the trusted inbox for dst chain Id
     if (
-      this.activeChains.dst.inboxContract.toLowerCase() !==
+      this.activeChains.dst.contracts.inbox.toLowerCase() !==
       request.inboxContract.toLowerCase()
     ) {
       throw new Error("Unknown Inbox contract on dst chain");

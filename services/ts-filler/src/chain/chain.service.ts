@@ -1,6 +1,6 @@
 import { decodeEventLog, toHex } from "viem";
-import ArbitrumRollup from "../abis/ArbitrumRollup.json";
-import AnchorStateRegistry from "../abis/AnchorStateRegistry.json";
+import ArbitrumRollup from "../abis/ArbitrumRollup";
+import AnchorStateRegistry from "../abis/AnchorStateRegistry";
 import {
   SupportedChains,
   type ActiveChains,
@@ -149,5 +149,20 @@ export default class ChainService {
       blockNumber: l1BlockNumber,
     })) as [any, bigint];
     return l2BlockNumber;
+  }
+
+  async getOutboxLogs(fromBlock: number) {
+    const arbiscanApiKey = this.configService.getOrThrow("ARBISCAN_API_KEY");
+    const url = `https://api-sepolia.arbiscan.io/api?module=logs&action=getLogs&address=${this.activeChains.src.contracts.outbox}&topic0=0x91466a77985019372d6bde6728a808e42b6db50de58526264b5b3716bf7d11de&page=1&apikey=${arbiscanApiKey}&fromBlock=${fromBlock}`;
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      throw new Error("Error fetching logs from etherscan");
+    }
+
+    const json = await res.json();
+
+    return json.result;
   }
 }
