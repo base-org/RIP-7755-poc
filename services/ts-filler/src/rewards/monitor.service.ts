@@ -20,7 +20,6 @@ export default class RewardMonitorService {
   }
 
   async poll() {
-    console.log("Running");
     if (this.processing) return;
     this.processing = true;
 
