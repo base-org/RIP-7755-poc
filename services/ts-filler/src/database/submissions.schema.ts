@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+
 import type { SubmissionType } from "../types/submission";
 import type { RequestType } from "../types/request";
 import type { ActiveChains } from "../types/chain";

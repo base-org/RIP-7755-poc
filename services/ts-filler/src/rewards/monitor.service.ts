@@ -8,6 +8,8 @@ import type DBService from "../database/db.service";
 import ProverService from "../prover/prover.service";
 import SignerService from "../signer/signer.service";
 import type { SubmissionType } from "../types/submission";
+import ArbitrumProof from "../abis/ArbitrumProof";
+import OPStackProof from "../abis/OPStackProof";
 
 export default class RewardMonitorService {
   private processing = false;
@@ -19,7 +21,7 @@ export default class RewardMonitorService {
     setInterval(() => this.poll(), 3000);
   }
 
-  async poll() {
+  async poll(): Promise<void> {
     if (this.processing) return;
     this.processing = true;
 
@@ -32,7 +34,7 @@ export default class RewardMonitorService {
     }
   }
 
-  private async monitor() {
+  private async monitor(): Promise<void> {
     const jobs = await this.dbService.getClaimableRewards();
 
     if (jobs.length === 0) return;
@@ -42,13 +44,13 @@ export default class RewardMonitorService {
     await this.handleJobs(jobs);
   }
 
-  private async handleJobs(jobs: SubmissionType[]) {
+  private async handleJobs(jobs: SubmissionType[]): Promise<void> {
     for (let i = 0; i < jobs.length; i++) {
       await this.handleJob(jobs[i]);
     }
   }
 
-  private async handleJob(job: SubmissionType) {
+  private async handleJob(job: SubmissionType): Promise<void> {
     const activeChains = {
       src: chains[job.activeChains.src],
       l1: chains[job.activeChains.l1],
@@ -65,79 +67,17 @@ export default class RewardMonitorService {
     ]);
     const payTo = signerService.getFulfillerAddress();
 
-    const args = [
-      request,
-      fulfillmentInfo,
-      encodeAbiParameters(
-        [
-          {
-            name: "request",
-            type: "tuple",
-            internalType: "struct CrossChainRequest",
-            components: [
-              { name: "requester", type: "address", internalType: "address" },
-              {
-                name: "calls",
-                type: "tuple[]",
-                internalType: "struct Call[]",
-                components: [
-                  { name: "to", type: "address", internalType: "address" },
-                  { name: "data", type: "bytes", internalType: "bytes" },
-                  { name: "value", type: "uint256", internalType: "uint256" },
-                ],
-              },
-              {
-                name: "proverContract",
-                type: "address",
-                internalType: "address",
-              },
-              {
-                name: "destinationChainId",
-                type: "uint256",
-                internalType: "uint256",
-              },
-              {
-                name: "inboxContract",
-                type: "address",
-                internalType: "address",
-              },
-              { name: "l2Oracle", type: "address", internalType: "address" },
-              {
-                name: "l2OracleStorageKey",
-                type: "bytes32",
-                internalType: "bytes32",
-              },
-              { name: "rewardAsset", type: "address", internalType: "address" },
-              {
-                name: "rewardAmount",
-                type: "uint256",
-                internalType: "uint256",
-              },
-              {
-                name: "finalityDelaySeconds",
-                type: "uint256",
-                internalType: "uint256",
-              },
-              { name: "nonce", type: "uint256", internalType: "uint256" },
-              { name: "expiry", type: "uint256", internalType: "uint256" },
-              {
-                name: "precheckContract",
-                type: "address",
-                internalType: "address",
-              },
-              { name: "precheckData", type: "bytes", internalType: "bytes" },
-            ],
-          },
-        ],
-        [proof]
-      ),
-      payTo,
-    ];
+    const encodedProof = proof.nodeIndex
+      ? encodeAbiParameters(ArbitrumProof, [proof])
+      : encodeAbiParameters(OPStackProof, [proof]);
+
+    const functionName = "claimReward";
+    const args = [request, fulfillmentInfo, encodedProof, payTo];
 
     const txnHash = await signerService.sendTransaction(
       activeChains.src.contracts.outbox,
       RIP7755Outbox,
-      "claimReward",
+      functionName,
       args
     );
 

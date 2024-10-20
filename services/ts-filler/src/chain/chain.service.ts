@@ -1,4 +1,10 @@
-import { decodeEventLog, toHex, type Address } from "viem";
+import {
+  decodeEventLog,
+  toHex,
+  type Address,
+  type Block,
+  type Log,
+} from "viem";
 import ArbitrumRollup from "../abis/ArbitrumRollup";
 import AnchorStateRegistry from "../abis/AnchorStateRegistry";
 import {
@@ -10,6 +16,7 @@ import {
 } from "../types/chain";
 import type ConfigService from "../config/config.service";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
+import type { FulfillmentInfoType } from "../types/fulfillmentInfo";
 const { ssz } = await import("@lodestar/types");
 const { SignedBeaconBlock } = ssz.deneb;
 
@@ -29,7 +36,7 @@ export default class ChainService {
     };
   }
 
-  async getBeaconBlock(tag: string) {
+  async getBeaconBlock(tag: string): Promise<any> {
     console.log("getBeaconBlock");
     const beaconApiUrl = this.configService.getOrThrow("NODE");
     const url = `${beaconApiUrl}/eth/v2/beacon/blocks/${tag}`;
@@ -49,7 +56,11 @@ export default class ChainService {
     return signedBlock.message;
   }
 
-  async getL2Block(blockNumber?: bigint) {
+  async getL2Block(blockNumber?: bigint): Promise<{
+    l2Block: Block;
+    sendRoot?: Address;
+    nodeIndex?: bigint;
+  }> {
     console.log("getL2Block");
 
     switch (this.activeChains.dst.chainId) {
@@ -68,7 +79,11 @@ export default class ChainService {
     }
   }
 
-  private async getArbitrumSepoliaBlock() {
+  private async getArbitrumSepoliaBlock(): Promise<{
+    l2Block: Block;
+    sendRoot: Address;
+    nodeIndex: bigint;
+  }> {
     console.log("getArbitrumSepoliaBlock");
     // Need to get blockHash instead
     // 1. Get latest node from Rollup contract
@@ -108,15 +123,17 @@ export default class ChainService {
     return { l2Block, sendRoot, nodeIndex };
   }
 
-  private async getOptimismSepoliaBlock(blockNumber: bigint) {
+  private async getOptimismSepoliaBlock(
+    blockNumber: bigint
+  ): Promise<{ l2Block: Block }> {
     const l2BlockNumber = await this.getL2BlockNumber(blockNumber);
     const l2Block = await this.activeChains.dst.publicClient.getBlock({
       blockNumber: l2BlockNumber,
     });
-    return { l2Block, sendRoot: null, nodeIndex: null };
+    return { l2Block };
   }
 
-  private async getLogs(index: bigint) {
+  private async getLogs(index: bigint): Promise<Log[]> {
     const etherscanApiKey = this.configService.getOrThrow("ETHERSCAN_API_KEY");
     const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${
       this.activeChains.l1.contracts.arbRollupAddr
@@ -125,19 +142,7 @@ export default class ChainService {
       { size: 32 }
     )}&page=1&apikey=${etherscanApiKey}`;
 
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      throw new Error("Error fetching logs from etherscan");
-    }
-
-    const json = await res.json();
-
-    if (json.result.length === 0) {
-      throw new Error("No logs found from etherscan");
-    }
-
-    return json.result;
+    return await this.request(url);
   }
 
   private async getL2BlockNumber(l1BlockNumber: bigint): Promise<bigint> {
@@ -152,10 +157,25 @@ export default class ChainService {
     return l2BlockNumber;
   }
 
-  async getOutboxLogs(fromBlock: number) {
+  async getOutboxLogs(fromBlock: number): Promise<Log[]> {
     const arbiscanApiKey = this.configService.getOrThrow("ARBISCAN_API_KEY");
     const url = `https://api-sepolia.arbiscan.io/api?module=logs&action=getLogs&address=${this.activeChains.src.contracts.outbox}&topic0=0x91466a77985019372d6bde6728a808e42b6db50de58526264b5b3716bf7d11de&page=1&apikey=${arbiscanApiKey}&fromBlock=${fromBlock}`;
 
+    return await this.request(url);
+  }
+
+  async getFulfillmentInfo(requestHash: Address): Promise<FulfillmentInfoType> {
+    const config = this.activeChains.dst;
+    const info = await config.publicClient.readContract({
+      address: config.contracts.inbox,
+      abi: RIP7755Inbox,
+      functionName: "getFulfillmentInfo",
+      args: [requestHash],
+    });
+    return info;
+  }
+
+  private async request(url: string): Promise<any> {
     const res = await fetch(url);
 
     if (!res.ok) {
@@ -165,16 +185,5 @@ export default class ChainService {
     const json = await res.json();
 
     return json.result;
-  }
-
-  async getFulfillmentInfo(requestHash: Address) {
-    const config = this.activeChains.dst;
-    const info = await config.publicClient.readContract({
-      address: config.contracts.inbox,
-      abi: RIP7755Inbox,
-      functionName: "getFulfillmentInfo",
-      args: [requestHash],
-    });
-    return info;
   }
 }

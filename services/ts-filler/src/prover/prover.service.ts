@@ -7,6 +7,12 @@ import {
   type Address,
   type Block,
 } from "viem";
+const { ssz } = await import("@lodestar/types");
+const { BeaconBlock } = ssz.deneb;
+const { createProof, ProofType } = await import(
+  "@chainsafe/persistent-merkle-tree"
+);
+
 import type ChainService from "../chain/chain.service";
 import constants from "../common/constants";
 import type {
@@ -19,11 +25,7 @@ import {
   type ActiveChains,
   type GetBeaconRootAndL2TimestampReturnType,
 } from "../types/chain";
-const { ssz } = await import("@lodestar/types");
-const { BeaconBlock } = ssz.deneb;
-const { createProof, ProofType } = await import(
-  "@chainsafe/persistent-merkle-tree"
-);
+import type { ArbitrumProof, OPStackProof } from "../types/proof";
 
 export default class ProverService {
   constructor(
@@ -31,7 +33,9 @@ export default class ProverService {
     private readonly chainService: ChainService
   ) {}
 
-  async generateProof(requestHash: Address) {
+  async generateProof(
+    requestHash: Address
+  ): Promise<ArbitrumProof | OPStackProof> {
     const beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
     const beaconBlock = await this.chainService.getBeaconBlock(
       beaconData.beaconRoot
@@ -54,7 +58,7 @@ export default class ProverService {
     };
     const storageProofs = await this.getStorageProofs(storageProofOpts);
 
-    return await this.storeProofObj(
+    return this.storeProofObj(
       storageProofs,
       l2Block,
       beaconData,
@@ -78,7 +82,7 @@ export default class ProverService {
     return { proof, leaf };
   }
 
-  private async getStorageProofs(opts: GetStorageProofsInput) {
+  private async getStorageProofs(opts: GetStorageProofsInput): Promise<Proofs> {
     console.log("getStorageProofs");
     const { l1BlockNumber, l2Block, l2Slot, nodeIndex } = opts;
     const dstConfig = this.activeChains.dst;
@@ -112,7 +116,10 @@ export default class ProverService {
     return { storageProof, l2StorageProof, l2MessagePasserStorageProof };
   }
 
-  private buildL1Proof(l1BlockNumber: bigint, nodeIndex: bigint | null) {
+  private buildL1Proof(
+    l1BlockNumber: bigint,
+    nodeIndex?: bigint
+  ): { address: Address; storageKeys: Address[]; blockNumber: bigint } {
     const l1Config = this.activeChains.l1;
     let address = l1Config.contracts.anchorStateRegistryAddr;
     let storageKeys = [constants.slots.anchorStateRegistrySlot];
@@ -147,14 +154,14 @@ export default class ProverService {
     );
   }
 
-  private async storeProofObj(
+  private storeProofObj(
     proofs: Proofs,
     l2Block: Block,
     beaconData: GetBeaconRootAndL2TimestampReturnType,
     stateRootInclusion: StateRootProofReturnType,
-    sendRoot: Address | null,
-    nodeIndex: bigint | null
-  ) {
+    sendRoot?: Address,
+    nodeIndex?: bigint
+  ): ArbitrumProof | OPStackProof {
     console.log("storeProofObj");
     const proofObj: any = {
       l2StateRoot: l2Block.stateRoot,
@@ -230,7 +237,7 @@ export default class ProverService {
       }
 
       proofObj["encodedBlockArray"] = toRlp(blockArray);
-      proofObj["nodeIndex"] = toHex(nodeIndex, { size: 32 });
+      proofObj["nodeIndex"] = nodeIndex;
 
       delete proofObj.l2StateRoot;
       delete proofObj.l2BlockHash;

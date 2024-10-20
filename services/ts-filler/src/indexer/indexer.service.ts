@@ -16,7 +16,10 @@ export default class IndexerService {
     private readonly configService: ConfigService
   ) {}
 
-  async poll(sourceChain: SupportedChains, startingBlock: number) {
+  async poll(
+    sourceChain: SupportedChains,
+    startingBlock: number
+  ): Promise<number> {
     const configChains = {
       src: chains[sourceChain],
       l1: chains[SupportedChains.Sepolia],
@@ -39,7 +42,7 @@ export default class IndexerService {
     sourceChain: SupportedChains,
     startingBlock: number,
     logs: any
-  ) {
+  ): Promise<number> {
     let maxBlock = startingBlock;
 
     for (let i = 0; i < logs.length; i++) {
@@ -54,7 +57,10 @@ export default class IndexerService {
     return maxBlock + 1;
   }
 
-  private async handleLog(sourceChain: SupportedChains, log: any) {
+  private async handleLog(
+    sourceChain: SupportedChains,
+    log: any
+  ): Promise<void> {
     const topics = decodeEventLog({
       abi: OutboxAbi,
       data: log.data,

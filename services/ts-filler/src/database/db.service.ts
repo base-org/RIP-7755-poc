@@ -4,6 +4,7 @@ import type { Address } from "viem";
 import type { RequestType } from "../types/request";
 import { Submission } from "./submissions.schema";
 import type { ActiveChains } from "../types/chain";
+import type { SubmissionType } from "../types/submission";
 
 export default class DBService {
   constructor() {
@@ -11,7 +12,7 @@ export default class DBService {
     this.connect().catch((err) => console.error(err));
   }
 
-  private async connect() {
+  private async connect(): Promise<void> {
     await mongoose.connect(process.env.MONGO_URI as string);
     console.log("DB successfully connected");
   }
@@ -41,14 +42,14 @@ export default class DBService {
     return true;
   }
 
-  async getClaimableRewards() {
+  async getClaimableRewards(): Promise<SubmissionType[]> {
     return await Submission.find({
       claimAvailableAt: { $lte: Math.floor(Date.now() / 1000) },
       rewardClaimedTxnHash: null,
     });
   }
 
-  async updateRewardClaimed(_id: ObjectId, txnHash: Address) {
+  async updateRewardClaimed(_id: ObjectId, txnHash: Address): Promise<void> {
     const res = await Submission.updateOne(
       { _id },
       { rewardClaimedTxnHash: txnHash }
