@@ -2,7 +2,7 @@ import type { Address } from "viem";
 
 export type Call = {
   to: Address;
-  bytes: Address;
+  data: Address;
   value: bigint;
 };
 

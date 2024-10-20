@@ -2,10 +2,12 @@ import { sleep } from "bun";
 
 import { SupportedChains } from "./src/types/chain";
 import IndexerService from "./src/indexer/indexer.service";
+import DBService from "./src/database/db.service";
 
 async function main() {
   const sourceChain = SupportedChains.ArbitrumSepolia;
-  const indexerService = new IndexerService();
+  const dbService = new DBService();
+  const indexerService = new IndexerService(dbService);
   let success = false,
     startingBlock = 0;
 

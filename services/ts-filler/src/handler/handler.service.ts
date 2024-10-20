@@ -4,6 +4,7 @@ import type { Request } from "../types/request";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
 import type { ActiveChains } from "../types/chain";
+import RIP7755Inbox from "../abis/RIP7755Inbox";
 
 export default class HandlerService {
   constructor(
@@ -65,15 +66,18 @@ export default class HandlerService {
       "Request passed validation - preparing transaction for submission to destination chain"
     );
     const fulfillerAddr = this.signerService.getFulfillerAddress();
-    const txnSuccess = await this.signerService.sendTransaction(
-      Number(request.destinationChainId),
+    console.log({ fulfillerAddr });
+    const txnHash = await this.signerService.sendTransaction(
       request.inboxContract,
+      RIP7755Inbox,
       "fulfill",
       [request, fulfillerAddr],
       valueNeeded
     );
 
-    if (!txnSuccess) {
+    console.log({ txnHash });
+
+    if (!txnHash) {
       // Probably want to retry here
       throw new Error("Failed to submit transaction");
     }
@@ -83,7 +87,11 @@ export default class HandlerService {
     );
 
     // record db instance to be picked up later for reward collection
-    const dbSuccess = await this.dbService.storeSuccessfulCall(requestHash);
+    const dbSuccess = await this.dbService.storeSuccessfulCall(
+      requestHash,
+      txnHash,
+      request
+    );
 
     if (!dbSuccess) {
       // Probably want to retry here

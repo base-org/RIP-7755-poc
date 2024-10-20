@@ -11,6 +11,7 @@
   "dependencies": {
     "@chainsafe/ssz": "^0.17.1",
     "@lodestar/types": "^1.22.0",
+    "mongoose": "^8.7.2",
     "viem": "^2.21.24"
   }
 }
