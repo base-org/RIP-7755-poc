@@ -12,5 +12,5 @@ export type GetStorageProofsInput = {
   l1BlockNumber: bigint;
   l2Block: Block;
   l2Slot: Address;
-  nodeIndex: bigint | null;
+  nodeIndex?: bigint;
 };
