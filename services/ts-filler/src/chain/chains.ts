@@ -22,7 +22,7 @@ export default {
     l2OracleStorageKey:
       "0x0000000000000000000000000000000000000000000000000000000000000076",
     contracts: {
-      inbox: "0xde0f7bd3ED25d3a43ecA56B10bc54d003fD5ea9B",
+      inbox: "0xeE962eD1671F655a806cB22623eEA8A7cCc233bC",
       outbox: "0xBCd5762cF9B07EF5597014c350CE2efB2b0DB2D2",
     },
     publicClient: createPublicClient({
@@ -39,11 +39,11 @@ export default {
       OPStackProver: "0x562879614C9Db8Da9379be1D5B52BAEcDD456d78",
     },
     rpcUrl: process.env.BASE_SEPOLIA_RPC || baseSepolia.rpcUrls.default.http[0],
-    l2Oracle: "0x218CD9489199F321E1177b56385d333c5B598629",
+    l2Oracle: "0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205",
     l2OracleStorageKey:
       "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
     contracts: {
-      inbox: "0xaC60fCC226899F14016d14CfCC955598D4cbe10F",
+      inbox: "0xB482b292878FDe64691d028A2237B34e91c7c7ea",
       outbox: "0xD7a5A114A07cC4B5ebd9C5e1cD1136a99fFA3d68",
     },
     publicClient: createPublicClient({
