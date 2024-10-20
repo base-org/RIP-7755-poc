@@ -1,4 +1,4 @@
-import { decodeEventLog, toHex } from "viem";
+import { decodeEventLog, toHex, type Address } from "viem";
 import ArbitrumRollup from "../abis/ArbitrumRollup";
 import AnchorStateRegistry from "../abis/AnchorStateRegistry";
 import {
@@ -9,6 +9,7 @@ import {
   type L2Block,
 } from "../types/chain";
 import type ConfigService from "../config/config.service";
+import RIP7755Inbox from "../abis/RIP7755Inbox";
 const { ssz } = await import("@lodestar/types");
 const { SignedBeaconBlock } = ssz.deneb;
 
@@ -164,5 +165,16 @@ export default class ChainService {
     const json = await res.json();
 
     return json.result;
+  }
+
+  async getFulfillmentInfo(requestHash: Address) {
+    const config = this.activeChains.dst;
+    const info = await config.publicClient.readContract({
+      address: config.contracts.inbox,
+      abi: RIP7755Inbox,
+      functionName: "getFulfillmentInfo",
+      args: [requestHash],
+    });
+    return info;
   }
 }

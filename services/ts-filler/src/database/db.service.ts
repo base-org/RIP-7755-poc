@@ -1,8 +1,9 @@
-import mongoose from "mongoose";
+import mongoose, { type ObjectId } from "mongoose";
 import type { Address } from "viem";
 
-import type { Request } from "../types/request";
+import type { RequestType } from "../types/request";
 import { Submission } from "./submissions.schema";
+import type { ActiveChains } from "../types/chain";
 
 export default class DBService {
   constructor() {
@@ -18,13 +19,19 @@ export default class DBService {
   async storeSuccessfulCall(
     requestHash: Address,
     txnHash: Address,
-    request: Request
+    request: RequestType,
+    activeChains: ActiveChains
   ): Promise<boolean> {
     const doc = new Submission({
       requestHash,
       claimAvailableAt:
         Math.floor(Date.now() / 1000) + Number(request.finalityDelaySeconds),
       txnSubmittedHash: txnHash,
+      activeChains: {
+        src: activeChains.src.chainId,
+        l1: activeChains.l1.chainId,
+        dst: activeChains.dst.chainId,
+      },
       request,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -32,5 +39,23 @@ export default class DBService {
     await doc.save();
 
     return true;
+  }
+
+  async getClaimableRewards() {
+    return await Submission.find({
+      claimAvailableAt: { $lte: Math.floor(Date.now() / 1000) },
+      rewardClaimedTxnHash: null,
+    });
+  }
+
+  async updateRewardClaimed(_id: ObjectId, txnHash: Address) {
+    const res = await Submission.updateOne(
+      { _id },
+      { rewardClaimedTxnHash: txnHash }
+    );
+
+    if (res.modifiedCount === 0) {
+      throw new Error("Error updating submission document");
+    }
   }
 }

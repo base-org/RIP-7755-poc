@@ -19,7 +19,6 @@ import {
   type ActiveChains,
   type GetBeaconRootAndL2TimestampReturnType,
 } from "../types/chain";
-import { deriveOpSepoliaWethStorageSlot } from "../utils/deriveDstStorageSlot";
 const { ssz } = await import("@lodestar/types");
 const { BeaconBlock } = ssz.deneb;
 const { createProof, ProofType } = await import(
@@ -32,7 +31,7 @@ export default class ProverService {
     private readonly chainService: ChainService
   ) {}
 
-  async generateProof() {
+  async generateProof(requestHash: Address) {
     const beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
     const beaconBlock = await this.chainService.getBeaconBlock(
       beaconData.beaconRoot
@@ -44,20 +43,8 @@ export default class ProverService {
     const { l2Block, sendRoot, nodeIndex } = await this.chainService.getL2Block(
       l1BlockNumber
     );
-    // const l2Slot = this.deriveRIP7755VerifierStorageSlot(config.requestHash);
-    const l2Slot = deriveOpSepoliaWethStorageSlot();
-
-    // // Can be removed after testing /////
-    if (this.activeChains.dst.chainId === SupportedChains.OptimismSepolia) {
-      // Target block on optimism sepolia
-      const targetBlock = 18573292n;
-      console.log({
-        targetBlock,
-        l2BlockNumber: l2Block.number,
-        diff: targetBlock - l2Block.number,
-      });
-    }
-    // /////////////////////////////////////
+    const l2Slot = this.deriveRIP7755VerifierStorageSlot(requestHash);
+    // const l2Slot = deriveOpSepoliaWethStorageSlot();
 
     const storageProofOpts = {
       l1BlockNumber,
@@ -167,7 +154,7 @@ export default class ProverService {
     stateRootInclusion: StateRootProofReturnType,
     sendRoot: Address | null,
     nodeIndex: bigint | null
-  ): Promise<any> {
+  ) {
     console.log("storeProofObj");
     const proofObj: any = {
       l2StateRoot: l2Block.stateRoot,
