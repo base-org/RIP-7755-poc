@@ -5,22 +5,24 @@ import chains from "../chain/chains";
 import ConfigService from "../config/config.service";
 import { SupportedChains } from "../types/chain";
 import OutboxAbi from "../abis/RIP7755Outbox";
-import type { Request } from "../types/request";
+import type { RequestType } from "../types/request";
 import SignerService from "../signer/signer.service";
 import DBService from "../database/db.service";
 import HandlerService from "../handler/handler.service";
 
 export default class IndexerService {
-  constructor(private readonly dbService: DBService) {}
+  constructor(
+    private readonly dbService: DBService,
+    private readonly configService: ConfigService
+  ) {}
 
   async poll(sourceChain: SupportedChains, startingBlock: number) {
-    const configService = new ConfigService();
     const configChains = {
       src: chains[sourceChain],
       l1: chains[SupportedChains.Sepolia],
       dst: chains[SupportedChains.BaseSepolia],
     };
-    const chainService = new ChainService(configChains, configService);
+    const chainService = new ChainService(configChains, this.configService);
 
     const logs = await chainService.getOutboxLogs(startingBlock);
 
@@ -41,8 +43,9 @@ export default class IndexerService {
     let maxBlock = startingBlock;
 
     for (let i = 0; i < logs.length; i++) {
+      maxBlock = Math.max(maxBlock, Number(BigInt(logs[i].blockNumber)));
       try {
-        maxBlock = await this.handleLog(sourceChain, logs[i], maxBlock);
+        await this.handleLog(sourceChain, logs[i]);
       } catch (e) {
         console.error("Error handling log:", e);
       }
@@ -51,11 +54,7 @@ export default class IndexerService {
     return maxBlock + 1;
   }
 
-  private async handleLog(
-    sourceChain: SupportedChains,
-    log: any,
-    maxBlock: number
-  ) {
+  private async handleLog(sourceChain: SupportedChains, log: any) {
     const topics = decodeEventLog({
       abi: OutboxAbi,
       data: log.data,
@@ -70,7 +69,7 @@ export default class IndexerService {
 
     const { requestHash, request } = topics.args as {
       requestHash: Address;
-      request: Request;
+      request: RequestType;
     };
 
     const activeChains = {
@@ -99,7 +98,5 @@ export default class IndexerService {
     );
 
     await handlerService.handleRequest(requestHash, request);
-
-    return Math.max(maxBlock, Number(BigInt(log.blockNumber)));
   }
 }

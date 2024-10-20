@@ -1,4 +1,7 @@
 import mongoose from "mongoose";
+import type { SubmissionType } from "../types/submission";
+import type { RequestType } from "../types/request";
+import type { ActiveChains } from "../types/chain";
 
 const callSchema = new mongoose.Schema({
   to: String,
@@ -6,7 +9,7 @@ const callSchema = new mongoose.Schema({
   value: String,
 });
 
-const requestSchema = new mongoose.Schema({
+const requestSchema = new mongoose.Schema<RequestType>({
   requester: String,
   calls: [callSchema],
   proverContract: String,
@@ -23,11 +26,19 @@ const requestSchema = new mongoose.Schema({
   precheckData: String,
 });
 
-const submissionSchema = new mongoose.Schema({
+const activeChainsSchema = new mongoose.Schema<ActiveChains>({
+  src: Number,
+  l1: Number,
+  dst: Number,
+});
+
+const submissionSchema = new mongoose.Schema<SubmissionType>({
   requestHash: String,
   claimAvailableAt: Number,
   txnSubmittedHash: String,
+  rewardClaimedTxnHash: String,
   request: requestSchema,
+  activeChains: activeChainsSchema,
   createdAt: Date,
   updatedAt: Date,
 });

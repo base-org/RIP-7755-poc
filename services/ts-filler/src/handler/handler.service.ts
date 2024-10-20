@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 
-import type { Request } from "../types/request";
+import type { RequestType } from "../types/request";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
 import type { ActiveChains } from "../types/chain";
@@ -13,7 +13,10 @@ export default class HandlerService {
     private readonly dbService: DBService
   ) {}
 
-  async handleRequest(requestHash: Address, request: Request): Promise<void> {
+  async handleRequest(
+    requestHash: Address,
+    request: RequestType
+  ): Promise<void> {
     // - Confirm valid proverContract address on source chain
     const proverName = this.activeChains.dst.targetProver;
     const expectedProverAddr =
@@ -90,7 +93,8 @@ export default class HandlerService {
     const dbSuccess = await this.dbService.storeSuccessfulCall(
       requestHash,
       txnHash,
-      request
+      request,
+      this.activeChains
     );
 
     if (!dbSuccess) {
@@ -101,7 +105,7 @@ export default class HandlerService {
     console.log("Record successfully stored to DB");
   }
 
-  private isValidReward(request: Request): boolean {
+  private isValidReward(request: RequestType): boolean {
     console.log("Validating reward");
     return true; // TODO
   }

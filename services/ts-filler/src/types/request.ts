@@ -1,14 +1,14 @@
 import type { Address } from "viem";
 
-export type Call = {
+export type CallType = {
   to: Address;
   data: Address;
   value: bigint;
 };
 
-export type Request = {
+export type RequestType = {
   requester: Address;
-  calls: Call[];
+  calls: CallType[];
   proverContract: Address;
   destinationChainId: bigint;
   inboxContract: Address;
