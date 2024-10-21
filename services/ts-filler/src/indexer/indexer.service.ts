@@ -44,13 +44,18 @@ export default class IndexerService {
     logs: any
   ): Promise<number> {
     let maxBlock = startingBlock;
+    const calls = [];
 
     for (let i = 0; i < logs.length; i++) {
       maxBlock = Math.max(maxBlock, Number(BigInt(logs[i].blockNumber)));
-      try {
-        await this.handleLog(sourceChain, logs[i]);
-      } catch (e) {
-        console.error("Error handling log:", e);
+      calls.push(this.handleLog(sourceChain, logs[i]));
+    }
+
+    const responses = await Promise.allSettled(calls);
+
+    for (let i = 0; i < responses.length; i++) {
+      if (responses[i].status !== "fulfilled") {
+        console.error("Error processing log", responses[i]);
       }
     }
 

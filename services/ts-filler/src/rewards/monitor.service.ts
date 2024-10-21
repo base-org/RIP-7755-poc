@@ -45,13 +45,7 @@ export default class RewardMonitorService {
 
     console.log(`Found ${jobs.length} rewards to claim`);
 
-    await this.handleJobs(jobs);
-  }
-
-  private async handleJobs(jobs: SubmissionType[]): Promise<void> {
-    for (let i = 0; i < jobs.length; i++) {
-      await this.handleJob(jobs[i]);
-    }
+    await Promise.allSettled(jobs.map((job) => this.handleJob(job)));
   }
 
   private async handleJob(job: SubmissionType): Promise<void> {
@@ -76,6 +70,10 @@ export default class RewardMonitorService {
     const functionName = "claimReward";
     const args = [request, fulfillmentInfo, encodedProof, payTo];
 
+    console.log(
+      "Proof successfully generated. Sending rewardClaim transaction"
+    );
+
     const txnHash = await signerService.sendTransaction(
       activeChains.src.contracts.outbox,
       RIP7755Outbox,
@@ -83,12 +81,11 @@ export default class RewardMonitorService {
       args
     );
 
-    console.log({ txnHash });
-
     if (!txnHash) {
-      // Probably want to retry here
       throw new Error("Failed to submit transaction");
     }
+
+    console.log(`Transaction successful: ${txnHash}`);
 
     await this.dbService.updateRewardClaimed(job._id, txnHash);
   }
