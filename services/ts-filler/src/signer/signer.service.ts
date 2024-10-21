@@ -33,6 +33,24 @@ export default class SignerService {
     return this.account.address;
   }
 
+  async estimateGas(
+    to: Address,
+    abi: any,
+    functionName: string,
+    args: any[],
+    value = 0n
+  ): Promise<bigint> {
+    return await this.chain.publicClient.estimateGas({
+      address: to,
+      abi,
+      functionName,
+      args,
+      value,
+      chain: this.chain.publicClient.chain,
+      account: this.account,
+    });
+  }
+
   async sendTransaction(
     to: Address,
     abi: any,
