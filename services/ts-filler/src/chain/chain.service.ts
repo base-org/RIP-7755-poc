@@ -17,6 +17,7 @@ import {
 import type ConfigService from "../config/config.service";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
 import type { FulfillmentInfoType } from "../types/fulfillmentInfo";
+import safeFetch from "../utils/safeFetch";
 const { ssz } = await import("@lodestar/types");
 const { SignedBeaconBlock } = ssz.deneb;
 
@@ -41,7 +42,11 @@ export default class ChainService {
     const beaconApiUrl = this.configService.getOrThrow("NODE");
     const url = `${beaconApiUrl}/eth/v2/beacon/blocks/${tag}`;
     const req = { headers: { Accept: "application/octet-stream" } };
-    const resp = await fetch(url, req);
+    const resp = await safeFetch(url, req);
+
+    if (!resp) {
+      throw new Error("Error fetching Beacon Block");
+    }
 
     if (resp.status === 404) {
       throw new Error(`Missing block ${tag}`);
@@ -176,9 +181,9 @@ export default class ChainService {
   }
 
   private async request(url: string): Promise<any> {
-    const res = await fetch(url);
+    const res = await safeFetch(url);
 
-    if (!res.ok) {
+    if (res === null || !res.ok) {
       throw new Error("Error fetching logs from etherscan");
     }
 
