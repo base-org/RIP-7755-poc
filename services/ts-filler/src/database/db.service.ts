@@ -1,10 +1,11 @@
 import mongoose, { type ObjectId } from "mongoose";
 import type { Address } from "viem";
 
-import type { RequestType } from "../types/request";
+import type { RequestType } from "../common/types/request";
 import { Submission } from "./submissions.schema";
-import type { ActiveChains } from "../types/chain";
-import type { SubmissionType } from "../types/submission";
+import type { ActiveChains } from "../common/types/chain";
+import type { SubmissionType } from "../common/types/submission";
+import exponentialBackoff from "../common/utils/exponentialBackoff";
 
 export default class DBService {
   constructor() {
@@ -37,23 +38,27 @@ export default class DBService {
       createdAt: new Date(),
       updatedAt: new Date(),
     });
-    await doc.save();
+    await exponentialBackoff(async () => await doc.save());
 
     return true;
   }
 
   async getClaimableRewards(): Promise<SubmissionType[]> {
-    return await Submission.find({
-      claimAvailableAt: { $lte: Math.floor(Date.now() / 1000) },
-      rewardClaimedTxnHash: null,
+    return await exponentialBackoff(async () => {
+      return await Submission.find({
+        claimAvailableAt: { $lte: Math.floor(Date.now() / 1000) },
+        rewardClaimedTxnHash: null,
+      });
     });
   }
 
   async updateRewardClaimed(_id: ObjectId, txnHash: Address): Promise<void> {
-    const res = await Submission.updateOne(
-      { _id },
-      { rewardClaimedTxnHash: txnHash }
-    );
+    const res = await exponentialBackoff(async () => {
+      return await Submission.updateOne(
+        { _id },
+        { rewardClaimedTxnHash: txnHash }
+      );
+    });
 
     if (res.modifiedCount === 0) {
       throw new Error("Error updating submission document");

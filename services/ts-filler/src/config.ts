@@ -1,5 +1,5 @@
 import type { Address } from "viem";
-import { SupportedChains } from "./types/chain";
+import { SupportedChains } from "./common/types/chain";
 
 export default {
   sourceChain: SupportedChains.BaseSepolia,

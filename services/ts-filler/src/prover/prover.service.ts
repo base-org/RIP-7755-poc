@@ -19,13 +19,16 @@ import type {
   GetStorageProofsInput,
   Proofs,
   StateRootProofReturnType,
-} from "../types/prover";
+} from "../common/types/prover";
 import {
   SupportedChains,
   type ActiveChains,
   type GetBeaconRootAndL2TimestampReturnType,
-} from "../types/chain";
-import type { ArbitrumProof, OPStackProof } from "../types/proof";
+} from "../common/types/chain";
+import type {
+  ArbitrumProofType,
+  OPStackProofType,
+} from "../common/types/proof";
 
 export default class ProverService {
   constructor(
@@ -35,7 +38,7 @@ export default class ProverService {
 
   async generateProof(
     requestHash: Address
-  ): Promise<ArbitrumProof | OPStackProof> {
+  ): Promise<ArbitrumProofType | OPStackProofType> {
     const beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
     const beaconBlock = await this.chainService.getBeaconBlock(
       beaconData.beaconRoot
@@ -161,7 +164,7 @@ export default class ProverService {
     stateRootInclusion: StateRootProofReturnType,
     sendRoot?: Address,
     nodeIndex?: bigint
-  ): ArbitrumProof | OPStackProof {
+  ): ArbitrumProofType | OPStackProofType {
     console.log("storeProofObj");
     const proofObj: any = {
       l2StateRoot: l2Block.stateRoot,

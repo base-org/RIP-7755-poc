@@ -7,7 +7,8 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 
-import type { ChainConfig } from "../types/chain";
+import type { ChainConfig } from "../common/types/chain";
+import exponentialBackoff from "../common/utils/exponentialBackoff";
 
 export default class SignerService {
   private account: Account;
@@ -40,14 +41,16 @@ export default class SignerService {
     args: any[],
     value = 0n
   ): Promise<bigint> {
-    return await this.chain.publicClient.estimateGas({
-      address: to,
-      abi,
-      functionName,
-      args,
-      value,
-      chain: this.chain.publicClient.chain,
-      account: this.account,
+    return await exponentialBackoff(async () => {
+      return await this.chain.publicClient.estimateGas({
+        address: to,
+        abi,
+        functionName,
+        args,
+        value,
+        chain: this.chain.publicClient.chain,
+        account: this.account,
+      });
     });
   }
 
@@ -58,15 +61,16 @@ export default class SignerService {
     args: any[],
     value = 0n
   ): Promise<Address> {
-    const txHash = await this.signer.writeContract({
-      address: to,
-      abi,
-      functionName,
-      args,
-      value,
-      chain: this.chain.publicClient.chain,
-      account: this.account,
+    return await exponentialBackoff(async () => {
+      return await this.signer.writeContract({
+        address: to,
+        abi,
+        functionName,
+        args,
+        value,
+        chain: this.chain.publicClient.chain,
+        account: this.account,
+      });
     });
-    return txHash;
   }
 }

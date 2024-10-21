@@ -1,9 +1,9 @@
 import type { Address } from "viem";
 
-import type { RequestType } from "../types/request";
+import type { RequestType } from "../common/types/request";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
-import type { ActiveChains } from "../types/chain";
+import type { ActiveChains } from "../common/types/chain";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
 
 export default class HandlerService {
@@ -91,15 +91,12 @@ export default class HandlerService {
       valueNeeded
     );
 
-    console.log(`Transaction submitted. TxHash: ${txnHash}`);
-
     if (!txnHash) {
-      // Probably want to retry here
       throw new Error("Failed to submit transaction");
     }
 
     console.log(
-      "Destination chain transaction successful! Storing record in DB"
+      `Destination chain transaction successful! Storing record in DB. TxHash: ${txnHash}`
     );
 
     // record db instance to be picked up later for reward collection
@@ -111,7 +108,6 @@ export default class HandlerService {
     );
 
     if (!dbSuccess) {
-      // Probably want to retry here
       throw new Error("Failed to store successful call in db");
     }
 

@@ -5,6 +5,9 @@ import {
   type Block,
   type Log,
 } from "viem";
+const { ssz } = await import("@lodestar/types");
+const { SignedBeaconBlock } = ssz.deneb;
+
 import ArbitrumRollup from "../abis/ArbitrumRollup";
 import AnchorStateRegistry from "../abis/AnchorStateRegistry";
 import {
@@ -13,13 +16,12 @@ import {
   type DecodedNodeCreatedLog,
   type GetBeaconRootAndL2TimestampReturnType,
   type L2Block,
-} from "../types/chain";
+} from "../common/types/chain";
 import type ConfigService from "../config/config.service";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
-import type { FulfillmentInfoType } from "../types/fulfillmentInfo";
-import safeFetch from "../utils/safeFetch";
-const { ssz } = await import("@lodestar/types");
-const { SignedBeaconBlock } = ssz.deneb;
+import type { FulfillmentInfoType } from "../common/types/fulfillmentInfo";
+import safeFetch from "../common/utils/safeFetch";
+import exponentialBackoff from "../common/utils/exponentialBackoff";
 
 export default class ChainService {
   constructor(
@@ -30,7 +32,10 @@ export default class ChainService {
   async getBeaconRootAndL2Timestamp(): Promise<GetBeaconRootAndL2TimestampReturnType> {
     console.log("getBeaconRootAndL2Timestamp");
     const config = this.activeChains.src;
-    const block = (await config.publicClient.getBlock()) as L2Block;
+    const block: L2Block = await exponentialBackoff(
+      async () => await config.publicClient.getBlock()
+    );
+
     return {
       beaconRoot: block.parentBeaconBlockRoot,
       timestampForL2BeaconOracle: block.timestamp,
@@ -42,7 +47,10 @@ export default class ChainService {
     const beaconApiUrl = this.configService.getOrThrow("NODE");
     const url = `${beaconApiUrl}/eth/v2/beacon/blocks/${tag}`;
     const req = { headers: { Accept: "application/octet-stream" } };
-    const resp = await safeFetch(url, req);
+    const resp = await exponentialBackoff(
+      async () => await safeFetch(url, req),
+      { successCallback: (res) => res && res.status === 200 }
+    );
 
     if (!resp) {
       throw new Error("Error fetching Beacon Block");
@@ -52,7 +60,7 @@ export default class ChainService {
       throw new Error(`Missing block ${tag}`);
     }
 
-    if (resp.status != 200) {
+    if (resp.status !== 200) {
       throw new Error(`error fetching block ${tag}: ${await resp.text()}`);
     }
 
@@ -92,11 +100,13 @@ export default class ChainService {
     console.log("getArbitrumSepoliaBlock");
     // Need to get blockHash instead
     // 1. Get latest node from Rollup contract
-    const nodeIndex = (await this.activeChains.l1.publicClient.readContract({
-      address: this.activeChains.l1.contracts.arbRollupAddr,
-      abi: ArbitrumRollup,
-      functionName: "latestConfirmed",
-    })) as bigint;
+    const nodeIndex: bigint = await exponentialBackoff(async () => {
+      return await this.activeChains.l1.publicClient.readContract({
+        address: this.activeChains.l1.contracts.arbRollupAddr,
+        abi: ArbitrumRollup,
+        functionName: "latestConfirmed",
+      });
+    });
 
     // 2. Query event from latest node creation
     const logs = await this.getLogs(nodeIndex);
@@ -122,8 +132,10 @@ export default class ChainService {
     // 4. Parse blockHash from assertion
     const blockHash = assertion.afterState.globalState.bytes32Vals[0];
     const sendRoot = assertion.afterState.globalState.bytes32Vals[1];
-    const l2Block = await this.activeChains.dst.publicClient.getBlock({
-      blockHash,
+    const l2Block = await exponentialBackoff(async () => {
+      return await this.activeChains.dst.publicClient.getBlock({
+        blockHash,
+      });
     });
     return { l2Block, sendRoot, nodeIndex };
   }
@@ -132,8 +144,10 @@ export default class ChainService {
     blockNumber: bigint
   ): Promise<{ l2Block: Block }> {
     const l2BlockNumber = await this.getL2BlockNumber(blockNumber);
-    const l2Block = await this.activeChains.dst.publicClient.getBlock({
-      blockNumber: l2BlockNumber,
+    const l2Block = await exponentialBackoff(async () => {
+      return await this.activeChains.dst.publicClient.getBlock({
+        blockNumber: l2BlockNumber,
+      });
     });
     return { l2Block };
   }
@@ -152,13 +166,17 @@ export default class ChainService {
 
   private async getL2BlockNumber(l1BlockNumber: bigint): Promise<bigint> {
     const config = this.activeChains.l1;
-    const [, l2BlockNumber] = (await config.publicClient.readContract({
-      address: config.contracts.anchorStateRegistryAddr,
-      abi: AnchorStateRegistry,
-      functionName: "anchors",
-      args: [0n],
-      blockNumber: l1BlockNumber,
-    })) as [any, bigint];
+    const [, l2BlockNumber]: [any, bigint] = await exponentialBackoff(
+      async () => {
+        return await config.publicClient.readContract({
+          address: config.contracts.anchorStateRegistryAddr,
+          abi: AnchorStateRegistry,
+          functionName: "anchors",
+          args: [0n],
+          blockNumber: l1BlockNumber,
+        });
+      }
+    );
     return l2BlockNumber;
   }
 
@@ -171,17 +189,20 @@ export default class ChainService {
 
   async getFulfillmentInfo(requestHash: Address): Promise<FulfillmentInfoType> {
     const config = this.activeChains.dst;
-    const info = await config.publicClient.readContract({
-      address: config.contracts.inbox,
-      abi: RIP7755Inbox,
-      functionName: "getFulfillmentInfo",
-      args: [requestHash],
+    return await exponentialBackoff(async () => {
+      return await config.publicClient.readContract({
+        address: config.contracts.inbox,
+        abi: RIP7755Inbox,
+        functionName: "getFulfillmentInfo",
+        args: [requestHash],
+      });
     });
-    return info;
   }
 
   private async request(url: string): Promise<any> {
-    const res = await safeFetch(url);
+    const res = await exponentialBackoff(async () => await safeFetch(url), {
+      successCallback: (res) => res && res.ok,
+    });
 
     if (res === null || !res.ok) {
       throw new Error("Error fetching logs from etherscan");

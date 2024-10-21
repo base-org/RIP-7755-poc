@@ -1,6 +1,6 @@
 import { sleep } from "bun";
 
-import { SupportedChains } from "./src/types/chain";
+import { SupportedChains } from "./src/common/types/chain";
 import IndexerService from "./src/indexer/indexer.service";
 import DBService from "./src/database/db.service";
 import RewardMonitorService from "./src/rewards/monitor.service";
