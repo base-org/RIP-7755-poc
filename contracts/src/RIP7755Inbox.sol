@@ -14,6 +14,7 @@ import {CrossChainRequest} from "./RIP7755Structs.sol";
 /// destination chains and store record of their fulfillment.
 contract RIP7755Inbox {
     using Address for address;
+    using Address for address payable;
 
     struct MainStorage {
         /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
@@ -103,7 +104,7 @@ contract RIP7755Inbox {
         uint256 valueSent;
 
         for (uint256 i; i < request.calls.length; i++) {
-            request.calls[i].to.functionCallWithValue(request.calls[i].data, request.calls[i].value);
+            _call(payable(request.calls[i].to), request.calls[i].data, request.calls[i].value);
 
             unchecked {
                 valueSent += request.calls[i].value;
@@ -112,6 +113,14 @@ contract RIP7755Inbox {
 
         if (valueSent != msg.value) {
             revert InvalidValue(valueSent, msg.value);
+        }
+    }
+
+    function _call(address payable to, bytes calldata data, uint256 value) private {
+        if (data.length == 0) {
+            to.sendValue(value);
+        } else {
+            to.functionCallWithValue(data, value);
         }
     }
 

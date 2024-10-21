@@ -118,10 +118,19 @@ contract OPStackProver is IProver {
             proofData.l2StateRoot, proofData.dstL2AccountProofParams
         );
         // bool validL2Storage =
-        //     request.verifyingContract.validateAccountStorage(proofData.l2StateRoot, proofData.dstL2AccountProofParams);
+        //     request.inboxContract.validateAccountStorage(proofData.l2StateRoot, proofData.dstL2AccountProofParams);
 
         if (!validL2Storage) {
             revert InvalidL2Storage();
         }
+    }
+
+    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
+    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
     }
 }

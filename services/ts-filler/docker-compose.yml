@@ -1,0 +1,31 @@
+# Docker Compose Configuration
+# visit https://docs.docker.com/compose/
+
+version: "3.8"
+services:
+  # app service for your backend
+  app:
+    container_name: ts-filler
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    environment:
+      MONGO_URI: ${MONGO_URI}
+      NODE: ${NODE}
+      ETHERSCAN_API_KEY: ${ETHERSCAN_API_KEY}
+      ARBITRUM_SEPOLIA_RPC: ${ARBITRUM_SEPOLIA_RPC}
+      SEPOLIA_RPC: ${SEPOLIA_RPC}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - database
+
+  # start the mongodb service as container
+  database:
+    image: mongo
+    container_name: mongodb
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      - MONGODB_DATABASE="calls"
