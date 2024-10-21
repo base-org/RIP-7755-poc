@@ -9,7 +9,6 @@ import exponentialBackoff from "../common/utils/exponentialBackoff";
 
 export default class DBService {
   constructor() {
-    console.log("Connecting", process.env.MONGO_URI);
     this.connect().catch((err) => console.error(err));
   }
 

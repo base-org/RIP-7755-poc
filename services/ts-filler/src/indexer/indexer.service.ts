@@ -30,7 +30,7 @@ export default class IndexerService {
     const logs = await chainService.getOutboxLogs(startingBlock);
 
     if (logs.length === 0) {
-      return startingBlock + 1;
+      return startingBlock;
     }
 
     console.log(`Found ${logs.length} logs to consider`);

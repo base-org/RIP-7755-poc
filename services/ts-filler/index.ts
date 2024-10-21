@@ -5,6 +5,7 @@ import IndexerService from "./src/indexer/indexer.service";
 import DBService from "./src/database/db.service";
 import RewardMonitorService from "./src/rewards/monitor.service";
 import ConfigService from "./src/config/config.service";
+import chains from "./src/chain/chains";
 
 async function main() {
   const sourceChain = SupportedChains.ArbitrumSepolia;
@@ -13,8 +14,10 @@ async function main() {
   const indexerService = new IndexerService(dbService, configService);
   new RewardMonitorService(dbService, configService);
 
-  let success = false,
-    startingBlock = 0;
+  let success = false;
+  let startingBlock = Number(
+    await chains[sourceChain].publicClient.getBlockNumber()
+  );
 
   while (true) {
     try {
