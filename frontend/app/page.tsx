@@ -25,7 +25,7 @@ export default function App() {
   const { address } = useAccount();
 
   return (
-    <div className="flex flex-col min-h-screen bg-background font-sans items-center">
+    <div className="flex flex-col min-h-screen bg-background font-sans">
       <header className="pt-4 pr-4 w-full flex justify-end">
         <div className="wallet-container">
           <Wallet>
@@ -54,38 +54,35 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-center w-full">
-        <div className="max-w-4xl w-full p-4">
-          <div className="font-sans font-semibold flex justify-center text-xl p-4">
-            <h1>RIP-7755 Demo</h1>
-          </div>
-          <div className="flex justify-center">
-            {address ? (
-              <div className="flex justify-center w-full"> {/* Ensure full width and centering */}
-                <CustomSwap />
-              </div>
-            ) : (
-              <Wallet>
-                <ConnectWallet>
-                  <Avatar className="h-6 w-6" />
-                  <Name />
-                </ConnectWallet>
-              </Wallet>
-            )}
-          </div>
+      <main className="flex-grow flex flex-col items-center justify-center w-full px-4">
+        <div className="text-center mb-8">
+          <h1 className="font-sans font-semibold text-xl">RIP-7755 Demo</h1>
         </div>
-        <footer className="mt-auto flex justify-center items-center p-8 w-full">
-          <p className="text-white mr-1">Powered by</p>
-          <a
-            target="_blank"
-            rel="_template"
-            href="https://onchainkit.xyz"
-            className="flex items-center"
-          >
-            <OnchainkitSvg className="text-white" />
-          </a>
-        </footer>
+        <div className="w-full max-w-4xl flex justify-center">
+          {address ? (
+            <CustomSwap />
+          ) : (
+            <Wallet>
+              <ConnectWallet>
+                <Avatar className="h-6 w-6" />
+                <Name />
+              </ConnectWallet>
+            </Wallet>
+          )}
+        </div>
       </main>
+
+      <footer className="flex justify-center items-center p-8 w-full">
+        <p className="text-white mr-1">Powered by</p>
+        <a
+          target="_blank"
+          rel="_template"
+          href="https://onchainkit.xyz"
+          className="flex items-center"
+        >
+          <OnchainkitSvg className="text-white" />
+        </a>
+      </footer>
     </div>
   );
 }
