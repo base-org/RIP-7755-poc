@@ -110,12 +110,12 @@ export default function CustomSwap() {
   }, []);
 
   return (
-    <div className="flex flex-col items-center w-2/4 border p-5">
+    <div className="flex flex-col items-center w-2/4 p-5 border border-slate-200 rounded-lg">
       <div className="w-full mb-3 text-xl">
-        <h1>Bridge Eth</h1>
+        <h1>Bridge ETH</h1>
       </div>
       <div className="w-full">
-        <div className="w-full flex flex-col gap-1">
+        <div className="w-full flex flex-col gap-4">
           <Card
             title="Arbitrum Sepolia"
             bal={arbBal}
@@ -137,7 +137,7 @@ export default function CustomSwap() {
             contracts={contracts}
             onStatus={handleOnStatus}
           >
-            <TransactionButton />
+            <TransactionButton text="Bridge" />
             <TransactionStatus>
               <TransactionStatusLabel />
               <TransactionStatusAction />
