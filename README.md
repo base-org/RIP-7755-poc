@@ -2,28 +2,28 @@
 
 ## Overview
 
-There currently exist many solutions for sending transactions between two blockchains. Just about all solutions require portal contracts to be deployed on the source and destination chains as well as some sort of trusted off-chain protocol that is outside of Ethereum's core ecosystem. RIP-7755 is a WIP [proposal](https://github.com/ethereum/RIPs/pull/31) for standardized, permissionless cross-chain transactions between any two chains that post state roots to Ethereum. At a high level, the RIP-7755 architecture looks similar to existing solutions. It too needs portal contracts on the source and destination chains as well as an off-chain relayer system; however, the key difference here is the off-chain relayer system is _permissionless_. In the proposal, we’re calling an off-chain agent a “Fulfiller” and anyone can run a Fulfiller agent.
+RIP-7755 is a work-in-progress [proposal](https://github.com/ethereum/RIPs/pull/31) aimed at standardizing permissionless cross-chain transactions between any two chains that post state roots to Ethereum. The architecture of RIP-7755 is relatively straightforward. It involves portal contracts on both the source and destination chains, as well as an off-chain relayer system. While this is similar to many existing solutions, the key distinction is that the off-chain relayer system is _permissionless_ and supports any arbitrary set of calls. In this proposal, the off-chain agent is referred to as a “Fulfiller,” and anyone can operate a fulfiller agent.
 
 The three main components of RIP-7755 are:
 
-1. Source chain portal: Called `RIP7755Outbox`
-1. Off-chain relayer: Called `Fulfiller`
-1. Destination chain portal: Called `RIP7755Inbox`
+1. Source chain portal: `RIP7755Outbox`
+2. Off-chain relayer: `Fulfiller`
+3. Destination chain portal: `RIP7755Inbox`
 
-Now, you might ask “Why would someone want to run a Fulfiller agent?”. This leads us into a core feature of RIP-7755. When submitting a request to the protocol for a cross-chain call, the user must also submit a “reward” or “tip” for the fulfiller; similar in concept to priority gas fees for Ethereum validators. This reward is meant to cover the gas cost of submitting the transaction to the destination chain plus a small tip for the Fulfiller's service. Fulfillers shall be listening for cross-chain call requests from any supported chains - upon request validation and confirming the reward secures profit for the Fulfiller, the agent then submits the requested call to the destination chain. Once the destination chain call settles, the fulfiller can claim the reward, which is locked in escrow, from the source chain.
+A core feature of RIP-7755 is to incentivize individuals to act as fulfillers. When a user submits a request to the protocol for a cross-chain call, they must also provide a “reward” or “tip” for the fulfiller, similar to priority gas fees for Ethereum validators. This reward covers the gas cost of submitting the transaction to the destination chain and includes a small tip for the fulfiller's service. Fulfillers monitor cross-chain call requests from any supported chains. Upon validating a received request and confirming that the reward ensures a profit, the fulfiller submits the requested call to the destination chain. Once the call settles on the destination chain, the fulfiller can claim the reward, which is held in escrow, from the source chain.
 
-What if the fulfiller never submits the call to the destination chain or submits it to the wrong destination chain? Can they lie about it and claim the reward anyways? Another great question, and this is where the most important component of RIP-7755 comes into play. In order to claim the reward, the fulfiller needs to _prove_ that they successfully submitted the correct call to the correct destination. Only then can they claim their reward. This also brings us back to an important prerequisite for what chains can be supported by this protocol - if both chains post state roots (or a derivative of their state root) to Ethereum, there’s enough building blocks in place to trustlessly prove state about one chain from the other chain. In our early proof of concepts, we’re using storage proofs to do this.
+To claim the reward, the fulfiller must _prove_ that they have successfully submitted the correct call to the correct destination. This highlights an important prerequisite for the chains supported by this protocol: both chains must post state roots (or derivatives of their state roots) to Ethereum. This provides the necessary building blocks to trustlessly prove the state of one chain from the other. In our early proof of concepts, we use storage proofs to achieve this.
 
-From the source chain, a successful storage proof should look something like:
+A successful storage proof from the source chain should follow these steps:
 
-1. Query the latest Beacon root exposed to the chain via EIP-4788
-1. Prove knowledge of the execution client state root which should be a member of the merkle trie that generated the beacon root
-1. Use the execution state root to prove an account’s storage root where “account” here is the contract that the destination chain posts its state root on L1
-1. Prove the state root’s storage location in that account
-1. Use the destination chain's state root to prove an account’s storage root where “account” here is the `RIP7755Inbox` contract on destination chain
-1. Prove the storage slot in `RIP7755Inbox` that should represent a receipt of the requested call having been made
+1. Query the latest Beacon root exposed to the chain via EIP-4788.
+2. Prove knowledge of the execution client state root, which should be a member of the Merkle trie that generated the Beacon root.
+3. Use the execution state root to prove an account’s storage root. Here, the “account” refers to the contract where the destination chain posts its state root on L1.
+4. Prove the state root’s storage location within that account.
+5. Use the destination chain's state root to prove an account’s storage root. In this context, the “account” is the `RIP7755Inbox` contract on the destination chain.
+6. Prove the storage slot in `RIP7755Inbox` that represents a receipt of the requested call having been made.
 
-Storage Proofs in this capacity are how we’re proving state for early iterations of a proof-of-concept for the protocol. However, they are not necessarily the only way to do this. For this reason, we have abstracted the proof system to be separate from the `RIP7755Inbox` and `RIP7755Outbox` contracts, leaving flexibility for future solutions that may be more efficient or easier to implement / generate.
+We use Storage Proofs in this manner to validate state for early iterations of a proof-of-concept for the protocol. However, this is not the only method available. To maintain flexibility for future, potentially more efficient or easier-to-implement solutions, we have abstracted the proof system from the `RIP7755Inbox` and `RIP7755Outbox` contracts.
 
 ## License
 
