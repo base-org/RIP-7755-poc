@@ -18,10 +18,10 @@ From the source chain, a successful storage proof should look something like:
 
 1. Query the latest Beacon root exposed to the chain via EIP-4788
 1. Prove knowledge of the execution client state root which should be a member of the merkle trie that generated the beacon root
-1. Prove an account’s storage root where “account” here is the contract that the destination chain posts its state root on L1
+1. Use the execution state root to prove an account’s storage root where “account” here is the contract that the destination chain posts its state root on L1
 1. Prove the state root’s storage location in that account
-1. Prove an account’s storage root where “account” here is the RIP-7755Inbox contract on destination chain
-1. Prove the storage slot in RIP-7755Inbox that should represent a receipt of the requested call having been made
+1. Use the destination chain's state root to prove an account’s storage root where “account” here is the `RIP7755Inbox` contract on destination chain
+1. Prove the storage slot in `RIP7755Inbox` that should represent a receipt of the requested call having been made
 
 Storage Proofs in this capacity are how we’re proving state for early iterations of a proof-of-concept for the protocol. However, they are not necessarily the only way to do this. For this reason, we have abstracted the proof system to be separate from the `RIP7755Inbox` and `RIP7755Outbox` contracts, leaving flexibility for future solutions that may be more efficient or easier to implement / generate.
 
