@@ -1,0 +1,17 @@
+{
+  "name": "ts-filler",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@chainsafe/ssz": "^0.17.1",
+    "@lodestar/types": "^1.22.0",
+    "mongoose": "^8.7.2",
+    "viem": "^2.21.24"
+  }
+}
