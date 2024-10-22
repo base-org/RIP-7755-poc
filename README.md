@@ -1,3 +1,5 @@
+![Base](logo.webp)
+
 # RIP-7755
 
 ## Overview
