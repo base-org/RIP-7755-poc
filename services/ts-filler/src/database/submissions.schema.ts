@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 
-import type { SubmissionType } from "../types/submission";
-import type { RequestType } from "../types/request";
-import type { ActiveChains } from "../types/chain";
+import type { SubmissionType } from "../common/types/submission";
+import type { RequestType } from "../common/types/request";
+import type { ActiveChains } from "../common/types/chain";
 
 const callSchema = new mongoose.Schema({
   to: String,
