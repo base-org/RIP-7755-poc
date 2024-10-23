@@ -3,9 +3,9 @@ import { decodeEventLog, type Address } from "viem";
 import ChainService from "../chain/chain.service";
 import chains from "../chain/chains";
 import ConfigService from "../config/config.service";
-import { SupportedChains } from "../types/chain";
+import { SupportedChains } from "../common/types/chain";
 import OutboxAbi from "../abis/RIP7755Outbox";
-import type { RequestType } from "../types/request";
+import type { RequestType } from "../common/types/request";
 import SignerService from "../signer/signer.service";
 import DBService from "../database/db.service";
 import HandlerService from "../handler/handler.service";
@@ -30,7 +30,7 @@ export default class IndexerService {
     const logs = await chainService.getOutboxLogs(startingBlock);
 
     if (logs.length === 0) {
-      return startingBlock + 1;
+      return startingBlock;
     }
 
     console.log(`Found ${logs.length} logs to consider`);
@@ -44,13 +44,18 @@ export default class IndexerService {
     logs: any
   ): Promise<number> {
     let maxBlock = startingBlock;
+    const calls = [];
 
     for (let i = 0; i < logs.length; i++) {
       maxBlock = Math.max(maxBlock, Number(BigInt(logs[i].blockNumber)));
-      try {
-        await this.handleLog(sourceChain, logs[i]);
-      } catch (e) {
-        console.error("Error handling log:", e);
+      calls.push(this.handleLog(sourceChain, logs[i]));
+    }
+
+    const responses = await Promise.allSettled(calls);
+
+    for (let i = 0; i < responses.length; i++) {
+      if (responses[i].status !== "fulfilled") {
+        console.error("Error processing log", responses[i]);
       }
     }
 

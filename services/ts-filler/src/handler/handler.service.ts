@@ -1,9 +1,9 @@
 import type { Address } from "viem";
 
-import type { RequestType } from "../types/request";
+import type { RequestType } from "../common/types/request";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
-import type { ActiveChains } from "../types/chain";
+import type { ActiveChains } from "../common/types/chain";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
 
 export default class HandlerService {
@@ -58,8 +58,23 @@ export default class HandlerService {
       valueNeeded += request.calls[i].value;
     }
 
+    // Gather transaction params
+    const fulfillerAddr = this.signerService.getFulfillerAddress();
+    const address = request.inboxContract;
+    const abi = RIP7755Inbox;
+    const functionName = "fulfill";
+    const args = [request, fulfillerAddr];
+    const estimatedDestinationGas = await this.signerService.estimateGas(
+      address,
+      abi,
+      functionName,
+      args,
+      valueNeeded
+    );
+
     // - rewardAsset + rewardAmount should make sense given requested calls
-    if (!this.isValidReward(request)) {
+    if (!this.isValidReward(request, valueNeeded, estimatedDestinationGas)) {
+      console.error("Undesirable reward");
       throw new Error("Undesirable reward");
     }
 
@@ -68,25 +83,20 @@ export default class HandlerService {
     console.log(
       "Request passed validation - preparing transaction for submission to destination chain"
     );
-    const fulfillerAddr = this.signerService.getFulfillerAddress();
-    console.log({ fulfillerAddr });
     const txnHash = await this.signerService.sendTransaction(
-      request.inboxContract,
-      RIP7755Inbox,
-      "fulfill",
-      [request, fulfillerAddr],
+      address,
+      abi,
+      functionName,
+      args,
       valueNeeded
     );
 
-    console.log({ txnHash });
-
     if (!txnHash) {
-      // Probably want to retry here
       throw new Error("Failed to submit transaction");
     }
 
     console.log(
-      "Destination chain transaction successful! Storing record in DB"
+      `Destination chain transaction successful! Storing record in DB. TxHash: ${txnHash}`
     );
 
     // record db instance to be picked up later for reward collection
@@ -98,15 +108,23 @@ export default class HandlerService {
     );
 
     if (!dbSuccess) {
-      // Probably want to retry here
       throw new Error("Failed to store successful call in db");
     }
 
     console.log("Record successfully stored to DB");
   }
 
-  private isValidReward(request: RequestType): boolean {
+  private isValidReward(
+    request: RequestType,
+    valueNeeded: bigint,
+    estimatedDestinationGas: bigint
+  ): boolean {
     console.log("Validating reward");
-    return true; // TODO
+    // This is a simplified case to just support ETH rewards. More sophisticated validation needed to support ERC20 rewards
+    return (
+      request.rewardAsset.toLowerCase() ===
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
+      request.rewardAmount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
+    );
   }
 }

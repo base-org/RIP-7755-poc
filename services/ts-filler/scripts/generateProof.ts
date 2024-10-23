@@ -2,7 +2,7 @@ import ChainService from "../src/chain/chain.service";
 import Prover from "../src/prover/prover.service";
 import config from "../src/config";
 import chains from "../src/chain/chains";
-import { SupportedChains } from "../src/types/chain";
+import { SupportedChains } from "../src/common/types/chain";
 import ConfigService from "../src/config/config.service";
 
 // Generate and store proof in json file to be used for testing
