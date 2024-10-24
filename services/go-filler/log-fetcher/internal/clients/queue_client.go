@@ -9,16 +9,17 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-func SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *internalConfig.Config) error {
-	fmt.Println("Sending job to queue")
-
+func GetQueueClient(cfg *internalConfig.Config) *asynq.Client {
 	redisConnOpt := asynq.RedisClientOpt{
 		Addr:     cfg.RedisQueueUrl,
 		Password: cfg.RedisPassword,
 		DB:       2,
 	}
+	return asynq.NewClient(redisConnOpt)
+}
 
-	client := asynq.NewClient(redisConnOpt)
+func SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *internalConfig.Config, client *asynq.Client) error {
+	fmt.Println("Sending job to queue")
 
 	// Task is created with two parameters: its type and payload.
 	// Payload data is simply an array of bytes. It can be encoded in JSON, Protocol Buffer, Gob, etc.
@@ -27,14 +28,15 @@ func SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *intern
 		return err
 	}
 
-	task := asynq.NewTask("example", b)
+	task := asynq.NewTask("call-requested", b)
 
 	// Enqueue the task to be processed immediately.
-	info, err := client.Enqueue(task)
+	_, err = client.Enqueue(task)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(info)
+	fmt.Println("Job sent to queue")
+
 	return nil
 }

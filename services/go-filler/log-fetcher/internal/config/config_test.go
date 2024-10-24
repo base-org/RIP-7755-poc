@@ -1,4 +1,3 @@
-// config_test.go
 package config
 
 import (
