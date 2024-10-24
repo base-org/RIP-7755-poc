@@ -2,6 +2,7 @@ package validator
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
@@ -11,6 +12,8 @@ import (
 )
 
 func ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig, parsedLog parser.LogCrossChainCallRequested) error {
+	fmt.Println("Validating log")
+
 	// - Confirm valid proverContract address on source chain
 	dstChain := chains.GetChainConfig(parsedLog.Request.DestinationChainId, cfg.RPCs)
 	if dstChain.ChainId == big.NewInt(0) {

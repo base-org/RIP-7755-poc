@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"math/big"
 	"os"
 	"path/filepath"
@@ -40,6 +41,8 @@ type LogCrossChainCallRequested struct {
 }
 
 func ParseLog(vLog types.Log) (LogCrossChainCallRequested, error) {
+	fmt.Println("Parsing log")
+
 	absPath, err := filepath.Abs("internal/abis/RIP7755Outbox.json")
 	if err != nil {
 		return LogCrossChainCallRequested{}, err

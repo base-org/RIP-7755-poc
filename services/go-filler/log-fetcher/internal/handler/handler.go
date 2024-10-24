@@ -1,12 +1,12 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/queue"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -24,7 +24,10 @@ func HandleLog(vLog types.Log, srcChain *chains.ChainConfig, cfg *config.Config)
 	}
 
 	// send log to queue
-	fmt.Println("Ready to send to queue")
+	err = queue.SendMessage(parsedLog, cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return nil
 }
