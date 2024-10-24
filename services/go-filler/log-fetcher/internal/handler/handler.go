@@ -23,7 +23,7 @@ func HandleLog(vLog types.Log, srcChain *chains.ChainConfig, cfg *config.Config)
 
 	// send log to queue
 	queueClient := clients.GetQueueClient(cfg)
-	err = clients.SendMessageToQueue(parsedLog, cfg, queueClient)
+	err = queueClient.SendMessageToQueue(parsedLog, cfg)
 	if err != nil {
 		return err
 	}

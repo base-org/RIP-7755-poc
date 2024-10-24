@@ -9,16 +9,27 @@ import (
 	"github.com/hibiken/asynq"
 )
 
-func GetQueueClient(cfg *internalConfig.Config) *asynq.Client {
+type QueueClient interface {
+	SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *internalConfig.Config) error
+}
+type AsynqClient interface {
+	Enqueue(task *asynq.Task, opts ...asynq.Option) (*asynq.TaskInfo, error)
+}
+
+type queueClient struct {
+	client AsynqClient
+}
+
+func GetQueueClient(cfg *internalConfig.Config) QueueClient {
 	redisConnOpt := asynq.RedisClientOpt{
 		Addr:     cfg.RedisQueueUrl,
 		Password: cfg.RedisPassword,
 		DB:       2,
 	}
-	return asynq.NewClient(redisConnOpt)
+	return &queueClient{client: asynq.NewClient(redisConnOpt)}
 }
 
-func SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *internalConfig.Config, client *asynq.Client) error {
+func (c *queueClient) SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *internalConfig.Config) error {
 	fmt.Println("Sending job to queue")
 
 	// Task is created with two parameters: its type and payload.
@@ -31,7 +42,7 @@ func SendMessageToQueue(parsedLog parser.LogCrossChainCallRequested, cfg *intern
 	task := asynq.NewTask("call-requested", b)
 
 	// Enqueue the task to be processed immediately.
-	_, err = client.Enqueue(task)
+	_, err = c.client.Enqueue(task)
 	if err != nil {
 		return err
 	}

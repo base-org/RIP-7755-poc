@@ -3,30 +3,29 @@ package clients
 import (
 	"testing"
 
-	internalConfig "github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
+	"github.com/hibiken/asynq"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-func TestGetQueueClient(t *testing.T) {
-	cfg := &internalConfig.Config{
-		RedisQueueUrl: "localhost:6379",
-		RedisPassword: "",
-	}
-
-	client := GetQueueClient(cfg)
-	assert.NotNil(t, client, "Expected non-nil client")
+type AsynqClientMock struct {
+	mock.Mock
 }
 
-// func TestSendMessageToQueue(t *testing.T) {
-// 	cfg := &internalConfig.Config{
-// 		RedisQueueUrl: "localhost:6379",
-// 		RedisPassword: "",
-// 	}
-// 	// How do I properly mock the client?
-// 	client := GetQueueClient(cfg)
-// 	parsedLog := parser.LogCrossChainCallRequested{}
+func (m *AsynqClientMock) Enqueue(task *asynq.Task, opts ...asynq.Option) (*asynq.TaskInfo, error) {
+	args := m.Called(task, opts)
+	return args.Get(0).(*asynq.TaskInfo), args.Error(1)
+}
 
-// 	err := SendMessageToQueue(parsedLog, cfg, client)
+func TestSendMessageToQueue(t *testing.T) {
+	mockClient := new(AsynqClientMock)
+	queueClient := &queueClient{client: mockClient}
 
-// 	assert.NoError(t, err, "Expected no error")
-// }
+	mockClient.On("Enqueue", mock.Anything, mock.Anything).Return(&asynq.TaskInfo{}, nil)
+
+	err := queueClient.SendMessageToQueue(parser.LogCrossChainCallRequested{}, &config.Config{})
+
+	assert.NoError(t, err)
+}
