@@ -19,9 +19,9 @@ type Config struct {
 	QueueUrl string
 }
 
-func NewConfig() *Config {
+func NewConfig() (*Config, error) {
 	if err := godotenv.Load(".env"); err != nil {
-		log.Fatal("config file not found")
+		return nil, err
 	}
 
 	config := &Config{
@@ -34,7 +34,7 @@ func NewConfig() *Config {
 		QueueUrl: getEnvStr("AWS_QUEUE_URL"),
 	}
 
-	return config
+	return config, nil
 }
 
 // getEnvStr ... Reads env var from process environment, panics if not found

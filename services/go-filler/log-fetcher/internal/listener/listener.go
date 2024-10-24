@@ -3,7 +3,6 @@ package listener
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
@@ -15,15 +14,15 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func Init(srcChain *chains.ChainConfig, cfg *config.Config) {
+func Init(srcChain *chains.ChainConfig, cfg *config.Config) error {
 	client, err := ethclient.GetClient(srcChain)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	contractAddress := srcChain.Contracts.Outbox
 	if contractAddress == common.HexToAddress("") {
-		log.Fatalf("Source chain %s missing Outbox contract address", srcChain.ChainId)
+		return fmt.Errorf("source chain %s missing Outbox contract address", srcChain.ChainId)
 	}
 
 	crossChainCallRequestedSig := []byte("CrossChainCallRequested(bytes32,(address,(address,bytes,uint256)[],address,uint256,address,address,bytes32,address,uint256,uint256,uint256,uint256,address,bytes))")
@@ -38,7 +37,7 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config) {
 
 	logs, err := client.FilterLogs(context.Background(), query)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	for _, vLog := range logs {
@@ -48,7 +47,7 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config) {
 
 		err := handler.HandleLog(vLog, srcChain, cfg)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 	}
 
@@ -71,4 +70,6 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config) {
 	// 		fmt.Println(vLog) // pointer to event log
 	// 	}
 	// }
+
+	return nil
 }
