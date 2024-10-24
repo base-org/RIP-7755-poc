@@ -1,4 +1,4 @@
-package ethclient
+package clients
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func GetClient(cfg *chains.ChainConfig) (*ethclient.Client, error) {
+func GetEthClient(cfg *chains.ChainConfig) (*ethclient.Client, error) {
 	client, err := ethclient.Dial(cfg.RpcUrl)
 	if err != nil {
 		return nil, err

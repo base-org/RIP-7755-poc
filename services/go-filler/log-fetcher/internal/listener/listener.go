@@ -6,7 +6,7 @@ import (
 	"math/big"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
-	ethclient "github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/handler"
 	"github.com/ethereum/go-ethereum"
@@ -15,7 +15,7 @@ import (
 )
 
 func Init(srcChain *chains.ChainConfig, cfg *config.Config) error {
-	client, err := ethclient.GetClient(srcChain)
+	client, err := clients.GetEthClient(srcChain)
 	if err != nil {
 		return err
 	}

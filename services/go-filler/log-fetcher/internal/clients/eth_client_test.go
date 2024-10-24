@@ -1,4 +1,4 @@
-package ethclient
+package clients
 
 import (
 	"net/http"
@@ -23,7 +23,7 @@ func TestGetClient(t *testing.T) {
 		}
 
 		// Call GetClient
-		client, err := GetClient(cfg)
+		client, err := GetEthClient(cfg)
 
 		// Assert
 		assert.NoError(t, err)
@@ -37,7 +37,7 @@ func TestGetClient(t *testing.T) {
 		}
 
 		// Call GetClient
-		client, err := GetClient(cfg)
+		client, err := GetEthClient(cfg)
 
 		// Assert
 		assert.Error(t, err)

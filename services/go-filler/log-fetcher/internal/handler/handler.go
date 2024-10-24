@@ -2,9 +2,9 @@ package handler
 
 import (
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/queue"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/validator"
 	"github.com/ethereum/go-ethereum/core/types"
 )
@@ -22,7 +22,7 @@ func HandleLog(vLog types.Log, srcChain *chains.ChainConfig, cfg *config.Config)
 	}
 
 	// send log to queue
-	err = queue.SendMessage(parsedLog, cfg)
+	err = clients.SendMessageToQueue(parsedLog, cfg)
 	if err != nil {
 		return err
 	}
