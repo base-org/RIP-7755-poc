@@ -2,6 +2,7 @@ package chains
 
 import (
 	"encoding/hex"
+	"fmt"
 	"log"
 	"math/big"
 
@@ -27,7 +28,7 @@ type ChainConfig struct {
 	TargetProver       config.Prover
 }
 
-func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) *ChainConfig {
+func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, error) {
 	var chainConfig *ChainConfig
 
 	switch chainId.Int64() {
@@ -102,9 +103,11 @@ func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) *ChainConfig {
 			Contracts:       contracts,
 			TargetProver:    config.NilProver,
 		}
+	default:
+		return nil, fmt.Errorf("unknown chainId: %d", chainId.Int64())
 	}
 
-	return chainConfig
+	return chainConfig, nil
 }
 
 func encodeBytes(bytesStr string) [32]byte {

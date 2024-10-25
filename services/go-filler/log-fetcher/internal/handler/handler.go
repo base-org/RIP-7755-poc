@@ -16,14 +16,15 @@ func HandleLog(vLog types.Log, srcChain *chains.ChainConfig, cfg *config.Config,
 	}
 
 	// validate Log
-	err = validator.ValidateLog(cfg, srcChain, parsedLog)
+	v := validator.NewValidator()
+	err = v.ValidateLog(cfg, srcChain, parsedLog)
 	if err != nil {
 		return err
 	}
 
 	// send log to queue
-	collection := mongoClient.Collection("requests")
-	err = collection.Enqueue(parsedLog, cfg)
+	c := mongoClient.Collection("requests")
+	err = c.Enqueue(parsedLog, cfg)
 	if err != nil {
 		return err
 	}

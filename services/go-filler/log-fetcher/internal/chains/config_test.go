@@ -99,7 +99,11 @@ func TestGetChainConfig(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := GetChainConfig(big.NewInt(tc.chainID), tc.rpcConfig)
+			result, err := GetChainConfig(big.NewInt(tc.chainID), tc.rpcConfig)
+			if err != nil {
+				t.Errorf("GetChainConfig(%d) returned error: %v", tc.chainID, err)
+			}
+
 			if !reflect.DeepEqual(result, tc.expected) {
 				t.Errorf("GetChainConfig(%d) = %+v, want %+v", tc.chainID, result, tc.expected)
 			}
@@ -109,10 +113,9 @@ func TestGetChainConfig(t *testing.T) {
 
 func TestGetChainConfig_UnknownChain(t *testing.T) {
 	unknownChainID := big.NewInt(999999)
-	result := GetChainConfig(unknownChainID, &config.RPCs{})
-	if result != nil {
-
-		t.Errorf("GetChainConfig(%d) = %+v, want nil", unknownChainID, result)
+	result, err := GetChainConfig(unknownChainID, &config.RPCs{})
+	if err == nil {
+		t.Errorf("GetChainConfig(%d) = %+v, want error", unknownChainID, result)
 	}
 }
 

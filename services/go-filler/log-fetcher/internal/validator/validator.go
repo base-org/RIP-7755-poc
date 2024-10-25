@@ -11,13 +11,23 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-func ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig, parsedLog parser.LogCrossChainCallRequested) error {
+type Validator interface {
+	ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig, parsedLog parser.LogCrossChainCallRequested) error
+}
+
+type validator struct{}
+
+func NewValidator() Validator {
+	return &validator{}
+}
+
+func (v *validator) ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig, parsedLog parser.LogCrossChainCallRequested) error {
 	fmt.Println("Validating log")
 
 	// - Confirm valid proverContract address on source chain
-	dstChain := chains.GetChainConfig(parsedLog.Request.DestinationChainId, cfg.RPCs)
-	if dstChain.ChainId == big.NewInt(0) {
-		return errors.New("unknown destination chain")
+	dstChain, err := chains.GetChainConfig(parsedLog.Request.DestinationChainId, cfg.RPCs)
+	if err != nil {
+		return err
 	}
 
 	proverName := dstChain.TargetProver.String()

@@ -22,7 +22,10 @@ func main() {
 	}
 	defer mongoClient.Close()
 
-	srcChain := chains.GetChainConfig(big.NewInt(421614), cfg.RPCs)
+	srcChain, err := chains.GetChainConfig(big.NewInt(421614), cfg.RPCs)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	err = listener.Init(srcChain, cfg, mongoClient)
 	if err != nil {
