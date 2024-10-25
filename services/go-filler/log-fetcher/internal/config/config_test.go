@@ -15,6 +15,7 @@ func TestNewConfig(t *testing.T) {
 	os.Setenv("SEPOLIA_RPC", "https://sepolia.example.com")
 	os.Setenv("REDIS_QUEUE_URL", "https://sqs.example.com/queue")
 	os.Setenv("REDIS_PASSWORD", "redis-password")
+	os.Setenv("MONGO_URI", "mongodb://localhost:27017/db")
 
 	// Create a temporary .env file
 	envContent := `
@@ -24,6 +25,7 @@ OPTIMISM_SEPOLIA_RPC=https://optimism-sepolia.example.com
 SEPOLIA_RPC=https://sepolia.example.com
 REDIS_QUEUE_URL=https://sqs.example.com/queue
 REDIS_PASSWORD=redis-password
+MONGO_URI=mongodb://localhost:27017/db
 `
 	err := os.WriteFile(".env", []byte(envContent), 0644)
 	assert.NoError(t, err)
@@ -42,6 +44,7 @@ REDIS_PASSWORD=redis-password
 	assert.Equal(t, "https://sepolia.example.com", config.RPCs.Sepolia)
 	assert.Equal(t, "https://sqs.example.com/queue", config.RedisQueueUrl)
 	assert.Equal(t, "redis-password", config.RedisPassword)
+	assert.Equal(t, "mongodb://localhost:27017/db", config.MongoUri)
 }
 
 func TestNewConfigMissingEnvVar(t *testing.T) {

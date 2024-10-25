@@ -18,6 +18,7 @@ type Config struct {
 	RPCs          *RPCs
 	RedisQueueUrl string
 	RedisPassword string
+	MongoUri      string
 }
 
 func NewConfig() (*Config, error) {
@@ -34,6 +35,7 @@ func NewConfig() (*Config, error) {
 		},
 		RedisQueueUrl: getEnvStr("REDIS_QUEUE_URL"),
 		RedisPassword: getEnvStr("REDIS_PASSWORD"),
+		MongoUri:      getEnvStr("MONGO_URI"),
 	}
 
 	return config, nil

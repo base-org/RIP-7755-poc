@@ -8,13 +8,14 @@ import (
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/handler"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func Init(srcChain *chains.ChainConfig, cfg *config.Config) error {
+func Init(srcChain *chains.ChainConfig, cfg *config.Config, mongoClient store.MongoClient) error {
 	client, err := clients.GetEthClient(srcChain)
 	if err != nil {
 		return err
@@ -53,7 +54,7 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config) error {
 			fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
 			fmt.Printf("Log Index: %d\n", vLog.Index)
 
-			err := handler.HandleLog(vLog, srcChain, cfg)
+			err := handler.HandleLog(vLog, srcChain, cfg, mongoClient)
 			if err != nil {
 				return err
 			}
