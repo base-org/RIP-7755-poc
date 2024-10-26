@@ -33,7 +33,7 @@ make coverage
 The contracts making up RIP-7755 can be split up into source chain contracts and destination chain contracts.
 
 - **Source Chain**
-  - [`RIP7755Outbox`](./src/RIP7755Outbox.sol) - the entrypoint for a user submitting a request for a cross-chain call
+  - [`RIP7755Outbox`](./src/RIP7755Outbox.sol) - The entrypoint for a user submitting a request for a cross-chain call
   - Provers
     - [`ArbitrumProver`](./src/provers/ArbitrumProver.sol) - Implements a proof system to validate state on Arbitrum. Should be used if sending a call to an Arbitrum chain
     - [`OPStackProver`](./src/provers/OPStackProver.sol) - Implements a proof system to validate state on any OP Stack chain. Should be used if sending a call to an OP Stack chain
