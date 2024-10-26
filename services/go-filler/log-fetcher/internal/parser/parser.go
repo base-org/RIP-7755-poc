@@ -3,10 +3,9 @@ package parser
 import (
 	"fmt"
 	"math/big"
-	"os"
-	"path/filepath"
 	"strings"
 
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/abis"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,10 +15,17 @@ type Parser interface {
 	ParseLog(vLog types.Log) (LogCrossChainCallRequested, error)
 }
 
-type parser struct{}
+type parser struct {
+	outboxAbi abi.ABI
+}
 
-func NewParser() Parser {
-	return &parser{}
+func NewParser() (Parser, error) {
+	contractAbi, err := abi.JSON(strings.NewReader(abis.RIP7755OutboxAbi))
+	if err != nil {
+		return nil, err
+	}
+
+	return &parser{outboxAbi: contractAbi}, nil
 }
 
 type Call struct {
@@ -53,24 +59,9 @@ type LogCrossChainCallRequested struct {
 func (p *parser) ParseLog(vLog types.Log) (LogCrossChainCallRequested, error) {
 	fmt.Println("Parsing log")
 
-	absPath, err := filepath.Abs("internal/abis/RIP7755Outbox.json")
-	if err != nil {
-		return LogCrossChainCallRequested{}, err
-	}
-
-	outboxAbi, err := os.ReadFile(absPath)
-	if err != nil {
-		return LogCrossChainCallRequested{}, err
-	}
-
-	contractAbi, err := abi.JSON(strings.NewReader(string(outboxAbi)))
-	if err != nil {
-		return LogCrossChainCallRequested{}, err
-	}
-
 	var event LogCrossChainCallRequested
 
-	err = contractAbi.UnpackIntoInterface(&event, "CrossChainCallRequested", vLog.Data)
+	err := p.outboxAbi.UnpackIntoInterface(&event, "CrossChainCallRequested", vLog.Data)
 	if err != nil {
 		return LogCrossChainCallRequested{}, err
 	}

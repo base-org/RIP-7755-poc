@@ -1,4 +1,6 @@
-[
+package abis
+
+const RIP7755OutboxAbi = `[
   {
     "type": "function",
     "name": "CANCEL_DELAY_SECONDS",
@@ -615,4 +617,4 @@
       { "name": "token", "type": "address", "internalType": "address" }
     ]
   }
-]
+]`

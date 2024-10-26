@@ -16,7 +16,10 @@ import (
 )
 
 func Init(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) error {
-	h := handler.NewHandler(cfg, srcChain, queue)
+	h, err := handler.NewHandler(cfg, srcChain, queue)
+	if err != nil {
+		return err
+	}
 
 	client, err := clients.GetEthClient(srcChain)
 	if err != nil {

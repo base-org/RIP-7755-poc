@@ -19,8 +19,13 @@ type handler struct {
 	queue     store.Queue
 }
 
-func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.Queue) Handler {
-	return &handler{parser: parser.NewParser(), validator: validator.NewValidator(cfg, srcChain), queue: queue}
+func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.Queue) (Handler, error) {
+	parser, err := parser.NewParser()
+	if err != nil {
+		return nil, err
+	}
+
+	return &handler{parser: parser, validator: validator.NewValidator(cfg, srcChain), queue: queue}, nil
 }
 
 func (h *handler) HandleLog(vLog types.Log) error {
