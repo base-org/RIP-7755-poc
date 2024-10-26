@@ -12,20 +12,23 @@ import (
 )
 
 type Validator interface {
-	ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig, parsedLog parser.LogCrossChainCallRequested) error
+	ValidateLog(parsedLog parser.LogCrossChainCallRequested) error
 }
 
-type validator struct{}
-
-func NewValidator() Validator {
-	return &validator{}
+type validator struct {
+	cfg      *config.Config
+	srcChain *chains.ChainConfig
 }
 
-func (v *validator) ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig, parsedLog parser.LogCrossChainCallRequested) error {
+func NewValidator(cfg *config.Config, srcChain *chains.ChainConfig) Validator {
+	return &validator{cfg: cfg, srcChain: srcChain}
+}
+
+func (v *validator) ValidateLog(parsedLog parser.LogCrossChainCallRequested) error {
 	fmt.Println("Validating log")
 
 	// - Confirm valid proverContract address on source chain
-	dstChain, err := chains.GetChainConfig(parsedLog.Request.DestinationChainId, cfg.RPCs)
+	dstChain, err := chains.GetChainConfig(parsedLog.Request.DestinationChainId, v.cfg.RPCs)
 	if err != nil {
 		return err
 	}
@@ -35,7 +38,7 @@ func (v *validator) ValidateLog(cfg *config.Config, srcChain *chains.ChainConfig
 		return errors.New("destination chain missing Prover name")
 	}
 
-	expectedProverAddr := srcChain.ProverContracts[proverName]
+	expectedProverAddr := v.srcChain.ProverContracts[proverName]
 	if expectedProverAddr == common.HexToAddress("") {
 		return errors.New("expected prover address not found for source chain")
 	}

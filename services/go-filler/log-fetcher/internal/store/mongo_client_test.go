@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -38,23 +37,23 @@ func (m *MongoClientMock) Disconnect(ctx context.Context) error {
 
 func TestEnqueue(t *testing.T) {
 	mockConnection := new(MongoConnectionMock)
-	mongoConnection := &mongoConnection{collection: mockConnection}
+	queue := &queue{collection: mockConnection}
 
 	mockConnection.On("InsertOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.InsertOneResult{}, nil)
 
-	err := mongoConnection.Enqueue(parser.LogCrossChainCallRequested{}, &config.Config{})
+	err := queue.Enqueue(parser.LogCrossChainCallRequested{})
 
 	assert.NoError(t, err)
 }
 
 func TestEnqueuePassesParsedLogToInsertOne(t *testing.T) {
 	mockConnection := new(MongoConnectionMock)
-	mongoConnection := &mongoConnection{collection: mockConnection}
+	queue := &queue{collection: mockConnection}
 	parsedLog := parser.LogCrossChainCallRequested{}
 
 	mockConnection.On("InsertOne", context.TODO(), parsedLog, mock.Anything).Return(&mongo.InsertOneResult{}, nil)
 
-	err := mongoConnection.Enqueue(parsedLog, &config.Config{})
+	err := queue.Enqueue(parsedLog)
 
 	assert.NoError(t, err)
 	mockConnection.AssertExpectations(t)
@@ -62,33 +61,33 @@ func TestEnqueuePassesParsedLogToInsertOne(t *testing.T) {
 
 func TestEnqueueError(t *testing.T) {
 	mockConnection := new(MongoConnectionMock)
-	mongoConnection := &mongoConnection{collection: mockConnection}
+	queue := &queue{collection: mockConnection}
 
 	mockConnection.On("InsertOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.InsertOneResult{}, errors.New("error"))
 
-	err := mongoConnection.Enqueue(parser.LogCrossChainCallRequested{}, &config.Config{})
+	err := queue.Enqueue(parser.LogCrossChainCallRequested{})
 
 	assert.Error(t, err)
 }
 
 func TestClose(t *testing.T) {
 	mockClient := new(MongoClientMock)
-	mongoClient := &mongoClient{client: mockClient}
+	queue := &queue{client: mockClient}
 
 	mockClient.On("Disconnect", context.TODO()).Return(nil)
 
-	err := mongoClient.Close()
+	err := queue.Close()
 
 	assert.NoError(t, err)
 }
 
 func TestCloseError(t *testing.T) {
 	mockClient := new(MongoClientMock)
-	mongoClient := &mongoClient{client: mockClient}
+	queue := &queue{client: mockClient}
 
 	mockClient.On("Disconnect", context.TODO()).Return(errors.New("error"))
 
-	err := mongoClient.Close()
+	err := queue.Close()
 
 	assert.Error(t, err)
 }

@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func Init(srcChain *chains.ChainConfig, cfg *config.Config, mongoClient store.MongoClient) error {
-	h := handler.NewHandler(cfg, srcChain, mongoClient.Collection("requests"))
+func Init(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) error {
+	h := handler.NewHandler(cfg, srcChain, queue)
 
 	client, err := clients.GetEthClient(srcChain)
 	if err != nil {

@@ -18,11 +18,11 @@ type handler struct {
 	srcChain  *chains.ChainConfig
 	parser    parser.Parser
 	validator validator.Validator
-	queue     store.MongoConnection
+	queue     store.Queue
 }
 
-func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.MongoConnection) Handler {
-	return &handler{cfg: cfg, srcChain: srcChain, parser: parser.NewParser(), validator: validator.NewValidator(), queue: queue}
+func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.Queue) Handler {
+	return &handler{cfg: cfg, srcChain: srcChain, parser: parser.NewParser(), validator: validator.NewValidator(cfg, srcChain), queue: queue}
 }
 
 func (h *handler) HandleLog(vLog types.Log) error {
@@ -31,12 +31,12 @@ func (h *handler) HandleLog(vLog types.Log) error {
 		return err
 	}
 
-	err = h.validator.ValidateLog(h.cfg, h.srcChain, parsedLog)
+	err = h.validator.ValidateLog(parsedLog)
 	if err != nil {
 		return err
 	}
 
-	err = h.queue.Enqueue(parsedLog, h.cfg)
+	err = h.queue.Enqueue(parsedLog)
 	if err != nil {
 		return err
 	}

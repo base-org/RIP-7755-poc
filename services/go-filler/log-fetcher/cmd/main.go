@@ -16,18 +16,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	mongoClient, err := store.NewMongoClient(cfg)
+	queue, err := store.NewQueue(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer mongoClient.Close()
+	defer queue.Close()
 
 	srcChain, err := chains.GetChainConfig(big.NewInt(421614), cfg.RPCs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = listener.Init(srcChain, cfg, mongoClient)
+	err = listener.Init(srcChain, cfg, queue)
 	if err != nil {
 		log.Fatal(err)
 	}

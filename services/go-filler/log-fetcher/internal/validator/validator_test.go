@@ -45,105 +45,105 @@ var parsedLog = parser.LogCrossChainCallRequested{
 }
 
 func TestValidateLog(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.NoError(t, err)
 }
 
 func TestValidateLog_UnknownDestinationChain(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevDstChainId := parsedLog.Request.DestinationChainId
 	parsedLog.Request.DestinationChainId = big.NewInt(11155112)
 	defer func() { parsedLog.Request.DestinationChainId = prevDstChainId }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_UnknownProverName(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevDstChainId := parsedLog.Request.DestinationChainId
 	parsedLog.Request.DestinationChainId = big.NewInt(11155111)
 	defer func() { parsedLog.Request.DestinationChainId = prevDstChainId }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_UnknownProverContract(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevProverContract := parsedLog.Request.ProverContract
 	parsedLog.Request.ProverContract = common.HexToAddress("0x1234567890123456789012345678901234567891")
 	defer func() { parsedLog.Request.ProverContract = prevProverContract }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_UnknownInboxContract(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevInboxContract := parsedLog.Request.InboxContract
 	parsedLog.Request.InboxContract = common.HexToAddress("0x1234567890123456789012345678901234567891")
 	defer func() { parsedLog.Request.InboxContract = prevInboxContract }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_UnknownL2Oracle(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevL2Oracle := parsedLog.Request.L2Oracle
 	parsedLog.Request.L2Oracle = common.HexToAddress("0x1234567890123456789012345678901234567891")
 	defer func() { parsedLog.Request.L2Oracle = prevL2Oracle }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_UnknownL2OracleStorageKey(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevL2OracleStorageKey := parsedLog.Request.L2OracleStorageKey
 	parsedLog.Request.L2OracleStorageKey = encodeBytes("1234567890123456789012345678901234567891")
 	defer func() { parsedLog.Request.L2OracleStorageKey = prevL2OracleStorageKey }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_InvalidReward_NotNativeAsset(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevRewardAsset := parsedLog.Request.RewardAsset
 	parsedLog.Request.RewardAsset = common.HexToAddress("0x1234567890123456789012345678901234567891")
 	defer func() { parsedLog.Request.RewardAsset = prevRewardAsset }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }
 
 func TestValidateLog_InvalidReward_NotGreaterThanValueNeeded(t *testing.T) {
-	validator := NewValidator()
+	validator := NewValidator(cfg, srcChain)
 
 	prevRewardAmount := parsedLog.Request.RewardAmount
 	parsedLog.Request.RewardAmount = big.NewInt(1000000000000000000)
 	defer func() { parsedLog.Request.RewardAmount = prevRewardAmount }()
 
-	err := validator.ValidateLog(cfg, srcChain, parsedLog)
+	err := validator.ValidateLog(parsedLog)
 
 	assert.Error(t, err)
 }

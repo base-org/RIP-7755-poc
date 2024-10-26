@@ -10,13 +10,9 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-type MongoClient interface {
+type Queue interface {
+	Enqueue(parsedLog parser.LogCrossChainCallRequested) error
 	Close() error
-	Collection(name string) MongoConnection
-}
-
-type MongoConnection interface {
-	Enqueue(parsedLog parser.LogCrossChainCallRequested, cfg *config.Config) error
 }
 
 type MongoCollection interface {
@@ -28,33 +24,24 @@ type MongoDriverClient interface {
 	Disconnect(context.Context) error
 }
 
-type mongoClient struct {
-	client MongoDriverClient
-}
-type mongoConnection struct {
+type queue struct {
+	client     MongoDriverClient
 	collection MongoCollection
 }
 
-func NewMongoClient(cfg *config.Config) (MongoClient, error) {
-	fmt.Println("Connecting to MongoDB")
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(cfg.MongoUri))
+func NewQueue(cfg *config.Config) (Queue, error) {
+	client, err := connect(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("Connected to MongoDB")
-
-	return &mongoClient{client: client}, nil
+	return &queue{client: client, collection: client.Database("calls").Collection("requests")}, nil
 }
 
-func (c *mongoClient) Collection(name string) MongoConnection {
-	return &mongoConnection{collection: c.client.Database("calls").Collection(name)}
-}
-
-func (c *mongoConnection) Enqueue(parsedLog parser.LogCrossChainCallRequested, cfg *config.Config) error {
+func (q *queue) Enqueue(parsedLog parser.LogCrossChainCallRequested) error {
 	fmt.Println("Sending job to queue")
 
-	_, err := c.collection.InsertOne(context.TODO(), parsedLog)
+	_, err := q.collection.InsertOne(context.TODO(), parsedLog)
 	if err != nil {
 		return err
 	}
@@ -64,6 +51,18 @@ func (c *mongoConnection) Enqueue(parsedLog parser.LogCrossChainCallRequested, c
 	return nil
 }
 
-func (c *mongoClient) Close() error {
-	return c.client.Disconnect(context.TODO())
+func (q *queue) Close() error {
+	return q.client.Disconnect(context.TODO())
+}
+
+func connect(cfg *config.Config) (MongoDriverClient, error) {
+	fmt.Println("Connecting to MongoDB")
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(cfg.MongoUri))
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("Connected to MongoDB")
+
+	return client, nil
 }
