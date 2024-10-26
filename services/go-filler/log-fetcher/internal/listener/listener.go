@@ -3,6 +3,8 @@ package listener
 import (
 	"context"
 	"fmt"
+	"log"
+	"math/big"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
@@ -23,9 +25,15 @@ type listener struct {
 	srcChain *chains.ChainConfig
 	handler  handler.Handler
 	query    ethereum.FilterQuery
+	logs     chan types.Log
 }
 
-func NewListener(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) (Listener, error) {
+func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Listener, error) {
+	srcChain, err := chains.GetChainConfig(srcChainId, cfg.RPCs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	h, err := handler.NewHandler(cfg, srcChain, queue)
 	if err != nil {
 		return nil, err
@@ -44,7 +52,7 @@ func NewListener(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Q
 		Topics:    [][]common.Hash{{crossChainCallRequestedHash}},
 	}
 
-	return &listener{srcChain: srcChain, handler: h, query: query}, nil
+	return &listener{srcChain: srcChain, handler: h, query: query, logs: make(chan types.Log)}, nil
 }
 
 func (l *listener) Init() error {
@@ -53,9 +61,7 @@ func (l *listener) Init() error {
 		return err
 	}
 
-	logs := make(chan types.Log)
-
-	sub, err := client.SubscribeFilterLogs(context.Background(), l.query, logs)
+	sub, err := client.SubscribeFilterLogs(context.Background(), l.query, l.logs)
 	if err != nil {
 		return err
 	}
@@ -68,7 +74,7 @@ func (l *listener) Init() error {
 		select {
 		case err := <-sub.Err():
 			return err
-		case vLog := <-logs:
+		case vLog := <-l.logs:
 			fmt.Println("Log received!")
 			fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
 			fmt.Printf("Log Index: %d\n", vLog.Index)
