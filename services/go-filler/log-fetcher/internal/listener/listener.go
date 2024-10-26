@@ -16,6 +16,8 @@ import (
 )
 
 func Init(srcChain *chains.ChainConfig, cfg *config.Config, mongoClient store.MongoClient) error {
+	h := handler.NewHandler(cfg, srcChain, mongoClient.Collection("requests"))
+
 	client, err := clients.GetEthClient(srcChain)
 	if err != nil {
 		return err
@@ -54,7 +56,7 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config, mongoClient store.Mo
 			fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
 			fmt.Printf("Log Index: %d\n", vLog.Index)
 
-			err := handler.HandleLog(vLog, srcChain, cfg, mongoClient)
+			err := h.HandleLog(vLog)
 			if err != nil {
 				return err
 			}

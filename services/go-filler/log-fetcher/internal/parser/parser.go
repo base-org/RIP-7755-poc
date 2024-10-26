@@ -12,6 +12,16 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+type Parser interface {
+	ParseLog(vLog types.Log) (LogCrossChainCallRequested, error)
+}
+
+type parser struct{}
+
+func NewParser() Parser {
+	return &parser{}
+}
+
 type Call struct {
 	To    common.Address
 	Data  []byte
@@ -40,7 +50,7 @@ type LogCrossChainCallRequested struct {
 	Request     CrossChainRequest
 }
 
-func ParseLog(vLog types.Log) (LogCrossChainCallRequested, error) {
+func (p *parser) ParseLog(vLog types.Log) (LogCrossChainCallRequested, error) {
 	fmt.Println("Parsing log")
 
 	absPath, err := filepath.Abs("internal/abis/RIP7755Outbox.json")

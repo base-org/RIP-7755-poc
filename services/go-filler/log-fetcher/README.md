@@ -40,3 +40,9 @@ Run the application:
 ```bash
 go run ./cmd
 ```
+
+Run unit tests:
+
+```bash
+go test ./internal/...
+```

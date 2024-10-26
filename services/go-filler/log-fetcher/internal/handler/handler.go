@@ -9,22 +9,34 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-func HandleLog(vLog types.Log, srcChain *chains.ChainConfig, cfg *config.Config, mongoClient store.MongoClient) error {
-	parsedLog, err := parser.ParseLog(vLog)
+type Handler interface {
+	HandleLog(vLog types.Log) error
+}
+
+type handler struct {
+	cfg       *config.Config
+	srcChain  *chains.ChainConfig
+	parser    parser.Parser
+	validator validator.Validator
+	queue     store.MongoConnection
+}
+
+func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.MongoConnection) Handler {
+	return &handler{cfg: cfg, srcChain: srcChain, parser: parser.NewParser(), validator: validator.NewValidator(), queue: queue}
+}
+
+func (h *handler) HandleLog(vLog types.Log) error {
+	parsedLog, err := h.parser.ParseLog(vLog)
 	if err != nil {
 		return err
 	}
 
-	// validate Log
-	v := validator.NewValidator()
-	err = v.ValidateLog(cfg, srcChain, parsedLog)
+	err = h.validator.ValidateLog(h.cfg, h.srcChain, parsedLog)
 	if err != nil {
 		return err
 	}
 
-	// send log to queue
-	c := mongoClient.Collection("requests")
-	err = c.Enqueue(parsedLog, cfg)
+	err = h.queue.Enqueue(parsedLog, h.cfg)
 	if err != nil {
 		return err
 	}
