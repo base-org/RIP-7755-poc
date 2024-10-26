@@ -14,15 +14,13 @@ type Handler interface {
 }
 
 type handler struct {
-	cfg       *config.Config
-	srcChain  *chains.ChainConfig
 	parser    parser.Parser
 	validator validator.Validator
 	queue     store.Queue
 }
 
 func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.Queue) Handler {
-	return &handler{cfg: cfg, srcChain: srcChain, parser: parser.NewParser(), validator: validator.NewValidator(cfg, srcChain), queue: queue}
+	return &handler{parser: parser.NewParser(), validator: validator.NewValidator(cfg, srcChain), queue: queue}
 }
 
 func (h *handler) HandleLog(vLog types.Log) error {
