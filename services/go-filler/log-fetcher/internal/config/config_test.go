@@ -13,8 +13,6 @@ func TestNewConfig(t *testing.T) {
 	os.Setenv("BASE_SEPOLIA_RPC", "https://base-sepolia.example.com")
 	os.Setenv("OPTIMISM_SEPOLIA_RPC", "https://optimism-sepolia.example.com")
 	os.Setenv("SEPOLIA_RPC", "https://sepolia.example.com")
-	os.Setenv("REDIS_QUEUE_URL", "https://sqs.example.com/queue")
-	os.Setenv("REDIS_PASSWORD", "redis-password")
 	os.Setenv("MONGO_URI", "mongodb://localhost:27017/db")
 
 	// Create a temporary .env file
@@ -23,8 +21,6 @@ ARBITRUM_SEPOLIA_RPC=https://arbitrum-sepolia.example.com
 BASE_SEPOLIA_RPC=https://base-sepolia.example.com
 OPTIMISM_SEPOLIA_RPC=https://optimism-sepolia.example.com
 SEPOLIA_RPC=https://sepolia.example.com
-REDIS_QUEUE_URL=https://sqs.example.com/queue
-REDIS_PASSWORD=redis-password
 MONGO_URI=mongodb://localhost:27017/db
 `
 	err := os.WriteFile(".env", []byte(envContent), 0644)
@@ -42,8 +38,6 @@ MONGO_URI=mongodb://localhost:27017/db
 	assert.Equal(t, "https://base-sepolia.example.com", config.RPCs.BaseSepolia)
 	assert.Equal(t, "https://optimism-sepolia.example.com", config.RPCs.OptimismSepolia)
 	assert.Equal(t, "https://sepolia.example.com", config.RPCs.Sepolia)
-	assert.Equal(t, "https://sqs.example.com/queue", config.RedisQueueUrl)
-	assert.Equal(t, "redis-password", config.RedisPassword)
 	assert.Equal(t, "mongodb://localhost:27017/db", config.MongoUri)
 }
 

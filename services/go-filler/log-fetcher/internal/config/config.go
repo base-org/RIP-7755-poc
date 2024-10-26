@@ -15,10 +15,8 @@ type RPCs struct {
 }
 
 type Config struct {
-	RPCs          *RPCs
-	RedisQueueUrl string
-	RedisPassword string
-	MongoUri      string
+	RPCs     *RPCs
+	MongoUri string
 }
 
 func NewConfig() (*Config, error) {
@@ -33,9 +31,7 @@ func NewConfig() (*Config, error) {
 			OptimismSepolia: getEnvStr("OPTIMISM_SEPOLIA_RPC"),
 			Sepolia:         getEnvStr("SEPOLIA_RPC"),
 		},
-		RedisQueueUrl: getEnvStr("REDIS_QUEUE_URL"),
-		RedisPassword: getEnvStr("REDIS_PASSWORD"),
-		MongoUri:      getEnvStr("MONGO_URI"),
+		MongoUri: getEnvStr("MONGO_URI"),
 	}
 
 	return config, nil
