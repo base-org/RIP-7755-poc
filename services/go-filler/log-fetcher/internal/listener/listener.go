@@ -15,20 +15,25 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func Init(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) error {
+type Listener interface {
+	Init() error
+}
+
+type listener struct {
+	srcChain *chains.ChainConfig
+	handler  handler.Handler
+	query    ethereum.FilterQuery
+}
+
+func NewListener(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) (Listener, error) {
 	h, err := handler.NewHandler(cfg, srcChain, queue)
 	if err != nil {
-		return err
-	}
-
-	client, err := clients.GetEthClient(srcChain)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
 	contractAddress := srcChain.Contracts.Outbox
 	if contractAddress == common.HexToAddress("") {
-		return fmt.Errorf("source chain %s missing Outbox contract address", srcChain.ChainId)
+		return nil, fmt.Errorf("source chain %s missing Outbox contract address", srcChain.ChainId)
 	}
 
 	crossChainCallRequestedSig := []byte("CrossChainCallRequested(bytes32,(address,(address,bytes,uint256)[],address,uint256,address,address,bytes32,address,uint256,uint256,uint256,uint256,address,bytes))")
@@ -39,9 +44,18 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) e
 		Topics:    [][]common.Hash{{crossChainCallRequestedHash}},
 	}
 
+	return &listener{srcChain: srcChain, handler: h, query: query}, nil
+}
+
+func (l *listener) Init() error {
+	client, err := clients.GetEthClient(l.srcChain)
+	if err != nil {
+		return err
+	}
+
 	logs := make(chan types.Log)
 
-	sub, err := client.SubscribeFilterLogs(context.Background(), query, logs)
+	sub, err := client.SubscribeFilterLogs(context.Background(), l.query, logs)
 	if err != nil {
 		return err
 	}
@@ -59,7 +73,7 @@ func Init(srcChain *chains.ChainConfig, cfg *config.Config, queue store.Queue) e
 			fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
 			fmt.Printf("Log Index: %d\n", vLog.Index)
 
-			err := h.HandleLog(vLog)
+			err := l.handler.HandleLog(vLog)
 			if err != nil {
 				return err
 			}

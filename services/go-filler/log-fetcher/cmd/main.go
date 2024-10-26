@@ -27,7 +27,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = listener.Init(srcChain, cfg, queue)
+	l, err := listener.NewListener(srcChain, cfg, queue)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = l.Init()
 	if err != nil {
 		log.Fatal(err)
 	}
