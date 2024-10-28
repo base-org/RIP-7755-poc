@@ -1,4 +1,4 @@
-module github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher
+module github.com/base-org/RIP-7755-poc/services/go-filler
 
 go 1.23.2
 
