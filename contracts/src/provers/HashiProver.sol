@@ -41,7 +41,7 @@ contract HashiProver is IProver {
     error InvalidBlockHeader();
 
     /// @notice This error is thrown when the number of bytes to convert into an uin256 is greather than 32
-    error BytesLengthExeceed32();
+    error BytesLengthExceeds32();
 
     /// @notice Validates storage proofs and verifies fulfillment
     ///
@@ -87,7 +87,7 @@ contract HashiProver is IProver {
 
     /// @notice Converts a sequence of bytes into an uint256
     function _bytesToUint256(bytes memory b) private pure returns (uint256) {
-        if (b.length > 32) revert BytesLengthExeceed32();
+        if (b.length > 32) revert BytesLengthExceeds32();
         return abi.decode(abi.encodePacked(new bytes(32 - b.length), b), (uint256));
     }
 
