@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"sync"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
@@ -18,7 +19,8 @@ import (
 )
 
 type Listener interface {
-	Init() error
+	Start(ctx context.Context) error
+	Stop()
 }
 
 type listener struct {
@@ -26,6 +28,8 @@ type listener struct {
 	handler  handler.Handler
 	query    ethereum.FilterQuery
 	logs     chan types.Log
+	stop     chan struct{}
+	wg       sync.WaitGroup
 }
 
 func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Listener, error) {
@@ -52,16 +56,22 @@ func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Li
 		Topics:    [][]common.Hash{{crossChainCallRequestedHash}},
 	}
 
-	return &listener{srcChain: srcChain, handler: h, query: query, logs: make(chan types.Log)}, nil
+	return &listener{
+		srcChain: srcChain,
+		handler:  h,
+		query:    query,
+		logs:     make(chan types.Log),
+		stop:     make(chan struct{}),
+	}, nil
 }
 
-func (l *listener) Init() error {
+func (l *listener) Start(ctx context.Context) error {
 	client, err := clients.GetEthClient(l.srcChain)
 	if err != nil {
 		return err
 	}
 
-	sub, err := client.SubscribeFilterLogs(context.Background(), l.query, l.logs)
+	sub, err := client.SubscribeFilterLogs(ctx, l.query, l.logs)
 	if err != nil {
 		return err
 	}
@@ -70,10 +80,18 @@ func (l *listener) Init() error {
 
 	fmt.Println("Subscribed to logs")
 
+	l.wg.Add(1)
+	go l.loop(sub)
+
+	return nil
+}
+
+func (l *listener) loop(sub ethereum.Subscription) {
+	defer l.wg.Done()
 	for {
 		select {
 		case err := <-sub.Err():
-			return err
+			fmt.Printf("Subscription error: %v\n", err)
 		case vLog := <-l.logs:
 			fmt.Println("Log received!")
 			fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
@@ -81,8 +99,15 @@ func (l *listener) Init() error {
 
 			err := l.handler.HandleLog(vLog)
 			if err != nil {
-				return err
+				fmt.Printf("Error handling log: %v\n", err)
 			}
+		case <-l.stop:
+			return
 		}
 	}
+}
+
+func (l *listener) Stop() {
+	close(l.stop)
+	l.wg.Wait()
 }
