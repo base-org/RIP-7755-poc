@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,9 +26,9 @@ var srcChain = &chains.ChainConfig{
 	},
 }
 
-var parsedLog = parser.LogCrossChainCallRequested{
-	Request: parser.CrossChainRequest{
-		Calls: []parser.Call{
+var parsedLog = &bindings.RIP7755OutboxCrossChainCallRequested{
+	Request: bindings.CrossChainRequest{
+		Calls: []bindings.Call{
 			{
 				To:    common.HexToAddress("0x1234567890123456789012345678901234567890"),
 				Value: big.NewInt(1000000000000000000),

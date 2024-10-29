@@ -7,15 +7,15 @@ import (
 	"math/big"
 	"sync"
 
+	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/handler"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 type Listener interface {
@@ -24,12 +24,11 @@ type Listener interface {
 }
 
 type listener struct {
-	srcChain *chains.ChainConfig
-	handler  handler.Handler
-	query    ethereum.FilterQuery
-	logs     chan types.Log
-	stop     chan struct{}
-	wg       sync.WaitGroup
+	outbox  *bindings.RIP7755Outbox
+	handler handler.Handler
+	logs    chan *bindings.RIP7755OutboxCrossChainCallRequested
+	stop    chan struct{}
+	wg      sync.WaitGroup
 }
 
 func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Listener, error) {
@@ -48,35 +47,28 @@ func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Li
 		return nil, fmt.Errorf("source chain %s missing Outbox contract address", srcChain.ChainId)
 	}
 
-	crossChainCallRequestedSig := []byte("CrossChainCallRequested(bytes32,(address,(address,bytes,uint256)[],address,uint256,address,address,bytes32,address,uint256,uint256,uint256,uint256,address,bytes))")
-	crossChainCallRequestedHash := crypto.Keccak256Hash(crossChainCallRequestedSig)
-
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{contractAddress},
-		Topics:    [][]common.Hash{{crossChainCallRequestedHash}},
+	client, err := clients.GetEthClient(srcChain)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get eth client: %v", err)
+	}
+	outbox, err := bindings.NewRIP7755Outbox(contractAddress, client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Outbox contract binding: %v", err)
 	}
 
 	return &listener{
-		srcChain: srcChain,
-		handler:  h,
-		query:    query,
-		logs:     make(chan types.Log),
-		stop:     make(chan struct{}),
+		outbox:  outbox,
+		handler: h,
+		logs:    make(chan *bindings.RIP7755OutboxCrossChainCallRequested),
+		stop:    make(chan struct{}),
 	}, nil
 }
 
 func (l *listener) Start(ctx context.Context) error {
-	client, err := clients.GetEthClient(l.srcChain)
+	sub, err := l.outbox.WatchCrossChainCallRequested(&bind.WatchOpts{}, l.logs, [][32]byte{})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to subscribe to logs: %v", err)
 	}
-
-	sub, err := client.SubscribeFilterLogs(ctx, l.query, l.logs)
-	if err != nil {
-		return err
-	}
-
-	defer sub.Unsubscribe()
 
 	fmt.Println("Subscribed to logs")
 
@@ -92,16 +84,17 @@ func (l *listener) loop(sub ethereum.Subscription) {
 		select {
 		case err := <-sub.Err():
 			fmt.Printf("Subscription error: %v\n", err)
-		case vLog := <-l.logs:
+		case log := <-l.logs:
 			fmt.Println("Log received!")
-			fmt.Printf("Log Block Number: %d\n", vLog.BlockNumber)
-			fmt.Printf("Log Index: %d\n", vLog.Index)
+			fmt.Printf("Log Block Number: %d\n", log.Raw.BlockNumber)
+			fmt.Printf("Log Index: %d\n", log.Raw.Index)
 
-			err := l.handler.HandleLog(vLog)
+			err := l.handler.HandleLog(log)
 			if err != nil {
 				fmt.Printf("Error handling log: %v\n", err)
 			}
 		case <-l.stop:
+			sub.Unsubscribe()
 			return
 		}
 	}

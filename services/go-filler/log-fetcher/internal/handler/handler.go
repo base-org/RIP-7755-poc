@@ -1,45 +1,33 @@
 package handler
 
 import (
+	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/validator"
-	"github.com/ethereum/go-ethereum/core/types"
 )
 
 type Handler interface {
-	HandleLog(vLog types.Log) error
+	HandleLog(*bindings.RIP7755OutboxCrossChainCallRequested) error
 }
 
 type handler struct {
-	parser    parser.Parser
 	validator validator.Validator
 	queue     store.Queue
 }
 
 func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.Queue) (Handler, error) {
-	parser, err := parser.NewParser()
-	if err != nil {
-		return nil, err
-	}
-
-	return &handler{parser: parser, validator: validator.NewValidator(cfg, srcChain), queue: queue}, nil
+	return &handler{validator: validator.NewValidator(cfg, srcChain), queue: queue}, nil
 }
 
-func (h *handler) HandleLog(vLog types.Log) error {
-	parsedLog, err := h.parser.ParseLog(vLog)
+func (h *handler) HandleLog(log *bindings.RIP7755OutboxCrossChainCallRequested) error {
+	err := h.validator.ValidateLog(log)
 	if err != nil {
 		return err
 	}
 
-	err = h.validator.ValidateLog(parsedLog)
-	if err != nil {
-		return err
-	}
-
-	err = h.queue.Enqueue(parsedLog)
+	err = h.queue.Enqueue(log)
 	if err != nil {
 		return err
 	}
