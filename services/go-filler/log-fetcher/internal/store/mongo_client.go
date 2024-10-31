@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Queue interface {
-	Enqueue(parsedLog parser.LogCrossChainCallRequested) error
+	Enqueue(*bindings.RIP7755OutboxCrossChainCallRequested) error
 	Close() error
 }
 
@@ -29,6 +29,11 @@ type queue struct {
 	collection MongoCollection
 }
 
+type record struct {
+	RequestHash [32]byte
+	Request     bindings.CrossChainRequest
+}
+
 func NewQueue(cfg *config.Config) (Queue, error) {
 	client, err := connect(cfg)
 	if err != nil {
@@ -38,10 +43,14 @@ func NewQueue(cfg *config.Config) (Queue, error) {
 	return &queue{client: client, collection: client.Database("calls").Collection("requests")}, nil
 }
 
-func (q *queue) Enqueue(parsedLog parser.LogCrossChainCallRequested) error {
+func (q *queue) Enqueue(log *bindings.RIP7755OutboxCrossChainCallRequested) error {
 	fmt.Println("Sending job to queue")
 
-	_, err := q.collection.InsertOne(context.TODO(), parsedLog)
+	r := record{
+		RequestHash: log.RequestHash,
+		Request:     log.Request,
+	}
+	_, err := q.collection.InsertOne(context.TODO(), r)
 	if err != nil {
 		return err
 	}

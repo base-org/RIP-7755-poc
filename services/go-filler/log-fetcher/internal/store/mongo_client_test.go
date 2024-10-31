@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/parser"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -41,7 +41,7 @@ func TestEnqueue(t *testing.T) {
 
 	mockConnection.On("InsertOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.InsertOneResult{}, nil)
 
-	err := queue.Enqueue(parser.LogCrossChainCallRequested{})
+	err := queue.Enqueue(&bindings.RIP7755OutboxCrossChainCallRequested{})
 
 	assert.NoError(t, err)
 }
@@ -49,11 +49,15 @@ func TestEnqueue(t *testing.T) {
 func TestEnqueuePassesParsedLogToInsertOne(t *testing.T) {
 	mockConnection := new(MongoConnectionMock)
 	queue := &queue{collection: mockConnection}
-	parsedLog := parser.LogCrossChainCallRequested{}
+	log := &bindings.RIP7755OutboxCrossChainCallRequested{}
+	r := record{
+		RequestHash: log.RequestHash,
+		Request:     log.Request,
+	}
 
-	mockConnection.On("InsertOne", context.TODO(), parsedLog, mock.Anything).Return(&mongo.InsertOneResult{}, nil)
+	mockConnection.On("InsertOne", context.TODO(), r, mock.Anything).Return(&mongo.InsertOneResult{}, nil)
 
-	err := queue.Enqueue(parsedLog)
+	err := queue.Enqueue(log)
 
 	assert.NoError(t, err)
 	mockConnection.AssertExpectations(t)
@@ -65,7 +69,7 @@ func TestEnqueueError(t *testing.T) {
 
 	mockConnection.On("InsertOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.InsertOneResult{}, errors.New("error"))
 
-	err := queue.Enqueue(parser.LogCrossChainCallRequested{})
+	err := queue.Enqueue(&bindings.RIP7755OutboxCrossChainCallRequested{})
 
 	assert.Error(t, err)
 }
