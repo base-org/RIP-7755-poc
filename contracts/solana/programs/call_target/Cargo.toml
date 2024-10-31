@@ -1,12 +1,12 @@
 [package]
-name = "solana"
+name = "call_target"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "solana"
+name = "call_target"
 
 [features]
 default = []

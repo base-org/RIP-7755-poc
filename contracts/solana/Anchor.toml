@@ -5,7 +5,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-solana = "7zMxH5rPbZjh6AkehzNabfdQSRTpFYMbcgqtyaWKq5yL"
+call_target = "4rPLqoMbtPAMdYeytQagQyt5ucVxRJpx7BjL2jW49UsQ"
+precheck = "kXGFCQ2Bhj5z2zV9pPS7Ygz1PVt3EVYR7zTAGGcx7h9"
+rip7755_inbox = "C8p9qKfbUuzFhkJ4mEFoAUgTUTLxD7ZDP5zntXcA3RQg"
+rip7755_structs = "TkF3SRA8NrukNfxxmkAdhWRxebivtE6uuaCNmrsGwTj"
 
 [registry]
 url = "https://api.apr.dev"
