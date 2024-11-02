@@ -15,14 +15,14 @@ use fulfillment_info::FulfillmentInfo;
 declare_id!("2nfLnXeeWyAUBsCT8uskj8nvkk46FiwaaVvDx29zQcue");
 
 #[program]
-mod rip7755_inbox {
+mod rip_7755_inbox {
     use super::*;
 
     // TODO: should be using genesis hash instead of chain id
     pub const CHAIN_ID: u64 = 103; // devnet
 
     // there's a max limit to tx size, if calls need to be broken up, we need to call fulfill multiple times
-    pub fn fulfill(ctx: Context<Fulfill>, request: CrossChainRequest) -> Result<()> {
+    pub fn fulfill(ctx: Context<Fulfill>, request: CrossChainRequest, filler: Pubkey) -> Result<()> {
         if request.destination_chain_id != CHAIN_ID {
             return Err(ErrorCode::InvalidChainId.into());
         }
@@ -59,7 +59,7 @@ mod rip7755_inbox {
 
         // Initialize fulfillment info
         let request_hash = hash_request(&request)?;
-        ctx.accounts.fulfillment_info.init(request_hash.to_vec(), ctx.accounts.filler.key())?;
+        ctx.accounts.fulfillment_info.init(request_hash, filler)?;
 
         if request.calls.len() != 1 {
             return Err(ErrorCode::OnlyOneDstAccSupported.into());
@@ -85,10 +85,10 @@ mod rip7755_inbox {
         }
 
         // q: in evm, we check that msg.value == value_sent ... is there an equivalent here?
-        require!(
-            value_sent == ctx.accounts.caller.lamports(),
-            ErrorCode::InvalidValue
-        );
+        // require!(
+        //     value_sent == ctx.accounts.caller.lamports(),
+        //     ErrorCode::InvalidValue
+        // );
 
         Ok(())
     }
@@ -96,10 +96,8 @@ mod rip7755_inbox {
 
 #[derive(Accounts)]
 pub struct Fulfill<'info> {
-    #[account(init, payer = filler, space = 8 + 1 + 32 + 8 + 32)]
+    #[account(init, payer = caller, space = 8 + 1 + 32 + 8 + 32)]
     pub fulfillment_info: Account<'info, FulfillmentInfo>,
-    #[account(mut)]
-    pub filler: Signer<'info>,
     #[account(mut)]
     pub caller: Signer<'info>,
     pub system_program: Program<'info, System>,
