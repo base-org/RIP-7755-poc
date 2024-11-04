@@ -37,6 +37,7 @@ contract HashiProverTest is Test {
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
     function setUp() external {
+        vm.createSelectFork(vm.envString("BASESEPOLIA_JSON_RPC_URL"), 17_180_041);
         shoyuBashi = new MockShoyuBashi();
         DeployHashiProver deployer = new DeployHashiProver();
         prover = deployer.run();

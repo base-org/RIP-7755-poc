@@ -4,11 +4,11 @@
 
 test:
 	forge fmt
-	forge test --fork-url https://sepolia.base.org --fork-block-number 17180041
+	forge test --fork-url https://sepolia.base.org --fork-block-number 16718855
 
 coverage:
 	forge fmt
-	forge coverage --fork-url https://sepolia.base.org --fork-block-number 17180041
+	forge coverage --fork-url https://sepolia.base.org --fork-block-number 16718855
 
 deploy-mock:
 	forge create --rpc-url $(ARBITRUM_SEPOLIA_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
