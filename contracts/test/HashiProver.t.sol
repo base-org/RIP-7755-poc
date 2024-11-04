@@ -116,7 +116,6 @@ contract HashiProverTest is Test {
         });
 
         HashiProver.RIP7755Proof memory proofData = HashiProver.RIP7755Proof({
-            dstChainId: json.readUint(".dstChainId"),
             rlpEncodedBlockHeader: json.readBytes(".rlpEncodedBlockHeader"),
             dstAccountProofParams: dstAccountProofParams
         });

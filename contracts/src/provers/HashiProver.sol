@@ -20,8 +20,6 @@ contract HashiProver is IProver {
 
     /// @notice Parameters needed for a full nested cross-chain storage proof
     struct RIP7755Proof {
-        /// @dev The parameter specifies the chain ID for retrieving the block header from Hashi
-        uint256 dstChainId;
         /// @dev The RLP-encoded block from which we want to retrieve its hash from Hashi
         bytes rlpEncodedBlockHeader;
         /// @dev Parameters needed to validate the authenticity of a specified storage location in `RIP7755Inbox` on
@@ -76,7 +74,7 @@ contract HashiProver is IProver {
 
         /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
         (address shoyuBashi) = abi.decode(request.precheckData, (address));
-        bytes32 blockHeaderHash = IShoyuBashi(shoyuBashi).getThresholdHash(proofData.dstChainId, blockNumber);
+        bytes32 blockHeaderHash = IShoyuBashi(shoyuBashi).getThresholdHash(request.destinationChainId, blockNumber);
         if (blockHeaderHash != keccak256(proofData.rlpEncodedBlockHeader)) revert InvalidBlockHeader();
 
         bool validStorage = request.inboxContract.validateAccountStorage(stateRoot, proofData.dstAccountProofParams);
