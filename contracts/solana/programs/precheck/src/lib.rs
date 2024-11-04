@@ -7,8 +7,10 @@ declare_id!("kXGFCQ2Bhj5z2zV9pPS7Ygz1PVt3EVYR7zTAGGcx7h9");
 pub mod precheck {
     use super::*;
 
-    pub fn precheck_call(ctx: Context<PrecheckCall>, _request: CrossChainRequest, _caller: Pubkey) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
+    pub fn precheck_call(_ctx: Context<PrecheckCall>, request: CrossChainRequest, _caller: Pubkey) -> Result<()> {
+        if request.reward_amount > 0 {
+            return Err(ErrorCode::PrecheckFailed.into());
+        }
         Ok(())
     }
 }
@@ -17,4 +19,10 @@ pub mod precheck {
 pub struct PrecheckCall<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
+}
+
+#[error_code]
+pub enum ErrorCode {
+    #[msg("Precheck failed")]
+    PrecheckFailed,
 }

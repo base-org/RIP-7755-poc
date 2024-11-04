@@ -13,6 +13,7 @@ pub mod call_target {
 }
 
 #[derive(Accounts)]
+#[instruction(_data: Vec<u8>)]
 pub struct MakeCall<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
