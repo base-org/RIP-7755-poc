@@ -15,6 +15,7 @@ import (
 )
 
 func main() {
+	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelInfo, true)))
 	cfg, err := config.NewConfig() // Load env vars
 	if err != nil {
 		log.Crit("Failed to load config", "error", err)
