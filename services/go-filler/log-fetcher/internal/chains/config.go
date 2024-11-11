@@ -3,11 +3,11 @@ package chains
 import (
 	"encoding/hex"
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Contracts struct {
@@ -113,7 +113,7 @@ func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, err
 func encodeBytes(bytesStr string) [32]byte {
 	bytes, err := hex.DecodeString(bytesStr)
 	if err != nil {
-		log.Fatal(err)
+		log.Crit("Failed to decode bytes", "error", err)
 	}
 
 	var byteArray [32]byte

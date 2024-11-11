@@ -2,13 +2,13 @@ package validator
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/ethereum/go-ethereum/common"
+	logger "github.com/ethereum/go-ethereum/log"
 )
 
 type Validator interface {
@@ -25,7 +25,7 @@ func NewValidator(cfg *config.Config, srcChain *chains.ChainConfig) Validator {
 }
 
 func (v *validator) ValidateLog(log *bindings.RIP7755OutboxCrossChainCallRequested) error {
-	fmt.Println("Validating log")
+	logger.Info("Validating log")
 
 	// - Confirm valid proverContract address on source chain
 	dstChain, err := chains.GetChainConfig(log.Request.DestinationChainId, v.cfg.RPCs)

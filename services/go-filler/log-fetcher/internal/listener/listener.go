@@ -3,7 +3,6 @@ package listener
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"sync"
 
@@ -16,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	logger "github.com/ethereum/go-ethereum/log"
 )
 
 type Listener interface {
@@ -34,7 +34,7 @@ type listener struct {
 func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Listener, error) {
 	srcChain, err := chains.GetChainConfig(srcChainId, cfg.RPCs)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	h, err := handler.NewHandler(cfg, srcChain, queue)
@@ -70,7 +70,7 @@ func (l *listener) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to subscribe to logs: %v", err)
 	}
 
-	fmt.Println("Subscribed to logs")
+	logger.Info("Subscribed to logs")
 
 	l.wg.Add(1)
 	go l.loop(sub)
@@ -83,15 +83,15 @@ func (l *listener) loop(sub ethereum.Subscription) {
 	for {
 		select {
 		case err := <-sub.Err():
-			fmt.Printf("Subscription error: %v\n", err)
+			logger.Info("Subscription error", "error", err)
 		case log := <-l.logs:
-			fmt.Println("Log received!")
-			fmt.Printf("Log Block Number: %d\n", log.Raw.BlockNumber)
-			fmt.Printf("Log Index: %d\n", log.Raw.Index)
+			logger.Info("Log received!")
+			logger.Info("Log Block Number", "blockNumber", log.Raw.BlockNumber)
+			logger.Info("Log Index", "index", log.Raw.Index)
 
 			err := l.handler.HandleLog(log)
 			if err != nil {
-				fmt.Printf("Error handling log: %v\n", err)
+				logger.Error("Error handling log", "error", err)
 			}
 		case <-l.stop:
 			sub.Unsubscribe()

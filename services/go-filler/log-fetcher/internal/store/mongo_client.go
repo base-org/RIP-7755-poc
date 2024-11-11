@@ -2,10 +2,10 @@ package store
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
+	logger "github.com/ethereum/go-ethereum/log"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -44,7 +44,7 @@ func NewQueue(cfg *config.Config) (Queue, error) {
 }
 
 func (q *queue) Enqueue(log *bindings.RIP7755OutboxCrossChainCallRequested) error {
-	fmt.Println("Sending job to queue")
+	logger.Info("Sending job to queue")
 
 	r := record{
 		RequestHash: log.RequestHash,
@@ -55,7 +55,7 @@ func (q *queue) Enqueue(log *bindings.RIP7755OutboxCrossChainCallRequested) erro
 		return err
 	}
 
-	fmt.Println("Job sent to queue")
+	logger.Info("Job sent to queue")
 
 	return nil
 }
@@ -65,13 +65,13 @@ func (q *queue) Close() error {
 }
 
 func connect(cfg *config.Config) (MongoDriverClient, error) {
-	fmt.Println("Connecting to MongoDB")
+	logger.Info("Connecting to MongoDB")
 	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(cfg.MongoUri))
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Println("Connected to MongoDB")
+	logger.Info("Connected to MongoDB")
 
 	return client, nil
 }

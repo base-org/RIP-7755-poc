@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
@@ -13,17 +11,18 @@ import (
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/listener"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func main() {
 	cfg, err := config.NewConfig() // Load env vars
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Failed to load config", "error", err)
 	}
 
 	queue, err := store.NewQueue(cfg)
 	if err != nil {
-		log.Fatal(err)
+		log.Error("Failed to create queue", "error", err)
 	}
 	defer queue.Close()
 
@@ -33,7 +32,7 @@ func main() {
 	for _, chainId := range cfg.SupportedChains {
 		l, err := listener.NewListener(chainId, cfg, queue)
 		if err != nil {
-			log.Fatal(err)
+			log.Error("Failed to create listener", "error", err)
 		}
 
 		wg.Add(1)
@@ -41,7 +40,7 @@ func main() {
 		err = l.Start(ctx)
 		cancel()
 		if err != nil {
-			log.Fatal(err)
+			log.Error("Failed to start listener", "error", err)
 		}
 
 		go func() {
@@ -56,7 +55,7 @@ func main() {
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	<-c
 
-	fmt.Println("Shutting down...")
+	log.Info("Shutting down...")
 	stop()
 	wg.Wait()
 }

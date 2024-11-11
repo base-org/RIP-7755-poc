@@ -1,10 +1,9 @@
 package clients
 
 import (
-	"fmt"
-
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 func GetEthClient(cfg *chains.ChainConfig) (*ethclient.Client, error) {
@@ -13,7 +12,7 @@ func GetEthClient(cfg *chains.ChainConfig) (*ethclient.Client, error) {
 		return nil, err
 	}
 
-	fmt.Println("Connected to client")
+	log.Info("Connected to client", "url", cfg.RpcUrl)
 
 	return client, nil
 }
