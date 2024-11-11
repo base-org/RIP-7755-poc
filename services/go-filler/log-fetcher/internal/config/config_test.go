@@ -1,6 +1,7 @@
 package config
 
 import (
+	"math/big"
 	"os"
 	"testing"
 
@@ -39,6 +40,7 @@ MONGO_URI=mongodb://localhost:27017/db
 	assert.Equal(t, "https://optimism-sepolia.example.com", config.RPCs.OptimismSepolia)
 	assert.Equal(t, "https://sepolia.example.com", config.RPCs.Sepolia)
 	assert.Equal(t, "mongodb://localhost:27017/db", config.MongoUri)
+	assert.Equal(t, []*big.Int{big.NewInt(421614)}, config.SupportedChains)
 }
 
 func TestNewConfigMissingEnvVar(t *testing.T) {

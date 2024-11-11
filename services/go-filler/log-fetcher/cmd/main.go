@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"math/big"
 	"os"
 	"os/signal"
 	"sync"
@@ -15,8 +14,6 @@ import (
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/listener"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 )
-
-var supportedChains = []*big.Int{big.NewInt(421614)}
 
 func main() {
 	cfg, err := config.NewConfig() // Load env vars
@@ -33,7 +30,7 @@ func main() {
 	var wg sync.WaitGroup
 	stopped, stop := context.WithCancel(context.Background())
 
-	for _, chainId := range supportedChains {
+	for _, chainId := range cfg.SupportedChains {
 		l, err := listener.NewListener(chainId, cfg, queue)
 		if err != nil {
 			log.Fatal(err)

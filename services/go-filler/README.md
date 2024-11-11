@@ -35,11 +35,11 @@ MONGO_URI=
 Run the log fetcher:
 
 ```bash
-go run ./log-fetcher/cmd
+make run-log-fetcher
 ```
 
 Run log fetcher unit tests:
 
 ```bash
-go test ./log-fetcher/internal/...
+make test-log-fetcher
 ```
