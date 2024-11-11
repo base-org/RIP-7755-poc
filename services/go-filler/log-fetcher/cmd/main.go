@@ -17,12 +17,12 @@ import (
 func main() {
 	cfg, err := config.NewConfig() // Load env vars
 	if err != nil {
-		log.Error("Failed to load config", "error", err)
+		log.Crit("Failed to load config", "error", err)
 	}
 
 	queue, err := store.NewQueue(cfg)
 	if err != nil {
-		log.Error("Failed to create queue", "error", err)
+		log.Crit("Failed to create queue", "error", err)
 	}
 	defer queue.Close()
 
@@ -32,7 +32,7 @@ func main() {
 	for _, chainId := range cfg.SupportedChains {
 		l, err := listener.NewListener(chainId, cfg, queue)
 		if err != nil {
-			log.Error("Failed to create listener", "error", err)
+			log.Crit("Failed to create listener", "error", err)
 		}
 
 		wg.Add(1)
@@ -40,7 +40,7 @@ func main() {
 		err = l.Start(ctx)
 		cancel()
 		if err != nil {
-			log.Error("Failed to start listener", "error", err)
+			log.Crit("Failed to start listener", "error", err)
 		}
 
 		go func() {
