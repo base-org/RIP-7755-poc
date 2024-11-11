@@ -40,7 +40,6 @@ export default class ProverService {
     requestHash: Address
   ): Promise<ArbitrumProofType | OPStackProofType> {
     const beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
-    console.log(beaconData);
     const beaconBlock = await this.chainService.getBeaconBlock(
       beaconData.beaconRoot
     );

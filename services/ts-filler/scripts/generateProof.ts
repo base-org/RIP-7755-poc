@@ -26,7 +26,7 @@ async function main() {
   const configService = new ConfigService();
   const chainService = new ChainService(activeChains, configService);
   const prover = new Prover(activeChains, chainService);
-  const proof = await prover.generateProof(config.requestHash);
+  const proof = await prover.generateProof();
 
   await Bun.write("./Proof.json", JSON.stringify(proof));
 }

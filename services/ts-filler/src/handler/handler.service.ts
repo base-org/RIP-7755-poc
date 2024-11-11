@@ -22,7 +22,10 @@ export default class HandlerService {
     const expectedProverAddr =
       this.activeChains.src.proverContracts[proverName].toLowerCase();
 
-    if (request.proverContract.toLowerCase() !== expectedProverAddr) {
+    if (
+      this.activeChains.src.proverContracts[proverName].toLowerCase() !==
+      expectedProverAddr
+    ) {
       throw new Error("Unknown Prover contract");
     }
 
