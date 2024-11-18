@@ -95,8 +95,8 @@ export default class ProverService {
         this.buildL1Proof(l1BlockNumber, nodeIndex)
       ),
       dstConfig.publicClient.getProof({
-        // address: addresses[dstChain].opSepoliaWethAddr,
-        address: dstConfig.contracts.rip7755VerifierContractAddr,
+        // address: dstConfig.contracts.weth,
+        address: dstConfig.contracts.inbox,
         storageKeys: [l2Slot],
         blockNumber: l2Block.number,
       }),
@@ -105,7 +105,7 @@ export default class ProverService {
     if (dstConfig.chainId === SupportedChains.OptimismSepolia) {
       calls.push(
         dstConfig.publicClient.getProof({
-          address: dstConfig.contracts.l2MessagePasserAddr,
+          address: dstConfig.contracts.l2MessagePasser,
           storageKeys: [],
           blockNumber: l2Block.number,
         })
@@ -124,14 +124,14 @@ export default class ProverService {
     nodeIndex?: bigint
   ): { address: Address; storageKeys: Address[]; blockNumber: bigint } {
     const l1Config = this.activeChains.l1;
-    let address = l1Config.contracts.anchorStateRegistryAddr;
+    let address = l1Config.contracts.anchorStateRegistry;
     let storageKeys = [constants.slots.anchorStateRegistrySlot];
 
     if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
       if (!nodeIndex) {
         throw new Error("Node index is required for Arbitrum proofs");
       }
-      address = l1Config.contracts.arbRollupAddr;
+      address = l1Config.contracts.arbRollup;
       const slot = 118n;
       const offset = 2n; // confirmData is offset by 2 slots in Node struct
       const derivedSlotStart = keccak256(

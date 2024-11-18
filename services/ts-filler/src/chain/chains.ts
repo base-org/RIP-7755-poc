@@ -22,6 +22,7 @@ export default {
     l2OracleStorageKey:
       "0x0000000000000000000000000000000000000000000000000000000000000076",
     contracts: {
+      // inbox: "0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874", // mock verifier address
       inbox: "0xeE962eD1671F655a806cB22623eEA8A7cCc233bC",
       outbox: "0xBCd5762cF9B07EF5597014c350CE2efB2b0DB2D2",
     },

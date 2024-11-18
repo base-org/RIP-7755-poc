@@ -8,5 +8,5 @@ export default {
   // requestHash:
   //   "0xe38ad8c9e84178325f28799eb3aaae72551b2eea7920c43d88854edd350719f5" as Address, // opt-sep
   requestHash:
-    "0xd758704a57f68d8454a2e178564de8917b3f5403c103f296ec973c5c0844850c" as Address,
+    "0x2ac60f23d7c0dea48c6b0383f3f3c4453a0983beb90d45cbee51ba52a4b4b0f9" as Address,
 };
