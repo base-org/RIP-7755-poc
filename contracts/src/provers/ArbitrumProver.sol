@@ -77,10 +77,6 @@ contract ArbitrumProver is IProver {
         CrossChainRequest calldata request,
         bytes calldata proof
     ) external view {
-        if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
-            revert FinalityDelaySecondsInProgress();
-        }
-
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
         // Set the expected storage key and value for the `RIP7755Inbox` on Arbitrum
@@ -113,8 +109,13 @@ contract ArbitrumProver is IProver {
         bytes32 l2BlockHash = keccak256(proofData.encodedBlockArray);
         // Derive the RBlock's `confirmData` field
         bytes32 confirmData = keccak256(abi.encodePacked(l2BlockHash, proofData.sendRoot));
-        // Extract the L2 stateRoot from the RLP-encoded block array
-        bytes32 l2StateRoot = _extractL2StateRoot(proofData.encodedBlockArray);
+        // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
+        (bytes32 l2StateRoot, uint256 l2Timestamp) = _extractL2StateRootAndTimestamp(proofData.encodedBlockArray);
+
+        // Ensure that the fulfillment timestamp is not within the finality delay
+        if (fulfillmentInfo.timestamp + request.finalityDelaySeconds > l2Timestamp) {
+            revert FinalityDelaySecondsInProgress();
+        }
 
         // The L1 storage value we proved was the node's confirmData
         if (bytes32(proofData.dstL2StateRootProofParams.storageValue) != confirmData) {
@@ -144,19 +145,19 @@ contract ArbitrumProver is IProver {
         return abi.encodePacked(startingStorageSlot + _ARBITRUM_RBLOCK_CONFIRMDATA_STORAGE_OFFSET);
     }
 
-    /// @notice Extracts the l2StateRoot from the RLP-encoded block headers array
+    /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
     ///
     /// @custom:reverts If the encoded block array does not have 16 elements
     ///
-    /// @dev The stateRoot should be the fourth element
-    function _extractL2StateRoot(bytes memory encodedBlockArray) private pure returns (bytes32) {
+    /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
+    function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
         RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
 
-        if (blockFields.length != 16) {
+        if (blockFields.length < 15) {
             revert InvalidBlockFieldRLP();
         }
 
-        return bytes32(blockFields[3].readBytes()); // state root is the fourth field
+        return (bytes32(blockFields[3].readBytes()), uint256(bytes32(blockFields[11].readBytes())));
     }
 
     /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
