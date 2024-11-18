@@ -150,7 +150,7 @@ contract ArbitrumProverTest is Test {
             stateProofParams: stateProofParams,
             dstL2StateRootProofParams: dstL2StateRootParams,
             dstL2AccountProofParams: dstL2AccountProofParams,
-            nodeIndex: uint64(uint256(json.readBytes32(".nodeIndex")))
+            nodeIndex: uint64(json.readUint(".nodeIndex"))
         });
         return abi.encode(proofData);
     }
@@ -175,7 +175,7 @@ contract ArbitrumProverTest is Test {
     }
 
     function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
-        return RIP7755Inbox.FulfillmentInfo({timestamp: 1729202968, filler: FILLER});
+        return RIP7755Inbox.FulfillmentInfo({timestamp: 1731849964, filler: FILLER});
     }
 
     function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
