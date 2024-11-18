@@ -149,7 +149,7 @@ contract ArbitrumProver is IProver {
     ///
     /// @custom:reverts If the encoded block array does not have 16 elements
     ///
-    /// @dev The stateRoot should be the fourth element, and the timestamp should be the eleventh element
+    /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
     function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
         RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
 
