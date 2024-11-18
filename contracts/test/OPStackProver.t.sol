@@ -10,12 +10,14 @@ import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {OPStackProver} from "../src/provers/OPStackProver.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
+import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
 contract RIP7755OutboxOPStackValidatorTest is Test {
     using stdJson for string;
 
     OPStackProver prover;
     ERC20Mock mockErc20;
+    MockBeaconOracle mockBeaconOracle;
 
     Call[] calls;
     address ALICE = makeAddr("alice");
@@ -25,6 +27,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     string invalidL1StorageProof;
     string invalidL2StateRootProof;
     string invalidL2StorageProof;
+    string finalityDelayInProgressProof;
     uint256 private _REWARD_AMOUNT = 1 ether;
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
@@ -33,16 +36,20 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         DeployOPStackProver deployer = new DeployOPStackProver();
         prover = deployer.run();
         mockErc20 = new ERC20Mock();
+        deployCodeTo("MockBeaconOracle.sol", abi.encode(), 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
+        mockBeaconOracle = MockBeaconOracle(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
 
         string memory rootPath = vm.projectRoot();
         string memory path = string.concat(rootPath, "/test/data/OPSepoliaProof.json");
         string memory invalidL1StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL1Storage.json");
         string memory invalidL2StateRootPath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2StateRoot.json");
         string memory invalidL2StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2Storage.json");
+        string memory finalityDelayInProgressPath = string.concat(rootPath, "/test/data/invalids/OPFinalityDelayInProgress.json");
         validProof = vm.readFile(path);
         invalidL1StorageProof = vm.readFile(invalidL1StoragePath);
         invalidL2StateRootProof = vm.readFile(invalidL2StateRootPath);
         invalidL2StorageProof = vm.readFile(invalidL2StoragePath);
+        finalityDelayInProgressProof = vm.readFile(finalityDelayInProgressPath);
     }
 
     modifier fundAlice(uint256 amount) {
@@ -55,11 +62,9 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        request.finalityDelaySeconds = 1 ether;
-        request.expiry = 2 ether;
 
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
+        bytes memory storageProofData = _buildProofAndEncodeProof(finalityDelayInProgressProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
@@ -149,12 +154,12 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
-    function _buildProofAndEncodeProof(string memory json) private pure returns (bytes memory) {
+    function _buildProofAndEncodeProof(string memory json) private returns (bytes memory) {
         OPStackProver.RIP7755Proof memory proofData = _buildProof(json);
         return abi.encode(proofData);
     }
 
-    function _buildProof(string memory json) private pure returns (OPStackProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (OPStackProver.RIP7755Proof memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
@@ -174,10 +179,11 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
             storageProof: abi.decode(json.parseRaw(".dstL2AccountProofParams.storageProof"), (bytes[]))
         });
 
+        mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
+
         return OPStackProver.RIP7755Proof({
-            l2StateRoot: json.readBytes32(".l2StateRoot"),
             l2MessagePasserStorageRoot: json.readBytes32(".l2MessagePasserStorageRoot"),
-            l2BlockHash: json.readBytes32(".l2BlockHash"),
+            encodedBlockArray: json.readBytes(".encodedBlockArray"),
             stateProofParams: stateProofParams,
             dstL2StateRootProofParams: dstL2StateRootParams,
             dstL2AccountProofParams: dstL2AccountProofParams
