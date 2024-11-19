@@ -166,9 +166,15 @@ export default class ProverService {
     nodeIndex?: bigint
   ): ArbitrumProofType | OPStackProofType {
     console.log("storeProofObj");
+
+    const blockArray = this.buildBlockArray(l2Block);
+
+    if (keccak256(toRlp(blockArray)) !== l2Block.hash) {
+      throw new Error("Blockhash mismatch");
+    }
+
     const proofObj: any = {
-      l2StateRoot: l2Block.stateRoot,
-      l2BlockHash: l2Block.hash,
+      encodedBlockArray: toRlp(blockArray),
       stateProofParams: {
         beaconRoot: beaconData.beaconRoot,
         beaconOracleTimestamp: toHex(beaconData.timestampForL2BeaconOracle, {
@@ -204,48 +210,62 @@ export default class ProverService {
         throw new Error("Node index is required for Arbitrum proofs");
       }
       proofObj["sendRoot"] = sendRoot;
-      if (!l2Block.number) {
-        throw new Error("L2Block missing number");
-      }
-      if (!l2Block.baseFeePerGas) {
-        throw new Error("L2Block missing baseFeePerGas");
-      }
-      if (!l2Block.logsBloom) {
-        throw new Error("L2Block missing logsBloom");
-      }
-      if (!l2Block.nonce) {
-        throw new Error("L2Block missing nonce");
-      }
-      const blockArray = [
-        l2Block.parentHash,
-        l2Block.sha3Uncles,
-        l2Block.miner,
-        l2Block.stateRoot,
-        l2Block.transactionsRoot,
-        l2Block.receiptsRoot,
-        l2Block.logsBloom,
-        toHex(l2Block.difficulty),
-        toHex(l2Block.number),
-        toHex(l2Block.gasLimit),
-        toHex(l2Block.gasUsed),
-        toHex(l2Block.timestamp),
-        l2Block.extraData,
-        l2Block.mixHash,
-        l2Block.nonce,
-        toHex(l2Block.baseFeePerGas),
-      ];
-
-      if (keccak256(toRlp(blockArray)) !== l2Block.hash) {
-        throw new Error("Blockhash mismatch");
-      }
-
-      proofObj["encodedBlockArray"] = toRlp(blockArray);
       proofObj["nodeIndex"] = nodeIndex;
-
-      delete proofObj.l2StateRoot;
-      delete proofObj.l2BlockHash;
     }
 
     return proofObj;
+  }
+
+  private buildBlockArray(l2Block: any): any[] {
+    const blockArray = [
+      l2Block.parentHash,
+      l2Block.sha3Uncles,
+      l2Block.miner,
+      l2Block.stateRoot,
+      l2Block.transactionsRoot,
+      l2Block.receiptsRoot,
+      l2Block.logsBloom,
+      l2Block.difficulty !== 0n ? toHex(l2Block.difficulty) : "",
+      l2Block.number !== 0n ? toHex(l2Block.number) : "",
+      toHex(l2Block.gasLimit),
+      toHex(l2Block.gasUsed),
+      toHex(l2Block.timestamp),
+      l2Block.extraData,
+      l2Block.mixHash,
+      l2Block.nonce,
+    ];
+    const tmp1 = l2Block.baseFeePerGas && l2Block.baseFeePerGas !== 0n;
+    const tmp2 = l2Block.withdrawalsRoot && l2Block.withdrawalsRoot !== "0x";
+    const tmp3 = l2Block.blobGasUsed && l2Block.blobGasUsed !== 0n;
+    const tmp4 = l2Block.excessBlobGas && l2Block.excessBlobGas !== 0n;
+    const tmp5 =
+      l2Block.parentBeaconBlockRoot && l2Block.parentBeaconBlockRoot !== "0x";
+    const tmp6 = l2Block.requestsRoot && l2Block.requestsRoot !== "0x";
+
+    if (tmp1 || tmp2 || tmp3 || tmp4 || tmp5 || tmp6) {
+      blockArray.push(tmp1 ? toHex(l2Block.baseFeePerGas) : "");
+    }
+
+    if (tmp2 || tmp3 || tmp4 || tmp5 || tmp6) {
+      blockArray.push(tmp2 ? l2Block.withdrawalsRoot : "");
+    }
+
+    if (tmp3 || tmp4 || tmp5 || tmp6) {
+      blockArray.push(tmp3 ? toHex(l2Block.blobGasUsed) : "");
+    }
+
+    if (tmp4 || tmp5 || tmp6) {
+      blockArray.push(tmp4 ? toHex(l2Block.excessBlobGas) : "");
+    }
+
+    if (tmp5 || tmp6) {
+      blockArray.push(tmp5 ? l2Block.parentBeaconBlockRoot : "");
+    }
+
+    if (tmp6) {
+      blockArray.push(l2Block.requestsRoot);
+    }
+
+    return blockArray;
   }
 }
