@@ -1,10 +1,12 @@
+-include .env
+
 .PHONY: bindings
 
 test-log-fetcher:
 	go test ./log-fetcher/internal/...
 
 run-log-fetcher:
-	go run ./log-fetcher/cmd
+	MONGO_URI=$(MONGO_URI) go run ./log-fetcher/cmd
 
 bindings:
 	go install github.com/ethereum/go-ethereum/cmd/abigen@v1.14.11

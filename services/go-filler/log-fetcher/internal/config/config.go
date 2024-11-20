@@ -2,7 +2,6 @@ package config
 
 import (
 	"log"
-	"math/big"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -16,9 +15,7 @@ type RPCs struct {
 }
 
 type Config struct {
-	RPCs            *RPCs
-	MongoUri        string
-	SupportedChains []*big.Int
+	RPCs *RPCs
 }
 
 func NewConfig() (*Config, error) {
@@ -33,8 +30,6 @@ func NewConfig() (*Config, error) {
 			OptimismSepolia: getEnvStr("OPTIMISM_SEPOLIA_RPC"),
 			Sepolia:         getEnvStr("SEPOLIA_RPC"),
 		},
-		MongoUri:        getEnvStr("MONGO_URI"),
-		SupportedChains: []*big.Int{big.NewInt(421614)},
 	}
 
 	return config, nil

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	logger "github.com/ethereum/go-ethereum/log"
+	"github.com/urfave/cli/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -34,8 +34,8 @@ type record struct {
 	Request     bindings.CrossChainRequest
 }
 
-func NewQueue(cfg *config.Config) (Queue, error) {
-	client, err := connect(cfg)
+func NewQueue(ctx *cli.Context) (Queue, error) {
+	client, err := connect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -64,9 +64,9 @@ func (q *queue) Close() error {
 	return q.client.Disconnect(context.TODO())
 }
 
-func connect(cfg *config.Config) (MongoDriverClient, error) {
+func connect(ctx *cli.Context) (MongoDriverClient, error) {
 	logger.Info("Connecting to MongoDB")
-	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(cfg.MongoUri))
+	client, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(ctx.String("mongo-uri")))
 	if err != nil {
 		return nil, err
 	}
