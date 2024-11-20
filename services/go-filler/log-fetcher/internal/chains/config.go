@@ -28,7 +28,11 @@ type ChainConfig struct {
 	TargetProver       config.Prover
 }
 
-func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, error) {
+type CliContext interface {
+	String(name string) string
+}
+
+func GetChainConfig(chainId *big.Int, ctx CliContext) (*ChainConfig, error) {
 	var chainConfig *ChainConfig
 
 	switch chainId.Int64() {
@@ -45,7 +49,7 @@ func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, err
 		chainConfig = &ChainConfig{
 			ChainId:            chainId,
 			ProverContracts:    provers,
-			RpcUrl:             rpcConfig.ArbitrumSepolia,
+			RpcUrl:             ctx.String("arbitrum-sepolia-rpc"),
 			L2Oracle:           common.HexToAddress("0xd80810638dbDF9081b72C1B33c65375e807281C8"),
 			L2OracleStorageKey: encodeBytes("0000000000000000000000000000000000000000000000000000000000000076"),
 			Contracts:          contracts,
@@ -65,7 +69,7 @@ func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, err
 		chainConfig = &ChainConfig{
 			ChainId:            chainId,
 			ProverContracts:    provers,
-			RpcUrl:             rpcConfig.BaseSepolia,
+			RpcUrl:             ctx.String("base-sepolia-rpc"),
 			L2Oracle:           common.HexToAddress("0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205"),
 			L2OracleStorageKey: encodeBytes("a6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"),
 			Contracts:          contracts,
@@ -82,7 +86,7 @@ func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, err
 		chainConfig = &ChainConfig{
 			ChainId:            chainId,
 			ProverContracts:    provers,
-			RpcUrl:             rpcConfig.OptimismSepolia,
+			RpcUrl:             ctx.String("optimism-sepolia-rpc"),
 			L2Oracle:           common.HexToAddress("0x218CD9489199F321E1177b56385d333c5B598629"),
 			L2OracleStorageKey: encodeBytes("a6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49"),
 			Contracts:          contracts,
@@ -99,7 +103,7 @@ func GetChainConfig(chainId *big.Int, rpcConfig *config.RPCs) (*ChainConfig, err
 		chainConfig = &ChainConfig{
 			ChainId:         chainId,
 			ProverContracts: provers,
-			RpcUrl:          rpcConfig.Sepolia,
+			RpcUrl:          ctx.String("sepolia-rpc"),
 			Contracts:       contracts,
 			TargetProver:    config.NilProver,
 		}

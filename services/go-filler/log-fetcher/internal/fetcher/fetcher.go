@@ -9,7 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/listener"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/ethereum/go-ethereum/log"
@@ -18,11 +17,6 @@ import (
 
 func Main(ctx *cli.Context) error {
 	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelInfo, true)))
-
-	cfg, err := config.NewConfig() // Load env vars
-	if err != nil {
-		return err
-	}
 
 	queue, err := store.NewQueue(ctx)
 	if err != nil {
@@ -39,7 +33,7 @@ func Main(ctx *cli.Context) error {
 			log.Crit("Failed to convert chainId to big.Int", "chainId", chainId)
 		}
 
-		l, err := listener.NewListener(chainIdBigInt, cfg, queue)
+		l, err := listener.NewListener(chainIdBigInt, ctx, queue)
 		if err != nil {
 			log.Crit("Failed to create listener", "error", err)
 		}

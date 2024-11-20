@@ -7,20 +7,29 @@ import (
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/urfave/cli/v2"
 )
+
+type cliContext struct {
+	rpcUrl string
+}
+
+func (c *cliContext) String(name string) string {
+	return c.rpcUrl
+}
 
 func TestGetChainConfig(t *testing.T) {
 	testCases := []struct {
 		name      string
 		chainID   int64
-		rpcConfig *config.RPCs
+		rpcConfig CliContext
 		expected  *ChainConfig
 	}{
 		{
 			name:    "Arbitrum Sepolia",
 			chainID: 421614,
-			rpcConfig: &config.RPCs{
-				ArbitrumSepolia: "https://arb-sepolia.example.com",
+			rpcConfig: &cliContext{
+				rpcUrl: "https://arb-sepolia.example.com",
 			},
 			expected: &ChainConfig{
 				ChainId: big.NewInt(421614),
@@ -40,8 +49,8 @@ func TestGetChainConfig(t *testing.T) {
 		{
 			name:    "Base Sepolia",
 			chainID: 84532,
-			rpcConfig: &config.RPCs{
-				BaseSepolia: "https://base-sepolia.example.com",
+			rpcConfig: &cliContext{
+				rpcUrl: "https://base-sepolia.example.com",
 			},
 			expected: &ChainConfig{
 				ChainId: big.NewInt(84532),
@@ -62,8 +71,8 @@ func TestGetChainConfig(t *testing.T) {
 		{
 			name:    "Optimism Sepolia",
 			chainID: 11155420,
-			rpcConfig: &config.RPCs{
-				OptimismSepolia: "https://opt-sepolia.example.com",
+			rpcConfig: &cliContext{
+				rpcUrl: "https://opt-sepolia.example.com",
 			},
 			expected: &ChainConfig{
 				ChainId:            big.NewInt(11155420),
@@ -81,8 +90,8 @@ func TestGetChainConfig(t *testing.T) {
 		{
 			name:    "Sepolia",
 			chainID: 11155111,
-			rpcConfig: &config.RPCs{
-				Sepolia: "https://sepolia.example.com",
+			rpcConfig: &cliContext{
+				rpcUrl: "https://sepolia.example.com",
 			},
 			expected: &ChainConfig{
 				ChainId:         big.NewInt(11155111),
@@ -113,7 +122,7 @@ func TestGetChainConfig(t *testing.T) {
 
 func TestGetChainConfig_UnknownChain(t *testing.T) {
 	unknownChainID := big.NewInt(999999)
-	result, err := GetChainConfig(unknownChainID, &config.RPCs{})
+	result, err := GetChainConfig(unknownChainID, &cli.Context{})
 	if err == nil {
 		t.Errorf("GetChainConfig(%d) = %+v, want error", unknownChainID, result)
 	}

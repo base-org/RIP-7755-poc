@@ -4,7 +4,6 @@ go 1.23.2
 
 require (
 	github.com/ethereum/go-ethereum v1.14.11
-	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.5
 	go.mongodb.org/mongo-driver v1.17.1

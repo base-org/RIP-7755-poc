@@ -9,7 +9,6 @@ import (
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/clients"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/handler"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/ethereum/go-ethereum"
@@ -31,13 +30,13 @@ type listener struct {
 	wg      sync.WaitGroup
 }
 
-func NewListener(srcChainId *big.Int, cfg *config.Config, queue store.Queue) (Listener, error) {
-	srcChain, err := chains.GetChainConfig(srcChainId, cfg.RPCs)
+func NewListener(srcChainId *big.Int, ctx chains.CliContext, queue store.Queue) (Listener, error) {
+	srcChain, err := chains.GetChainConfig(srcChainId, ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	h, err := handler.NewHandler(cfg, srcChain, queue)
+	h, err := handler.NewHandler(ctx, srcChain, queue)
 	if err != nil {
 		return nil, err
 	}

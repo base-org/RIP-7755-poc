@@ -8,16 +8,12 @@ import (
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli/v2"
 )
 
-var cfg = &config.Config{
-	RPCs: &config.RPCs{
-		ArbitrumSepolia: "https://arbitrum-sepolia.llamarpc.com",
-	},
-}
+var ctx *cli.Context
 
 var srcChain = &chains.ChainConfig{
 	ChainId: big.NewInt(42161),
@@ -45,7 +41,7 @@ var parsedLog = &bindings.RIP7755OutboxCrossChainCallRequested{
 }
 
 func TestValidateLog(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	err := validator.ValidateLog(parsedLog)
 
@@ -53,7 +49,7 @@ func TestValidateLog(t *testing.T) {
 }
 
 func TestValidateLog_UnknownDestinationChain(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevDstChainId := parsedLog.Request.DestinationChainId
 	parsedLog.Request.DestinationChainId = big.NewInt(11155112)
@@ -65,7 +61,7 @@ func TestValidateLog_UnknownDestinationChain(t *testing.T) {
 }
 
 func TestValidateLog_UnknownProverName(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevDstChainId := parsedLog.Request.DestinationChainId
 	parsedLog.Request.DestinationChainId = big.NewInt(11155111)
@@ -77,7 +73,7 @@ func TestValidateLog_UnknownProverName(t *testing.T) {
 }
 
 func TestValidateLog_UnknownProverContract(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevProverContract := parsedLog.Request.ProverContract
 	parsedLog.Request.ProverContract = common.HexToAddress("0x1234567890123456789012345678901234567891")
@@ -89,7 +85,7 @@ func TestValidateLog_UnknownProverContract(t *testing.T) {
 }
 
 func TestValidateLog_UnknownInboxContract(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevInboxContract := parsedLog.Request.InboxContract
 	parsedLog.Request.InboxContract = common.HexToAddress("0x1234567890123456789012345678901234567891")
@@ -101,7 +97,7 @@ func TestValidateLog_UnknownInboxContract(t *testing.T) {
 }
 
 func TestValidateLog_UnknownL2Oracle(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevL2Oracle := parsedLog.Request.L2Oracle
 	parsedLog.Request.L2Oracle = common.HexToAddress("0x1234567890123456789012345678901234567891")
@@ -113,7 +109,7 @@ func TestValidateLog_UnknownL2Oracle(t *testing.T) {
 }
 
 func TestValidateLog_UnknownL2OracleStorageKey(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevL2OracleStorageKey := parsedLog.Request.L2OracleStorageKey
 	parsedLog.Request.L2OracleStorageKey = encodeBytes("1234567890123456789012345678901234567891")
@@ -125,7 +121,7 @@ func TestValidateLog_UnknownL2OracleStorageKey(t *testing.T) {
 }
 
 func TestValidateLog_InvalidReward_NotNativeAsset(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevRewardAsset := parsedLog.Request.RewardAsset
 	parsedLog.Request.RewardAsset = common.HexToAddress("0x1234567890123456789012345678901234567891")
@@ -137,7 +133,7 @@ func TestValidateLog_InvalidReward_NotNativeAsset(t *testing.T) {
 }
 
 func TestValidateLog_InvalidReward_NotGreaterThanValueNeeded(t *testing.T) {
-	validator := NewValidator(cfg, srcChain)
+	validator := NewValidator(ctx, srcChain)
 
 	prevRewardAmount := parsedLog.Request.RewardAmount
 	parsedLog.Request.RewardAmount = big.NewInt(1000000000000000000)

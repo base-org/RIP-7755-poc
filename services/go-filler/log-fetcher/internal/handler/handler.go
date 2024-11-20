@@ -3,7 +3,6 @@ package handler
 import (
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/validator"
 )
@@ -17,8 +16,8 @@ type handler struct {
 	queue     store.Queue
 }
 
-func NewHandler(cfg *config.Config, srcChain *chains.ChainConfig, queue store.Queue) (Handler, error) {
-	return &handler{validator: validator.NewValidator(cfg, srcChain), queue: queue}, nil
+func NewHandler(ctx chains.CliContext, srcChain *chains.ChainConfig, queue store.Queue) (Handler, error) {
+	return &handler{validator: validator.NewValidator(ctx, srcChain), queue: queue}, nil
 }
 
 func (h *handler) HandleLog(log *bindings.RIP7755OutboxCrossChainCallRequested) error {
