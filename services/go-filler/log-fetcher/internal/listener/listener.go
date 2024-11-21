@@ -30,13 +30,13 @@ type listener struct {
 	wg      sync.WaitGroup
 }
 
-func NewListener(srcChainId *big.Int, ctx chains.CliContext, queue store.Queue) (Listener, error) {
-	srcChain, err := chains.GetChainConfig(srcChainId, ctx)
+func NewListener(srcChainId *big.Int, networks chains.Networks, queue store.Queue) (Listener, error) {
+	srcChain, err := networks.GetChainConfig(srcChainId)
 	if err != nil {
 		return nil, err
 	}
 
-	h, err := handler.NewHandler(ctx, srcChain, queue)
+	h, err := handler.NewHandler(srcChain, networks, queue)
 	if err != nil {
 		return nil, err
 	}

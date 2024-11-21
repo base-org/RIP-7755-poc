@@ -16,8 +16,8 @@ type handler struct {
 	queue     store.Queue
 }
 
-func NewHandler(ctx chains.CliContext, srcChain *chains.ChainConfig, queue store.Queue) (Handler, error) {
-	return &handler{validator: validator.NewValidator(ctx, srcChain), queue: queue}, nil
+func NewHandler(srcChain *chains.ChainConfig, networks chains.Networks, queue store.Queue) (Handler, error) {
+	return &handler{validator: validator.NewValidator(srcChain, networks), queue: queue}, nil
 }
 
 func (h *handler) HandleLog(log *bindings.RIP7755OutboxCrossChainCallRequested) error {

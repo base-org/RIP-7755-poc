@@ -1,0 +1,42 @@
+networks:
+  421614: # Arbitrum Sepolia
+    chain-id: 421614
+    prover-contracts:
+      OPStack: 0x062fBdCfd17A0346D2A9d89FE233bbAdBd1DC14C
+    rpc-url: ${ARBITRUM_SEPOLIA_RPC}
+    l2-oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8
+    l2-oracle-storage-key: 0x0000000000000000000000000000000000000000000000000000000000000076
+    contracts:
+      inbox: 0xeE962eD1671F655a806cB22623eEA8A7cCc233bC
+      outbox: 0xBCd5762cF9B07EF5597014c350CE2efB2b0DB2D2
+    target-prover: 1
+  84532: # Base Sepolia
+    chain-id: 84532
+    prover-contracts:
+      Arbitrum: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874
+      OPStack: 0x562879614C9Db8Da9379be1D5B52BAEcDD456d78
+    rpc-url: ${BASE_SEPOLIA_RPC}
+    l2-oracle: 0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205
+    l2-oracle-storage-key: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49
+    contracts:
+      inbox: 0xB482b292878FDe64691d028A2237B34e91c7c7ea
+      outbox: 0xD7a5A114A07cC4B5ebd9C5e1cD1136a99fFA3d68
+    target-prover: 2
+  11155420: # Optimism Sepolia
+    chain-id: 11155420
+    prover-contracts:
+    rpc-url: ${OPTIMISM_SEPOLIA_RPC}
+    l2-oracle: 0x218CD9489199F321E1177b56385d333c5B598629
+    l2-oracle-storage-key: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49
+    contracts:
+      inbox: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874
+      l2-message-passer: 0x4200000000000000000000000000000000000016
+    target-prover: 2
+  11155111: # Sepolia
+    chain-id: 11155111
+    prover-contracts:
+    rpc-url: ${SEPOLIA_RPC}
+    contracts:
+      anchor-state-registry: 0x218CD9489199F321E1177b56385d333c5B598629
+      arb-rollup: 0xd80810638dbDF9081b72C1B33c65375e807281C8
+    target-prover: 0

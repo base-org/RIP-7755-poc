@@ -15,19 +15,19 @@ type Validator interface {
 }
 
 type validator struct {
-	ctx      chains.CliContext
 	srcChain *chains.ChainConfig
+	networks chains.Networks
 }
 
-func NewValidator(ctx chains.CliContext, srcChain *chains.ChainConfig) Validator {
-	return &validator{ctx: ctx, srcChain: srcChain}
+func NewValidator(srcChain *chains.ChainConfig, networks chains.Networks) Validator {
+	return &validator{srcChain: srcChain, networks: networks}
 }
 
 func (v *validator) ValidateLog(log *bindings.RIP7755OutboxCrossChainCallRequested) error {
 	logger.Info("Validating log")
 
 	// - Confirm valid proverContract address on source chain
-	dstChain, err := chains.GetChainConfig(log.Request.DestinationChainId, v.ctx)
+	dstChain, err := v.networks.GetChainConfig(log.Request.DestinationChainId)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func (v *validator) ValidateLog(log *bindings.RIP7755OutboxCrossChainCallRequest
 	if log.Request.L2Oracle != dstChain.L2Oracle {
 		return errors.New("unknown Oracle contract for destination chain")
 	}
-	if log.Request.L2OracleStorageKey != dstChain.L2OracleStorageKey {
+	if log.Request.L2OracleStorageKey != common.HexToHash(dstChain.L2OracleStorageKey) {
 		return errors.New("unknown storage key for dst L2Oracle")
 	}
 

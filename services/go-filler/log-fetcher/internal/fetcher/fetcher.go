@@ -9,14 +9,30 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/listener"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/store"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
+	"gopkg.in/yaml.v2"
 )
 
 func Main(ctx *cli.Context) error {
 	log.SetDefault(log.NewLogger(log.NewTerminalHandlerWithLevel(os.Stderr, log.LevelInfo, true)))
+
+	networksFile, err := os.ReadFile("log-fetcher/config/networks.yaml")
+	if err != nil {
+		log.Crit("Failed to read networks file", "error", err)
+	}
+
+	// expand environment variables
+	networksFile = []byte(os.ExpandEnv(string(networksFile)))
+
+	var cfg chains.NetworksConfig
+	err = yaml.Unmarshal(networksFile, &cfg)
+	if err != nil {
+		log.Crit("Failed to unmarshal networks file", "error", err)
+	}
 
 	queue, err := store.NewQueue(ctx)
 	if err != nil {
@@ -33,7 +49,7 @@ func Main(ctx *cli.Context) error {
 			log.Crit("Failed to convert chainId to big.Int", "chainId", chainId)
 		}
 
-		l, err := listener.NewListener(chainIdBigInt, ctx, queue)
+		l, err := listener.NewListener(chainIdBigInt, cfg.Networks, queue)
 		if err != nil {
 			log.Crit("Failed to create listener", "error", err)
 		}

@@ -7,6 +7,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v2 v2.27.5
 	go.mongodb.org/mongo-driver v1.17.1
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
