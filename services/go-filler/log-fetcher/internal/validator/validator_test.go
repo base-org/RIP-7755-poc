@@ -6,7 +6,7 @@ import (
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/provers"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,7 +24,7 @@ var networksCfg chains.NetworksConfig = chains.NetworksConfig{
 			},
 			L2Oracle:           common.HexToAddress("0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205"),
 			L2OracleStorageKey: "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
-			TargetProver:       config.OPStackProver,
+			TargetProver:       provers.OPStackProver,
 		},
 	},
 }

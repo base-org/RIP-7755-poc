@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/config"
+	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/provers"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -28,7 +28,7 @@ type ChainConfig struct {
 	L2Oracle           common.Address            `yaml:"l2-oracle"`
 	L2OracleStorageKey string                    `yaml:"l2-oracle-storage-key"`
 	Contracts          *Contracts                `yaml:"contracts"`
-	TargetProver       config.Prover             `yaml:"target-prover"`
+	TargetProver       provers.Prover            `yaml:"target-prover"`
 }
 
 func (n *Networks) GetChainConfig(chainId *big.Int) (*ChainConfig, error) {

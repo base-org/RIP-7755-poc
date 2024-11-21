@@ -32,7 +32,7 @@ func (v *validator) ValidateLog(log *bindings.RIP7755OutboxCrossChainCallRequest
 		return err
 	}
 
-	proverName := dstChain.TargetProver.String()
+	proverName := string(dstChain.TargetProver)
 	if proverName == "" {
 		return errors.New("destination chain missing Prover name")
 	}
