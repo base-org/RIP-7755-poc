@@ -48,7 +48,12 @@ func Main(ctx *cli.Context) error {
 			log.Crit("Failed to convert chainId to big.Int", "chainId", chainId)
 		}
 
-		l, err := listener.NewListener(chainIdBigInt, cfg.Networks, queue)
+		checkpoint, err := queue.ReadCheckpoint(chainId)
+		if err != nil {
+			log.Crit("Failed to read checkpoint", "error", err)
+		}
+
+		l, err := listener.NewListener(chainIdBigInt, cfg.Networks, queue, checkpoint)
 		if err != nil {
 			log.Crit("Failed to create listener", "error", err)
 		}

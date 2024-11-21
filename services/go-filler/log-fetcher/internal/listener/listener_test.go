@@ -24,7 +24,7 @@ var networksCfg chains.NetworksConfig = chains.NetworksConfig{
 var queue store.Queue
 
 func TestNewListener(t *testing.T) {
-	l, err := NewListener(big.NewInt(421614), networksCfg.Networks, queue)
+	l, err := NewListener(big.NewInt(421614), networksCfg.Networks, queue, 0)
 	if err != nil {
 		t.Fatalf("Failed to create listener: %v", err)
 	}

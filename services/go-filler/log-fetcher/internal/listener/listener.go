@@ -25,19 +25,21 @@ type Listener interface {
 }
 
 type listener struct {
-	outbox    *bindings.RIP7755Outbox
-	handler   handler.Handler
-	logs      chan *bindings.RIP7755OutboxCrossChainCallRequested
-	stop      chan struct{}
-	wg        sync.WaitGroup
-	pollRate  time.Duration
-	pollReqCh chan struct{}
-	polling   bool
+	outbox        *bindings.RIP7755Outbox
+	handler       handler.Handler
+	logs          chan *bindings.RIP7755OutboxCrossChainCallRequested
+	stop          chan struct{}
+	wg            sync.WaitGroup
+	pollRate      time.Duration
+	pollReqCh     chan struct{}
+	polling       bool
+	startingBlock uint64
+	srcChainId    string
 }
 
 var httpRegex = regexp.MustCompile("^http(s)?://")
 
-func NewListener(srcChainId *big.Int, networks chains.Networks, queue store.Queue) (Listener, error) {
+func NewListener(srcChainId *big.Int, networks chains.Networks, queue store.Queue, startingBlock uint64) (Listener, error) {
 	srcChain, err := networks.GetChainConfig(srcChainId)
 	if err != nil {
 		return nil, err
@@ -63,13 +65,15 @@ func NewListener(srcChainId *big.Int, networks chains.Networks, queue store.Queu
 	}
 
 	return &listener{
-		outbox:    outbox,
-		handler:   h,
-		logs:      make(chan *bindings.RIP7755OutboxCrossChainCallRequested),
-		stop:      make(chan struct{}),
-		pollReqCh: make(chan struct{}, 1),
-		pollRate:  3 * time.Second,
-		polling:   httpRegex.MatchString(srcChain.RpcUrl),
+		outbox:        outbox,
+		handler:       h,
+		logs:          make(chan *bindings.RIP7755OutboxCrossChainCallRequested),
+		stop:          make(chan struct{}),
+		pollReqCh:     make(chan struct{}, 1),
+		pollRate:      3 * time.Second,
+		polling:       httpRegex.MatchString(srcChain.RpcUrl),
+		startingBlock: startingBlock,
+		srcChainId:    srcChainId.String(),
 	}, nil
 }
 
@@ -82,7 +86,7 @@ func (l *listener) Start() error {
 }
 
 func webSocketListener(l *listener) error {
-	sub, err := l.outbox.WatchCrossChainCallRequested(&bind.WatchOpts{}, l.logs, [][32]byte{})
+	sub, err := l.outbox.WatchCrossChainCallRequested(&bind.WatchOpts{Start: &l.startingBlock}, l.logs, [][32]byte{})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to logs: %v", err)
 	}
@@ -111,7 +115,7 @@ func pollListener(l *listener) error {
 		case <-l.pollReqCh:
 			logger.Info("Running")
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			logIterator, err := l.outbox.FilterCrossChainCallRequested(&bind.FilterOpts{Context: ctx}, [][32]byte{})
+			logIterator, err := l.outbox.FilterCrossChainCallRequested(&bind.FilterOpts{Context: ctx, Start: l.startingBlock}, [][32]byte{})
 			if err != nil {
 				logger.Error("failed to filter logs", "error", err)
 				cancel()
@@ -128,7 +132,7 @@ func pollListener(l *listener) error {
 				}
 
 				log := logIterator.Event
-				err = l.handler.HandleLog(log)
+				err = l.handler.HandleLog(l.srcChainId, log)
 				if err != nil {
 					logger.Error("failed to handle log", "error", err)
 					continue
@@ -155,7 +159,7 @@ func (l *listener) loop(sub ethereum.Subscription) {
 			logger.Info("Log Block Number", "blockNumber", log.Raw.BlockNumber)
 			logger.Info("Log Index", "index", log.Raw.Index)
 
-			err := l.handler.HandleLog(log)
+			err := l.handler.HandleLog(l.srcChainId, log)
 			if err != nil {
 				logger.Error("Error handling log", "error", err)
 			}

@@ -25,6 +25,16 @@ func (c *MongoConnectionMock) InsertOne(ctx context.Context, document interface{
 	return args.Get(0).(*mongo.InsertOneResult), args.Error(1)
 }
 
+func (c *MongoConnectionMock) UpdateOne(ctx context.Context, filter interface{}, update interface{}, opts ...*options.UpdateOptions) (*mongo.UpdateResult, error) {
+	args := c.Called(ctx, filter, update, opts)
+	return args.Get(0).(*mongo.UpdateResult), args.Error(1)
+}
+
+func (c *MongoConnectionMock) FindOne(ctx context.Context, filter interface{}, opts ...*options.FindOneOptions) *mongo.SingleResult {
+	args := c.Called(ctx, filter, opts)
+	return args.Get(0).(*mongo.SingleResult)
+}
+
 func (m *MongoClientMock) Database(name string, opts ...*options.DatabaseOptions) *mongo.Database {
 	args := m.Called(name, opts)
 	return args.Get(0).(*mongo.Database)
