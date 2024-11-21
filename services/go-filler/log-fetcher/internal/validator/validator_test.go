@@ -15,7 +15,7 @@ var networksCfg chains.NetworksConfig = chains.NetworksConfig{
 	Networks: chains.Networks{
 		"421614": chains.ChainConfig{
 			ProverContracts: map[string]common.Address{
-				"OPStackProver": common.HexToAddress("0x1234567890123456789012345678901234567890"),
+				"OPStack": common.HexToAddress("0x1234567890123456789012345678901234567890"),
 			},
 		},
 		"84532": chains.ChainConfig{
@@ -32,7 +32,7 @@ var networksCfg chains.NetworksConfig = chains.NetworksConfig{
 var srcChain = &chains.ChainConfig{
 	ChainId: big.NewInt(421614),
 	ProverContracts: map[string]common.Address{
-		"OPStackProver": common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		"OPStack": common.HexToAddress("0x1234567890123456789012345678901234567890"),
 	},
 }
 

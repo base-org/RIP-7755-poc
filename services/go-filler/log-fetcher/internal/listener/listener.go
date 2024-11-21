@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"regexp"
 	"sync"
+	"time"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/bindings"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
@@ -18,17 +20,22 @@ import (
 )
 
 type Listener interface {
-	Start(ctx context.Context) error
+	Start() error
 	Stop()
 }
 
 type listener struct {
-	outbox  *bindings.RIP7755Outbox
-	handler handler.Handler
-	logs    chan *bindings.RIP7755OutboxCrossChainCallRequested
-	stop    chan struct{}
-	wg      sync.WaitGroup
+	outbox    *bindings.RIP7755Outbox
+	handler   handler.Handler
+	logs      chan *bindings.RIP7755OutboxCrossChainCallRequested
+	stop      chan struct{}
+	wg        sync.WaitGroup
+	pollRate  time.Duration
+	pollReqCh chan struct{}
+	polling   bool
 }
+
+var httpRegex = regexp.MustCompile("^http(s)?://")
 
 func NewListener(srcChainId *big.Int, networks chains.Networks, queue store.Queue) (Listener, error) {
 	srcChain, err := networks.GetChainConfig(srcChainId)
@@ -56,14 +63,25 @@ func NewListener(srcChainId *big.Int, networks chains.Networks, queue store.Queu
 	}
 
 	return &listener{
-		outbox:  outbox,
-		handler: h,
-		logs:    make(chan *bindings.RIP7755OutboxCrossChainCallRequested),
-		stop:    make(chan struct{}),
+		outbox:    outbox,
+		handler:   h,
+		logs:      make(chan *bindings.RIP7755OutboxCrossChainCallRequested),
+		stop:      make(chan struct{}),
+		pollReqCh: make(chan struct{}, 1),
+		pollRate:  3 * time.Second,
+		polling:   httpRegex.MatchString(srcChain.RpcUrl),
 	}, nil
 }
 
-func (l *listener) Start(ctx context.Context) error {
+func (l *listener) Start() error {
+	if l.polling {
+		return pollListener(l)
+	}
+
+	return webSocketListener(l)
+}
+
+func webSocketListener(l *listener) error {
 	sub, err := l.outbox.WatchCrossChainCallRequested(&bind.WatchOpts{}, l.logs, [][32]byte{})
 	if err != nil {
 		return fmt.Errorf("failed to subscribe to logs: %v", err)
@@ -75,6 +93,55 @@ func (l *listener) Start(ctx context.Context) error {
 	go l.loop(sub)
 
 	return nil
+}
+
+func pollListener(l *listener) error {
+	logger.Info("Polling for logs")
+	reqPollAfter := func() {
+		if l.pollRate == 0 {
+			return
+		}
+		time.AfterFunc(l.pollRate, l.reqPoll)
+	}
+
+	reqPollAfter()
+
+	for {
+		select {
+		case <-l.pollReqCh:
+			logger.Info("Running")
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			logIterator, err := l.outbox.FilterCrossChainCallRequested(&bind.FilterOpts{Context: ctx}, [][32]byte{})
+			if err != nil {
+				logger.Error("failed to filter logs", "error", err)
+				cancel()
+				logIterator.Close()
+				reqPollAfter()
+				continue
+			}
+
+			for logIterator.Next() {
+				err := logIterator.Error()
+				if err != nil {
+					logger.Error("error iterating over logs", "error", err)
+					continue
+				}
+
+				log := logIterator.Event
+				err = l.handler.HandleLog(log)
+				if err != nil {
+					logger.Error("failed to handle log", "error", err)
+					continue
+				}
+			}
+
+			cancel()
+			logIterator.Close()
+			reqPollAfter()
+		case <-l.stop:
+			return nil
+		}
+	}
 }
 
 func (l *listener) loop(sub ethereum.Subscription) {
@@ -102,4 +169,8 @@ func (l *listener) loop(sub ethereum.Subscription) {
 func (l *listener) Stop() {
 	close(l.stop)
 	l.wg.Wait()
+}
+
+func (l *listener) reqPoll() {
+	l.pollReqCh <- struct{}{}
 }

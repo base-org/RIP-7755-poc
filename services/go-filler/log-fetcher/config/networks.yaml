@@ -9,7 +9,7 @@ networks:
     contracts:
       inbox: 0xeE962eD1671F655a806cB22623eEA8A7cCc233bC
       outbox: 0xBCd5762cF9B07EF5597014c350CE2efB2b0DB2D2
-    target-prover: ArbitrumProver
+    target-prover: Arbitrum
   84532: # Base Sepolia
     chain-id: 84532
     prover-contracts:
@@ -21,7 +21,7 @@ networks:
     contracts:
       inbox: 0xB482b292878FDe64691d028A2237B34e91c7c7ea
       outbox: 0xD7a5A114A07cC4B5ebd9C5e1cD1136a99fFA3d68
-    target-prover: OPStackProver
+    target-prover: OPStack
   11155420: # Optimism Sepolia
     chain-id: 11155420
     prover-contracts:
@@ -31,7 +31,7 @@ networks:
     contracts:
       inbox: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874
       l2-message-passer: 0x4200000000000000000000000000000000000016
-    target-prover: OPStackProver
+    target-prover: OPStack
   11155111: # Sepolia
     chain-id: 11155111
     prover-contracts:

@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/chains"
 	"github.com/base-org/RIP-7755-poc/services/go-filler/log-fetcher/internal/listener"
@@ -55,9 +54,7 @@ func Main(ctx *cli.Context) error {
 		}
 
 		wg.Add(1)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		err = l.Start(ctx)
-		cancel()
+		err = l.Start()
 		if err != nil {
 			log.Crit("Failed to start listener", "error", err)
 		}
