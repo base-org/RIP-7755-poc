@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  database:
+    image: mongo
+    container_name: mongodb
+    restart: always
+    ports:
+      - 27017:27017
+    environment:
+      - MONGODB_DATABASE="calls"
