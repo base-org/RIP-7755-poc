@@ -144,7 +144,7 @@ contract OPStackProver is IProver {
     function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
         RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
 
-        if (blockFields.length < 15) {
+        if (blockFields.length < 16) {
             revert InvalidBlockFieldRLP();
         }
 
