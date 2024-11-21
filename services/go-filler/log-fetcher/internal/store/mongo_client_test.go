@@ -84,6 +84,31 @@ func TestEnqueueError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestReadCheckpoint(t *testing.T) {
+	mockConnection := new(MongoConnectionMock)
+	queue := &queue{checkpoint: mockConnection}
+
+	mockConnection.On("FindOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.SingleResult{})
+
+	checkpoint, err := queue.ReadCheckpoint("test")
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(0), checkpoint)
+	mockConnection.AssertExpectations(t)
+}
+
+func TestWriteCheckpoint(t *testing.T) {
+	mockConnection := new(MongoConnectionMock)
+	queue := &queue{checkpoint: mockConnection}
+
+	mockConnection.On("UpdateOne", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mongo.UpdateResult{}, nil)
+
+	err := queue.WriteCheckpoint("test", 1)
+
+	assert.NoError(t, err)
+	mockConnection.AssertExpectations(t)
+}
+
 func TestClose(t *testing.T) {
 	mockClient := new(MongoClientMock)
 	queue := &queue{client: mockClient}

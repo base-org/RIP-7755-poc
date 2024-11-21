@@ -53,7 +53,7 @@ func Main(ctx *cli.Context) error {
 			log.Crit("Failed to read checkpoint", "error", err)
 		}
 
-		l, err := listener.NewListener(chainIdBigInt, cfg.Networks, queue, checkpoint)
+		l, err := listener.NewListener(chainIdBigInt, cfg.Networks, queue, checkpoint+1)
 		if err != nil {
 			log.Crit("Failed to create listener", "error", err)
 		}

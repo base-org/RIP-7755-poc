@@ -113,7 +113,6 @@ func pollListener(l *listener) error {
 	for {
 		select {
 		case <-l.pollReqCh:
-			logger.Info("Running")
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			logIterator, err := l.outbox.FilterCrossChainCallRequested(&bind.FilterOpts{Context: ctx, Start: l.startingBlock}, [][32]byte{})
 			if err != nil {
