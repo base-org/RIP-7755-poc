@@ -6,7 +6,8 @@ import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
 
 contract MockPrecheck is IPrecheckContract {
     function precheckCall(CrossChainRequest calldata request, address caller) external pure {
-        address expectedCaller = abi.decode(request.precheckData, (address));
+        bytes calldata precheckData = request.extraData[0];
+        address expectedCaller = address(bytes20(precheckData[20:]));
 
         if (expectedCaller != caller) {
             revert();

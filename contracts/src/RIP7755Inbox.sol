@@ -51,6 +51,9 @@ contract RIP7755Inbox {
     /// @param actual The received `msg.value`
     error InvalidValue(uint256 expected, uint256 actual);
 
+    /// @notice This error is thrown when the first element in the `extraData` array is less than 20 bytes
+    error InvalidPrecheckData();
+
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
     /// @param requestHash A keccak256 hash of a CrossChainRequest
@@ -74,9 +77,7 @@ contract RIP7755Inbox {
         }
 
         // Run precheck - call expected to revert if precheck condition(s) not met.
-        if (request.precheckContract != address(0)) {
-            IPrecheckContract(request.precheckContract).precheckCall(request, msg.sender);
-        }
+        _runPrecheck(request);
 
         bytes32 requestHash = hashRequest(request);
 
@@ -98,6 +99,28 @@ contract RIP7755Inbox {
     /// @return _ A keccak256 hash of the cross chain call request.
     function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
         return keccak256(abi.encode(request));
+    }
+
+    /// @notice Runs the precheck for a cross chain call.
+    ///
+    /// @dev The first element in the `extraData` array is reserved for precheck validation.
+    /// @dev The precheck step is optional. It will be skipped if the `extraData` array is empty or if the first 20 bytes of the first element are the zero address.
+    ///
+    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
+    function _runPrecheck(CrossChainRequest calldata request) private {
+        if (request.extraData.length == 0) return;
+
+        bytes calldata precheckData = request.extraData[0];
+
+        if (precheckData.length < 20) {
+            revert InvalidPrecheckData();
+        }
+
+        address precheckContract = address(bytes20(precheckData[0:20]));
+
+        if (precheckContract != address(0)) {
+            IPrecheckContract(precheckContract).precheckCall(request, msg.sender);
+        }
     }
 
     function _sendCallsAndValidateMsgValue(CrossChainRequest calldata request) private {

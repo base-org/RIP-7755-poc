@@ -176,8 +176,7 @@ contract ArbitrumProverTest is Test {
             finalityDelaySeconds: 10,
             nonce: 1,
             expiry: 1828828574,
-            precheckContract: address(0),
-            precheckData: ""
+            extraData: new bytes[](0)
         });
     }
 

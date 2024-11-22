@@ -502,8 +502,7 @@ contract RIP7755OutboxTest is Test {
             finalityDelaySeconds: 10,
             nonce: 1,
             expiry: block.timestamp + 11,
-            precheckContract: address(0),
-            precheckData: ""
+            extraData: new bytes[](0)
         });
     }
 

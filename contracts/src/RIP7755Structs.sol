@@ -38,10 +38,8 @@ struct CrossChainRequest {
     uint256 nonce;
     /// @dev The timestamp at which this request will expire
     uint256 expiry;
-    /// @dev An optional pre-check contract address on the destination chain
-    /// @dev Zero address represents no pre-check contract desired
-    /// @dev Can be used for arbitrary validation of fill conditions
-    address precheckContract;
-    /// @dev Arbitrary encoded precheck data
-    bytes precheckData;
+    /// @dev Extra data to be included in the proof - this is extra data to be used for prechecks and special validation cases
+    /// @dev The first element in the `extraData` array is reserved for the precheck
+    /// @dev If no precheck is desired, set to an empty array. If no precheck is desired but other data is needed, set the first element in the array to the zero address
+    bytes[] extraData;
 }

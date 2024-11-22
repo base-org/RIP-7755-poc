@@ -51,8 +51,8 @@ contract RIP7755InboxTest is Test {
     function test_fulfill_storesFulfillment_withSuccessfulPrecheck() external {
         CrossChainRequest memory request = _initRequest();
 
-        request.precheckContract = address(precheck);
-        request.precheckData = abi.encode(FULFILLER);
+        request.extraData = new bytes[](1);
+        request.extraData[0] = abi.encodePacked(address(precheck), FULFILLER);
 
         vm.prank(FULFILLER);
         inbox.fulfill(request, FULFILLER);
@@ -66,9 +66,8 @@ contract RIP7755InboxTest is Test {
 
     function test_fulfill_reverts_failedPrecheck() external {
         CrossChainRequest memory request = _initRequest();
-
-        request.precheckContract = address(precheck);
-        request.precheckData = abi.encode(address(0));
+        request.extraData = new bytes[](1);
+        request.extraData[0] = abi.encode(address(precheck), address(0));
 
         vm.prank(FULFILLER);
         vm.expectRevert();
@@ -155,8 +154,7 @@ contract RIP7755InboxTest is Test {
             finalityDelaySeconds: 0,
             nonce: 0,
             expiry: 0,
-            precheckContract: address(0),
-            precheckData: ""
+            extraData: new bytes[](0)
         });
     }
 }

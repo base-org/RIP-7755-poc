@@ -109,11 +109,8 @@ contract OPStackProver is IProver {
         }
 
         // Compute the expected destination chain output root (which is the value we just proved is in the L1 storage slot)
-        bytes32 expectedOutputRoot = keccak256(
-            abi.encodePacked(
-                version, l2StateRoot, proofData.l2MessagePasserStorageRoot, l2BlockHash
-            )
-        );
+        bytes32 expectedOutputRoot =
+            keccak256(abi.encodePacked(version, l2StateRoot, proofData.l2MessagePasserStorageRoot, l2BlockHash));
         // If this checks out, it means we know the correct l2StateRoot
         if (bytes32(proofData.dstL2StateRootProofParams.storageValue) != expectedOutputRoot) {
             revert InvalidL2StateRoot();
@@ -138,7 +135,7 @@ contract OPStackProver is IProver {
 
     /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
     ///
-    /// @custom:reverts If the encoded block array does not have 16 elements
+    /// @custom:reverts If the encoded block array has less than 15 elements
     ///
     /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
     function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
