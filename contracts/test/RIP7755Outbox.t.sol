@@ -165,7 +165,6 @@ contract RIP7755OutboxTest is Test {
 
     function test_claimReward_reverts_requestDoesNotExist(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _initRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
@@ -176,16 +175,15 @@ contract RIP7755OutboxTest is Test {
                 RIP7755Outbox.CrossChainCallStatus.None
             )
         );
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
     }
 
     function test_claimReward_reverts_requestAlreadyCompleted(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         vm.prank(FILLER);
         vm.expectRevert(
@@ -195,12 +193,11 @@ contract RIP7755OutboxTest is Test {
                 RIP7755Outbox.CrossChainCallStatus.Completed
             )
         );
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
     }
 
     function test_claimReward_reverts_requestCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         vm.warp(request.expiry + outbox.CANCEL_DELAY_SECONDS());
@@ -215,7 +212,7 @@ contract RIP7755OutboxTest is Test {
                 RIP7755Outbox.CrossChainCallStatus.Canceled
             )
         );
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
     }
 
     function test_claimReward_storesCompletedStatus_pendingState(uint256 rewardAmount)
@@ -223,11 +220,10 @@ contract RIP7755OutboxTest is Test {
         fundAlice(rewardAmount)
     {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         bytes32 requestHash = outbox.hashRequest(request);
         RIP7755Outbox.CrossChainCallStatus status = outbox.getRequestStatus(requestHash);
@@ -241,13 +237,12 @@ contract RIP7755OutboxTest is Test {
         vm.prank(ALICE);
         outbox.requestCrossChainCall{value: rewardAmount}(request);
 
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         uint256 fillerBalBefore = FILLER.balance;
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         uint256 fillerBalAfter = FILLER.balance;
 
@@ -264,13 +259,12 @@ contract RIP7755OutboxTest is Test {
         vm.prank(ALICE);
         outbox.requestCrossChainCall{value: rewardAmount}(request);
 
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         uint256 contractBalBefore = address(outbox).balance;
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         uint256 contractBalAfter = address(outbox).balance;
 
@@ -279,13 +273,12 @@ contract RIP7755OutboxTest is Test {
 
     function test_claimReward_sendsERC20RewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         uint256 fillerBalBefore = mockErc20.balanceOf(FILLER);
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         uint256 fillerBalAfter = mockErc20.balanceOf(FILLER);
 
@@ -294,13 +287,12 @@ contract RIP7755OutboxTest is Test {
 
     function test_claimReward_sendsERC20RewardFromContract(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         uint256 contractBalBefore = mockErc20.balanceOf(address(outbox));
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         uint256 contractBalAfter = mockErc20.balanceOf(address(outbox));
 
@@ -342,11 +334,10 @@ contract RIP7755OutboxTest is Test {
         fundAlice(rewardAmount)
     {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(request, fillInfo, storageProofData, FILLER);
+        outbox.claimReward(request, storageProofData, FILLER);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -499,9 +490,5 @@ contract RIP7755OutboxTest is Test {
             expiry: block.timestamp + 11,
             extraData: new bytes[](0)
         });
-    }
-
-    function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
-        return RIP7755Inbox.FulfillmentInfo({timestamp: 0, filler: FILLER});
     }
 }
