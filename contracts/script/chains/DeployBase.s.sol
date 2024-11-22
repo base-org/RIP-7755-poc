@@ -3,20 +3,18 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
-import {ArbitrumProver} from "../../src/provers/ArbitrumProver.sol";
-import {OPStackProver} from "../../src/provers/OPStackProver.sol";
+import {RIP7755OutboxToArbitrum} from "../../src/outboxes/RIP7755OutboxToArbitrum.sol";
+import {RIP7755OutboxToOPStack} from "../../src/outboxes/RIP7755OutboxToOPStack.sol";
 import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
-import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 
 contract DeployBase is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);
-        new ArbitrumProver();
-        new OPStackProver();
         new RIP7755Inbox();
-        new RIP7755Outbox();
+        new RIP7755OutboxToArbitrum();
+        new RIP7755OutboxToOPStack();
         vm.stopBroadcast();
     }
 }

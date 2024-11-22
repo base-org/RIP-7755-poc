@@ -3,17 +3,17 @@ pragma solidity 0.8.24;
 
 import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
-import {IProver} from "../interfaces/IProver.sol";
 import {StateValidator} from "../libraries/StateValidator.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
+import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
 
-/// @title RIP7755OutboxOPStackValidator
+/// @title RIP7755OutboxToOPStack
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
-contract OPStackProver is IProver {
+contract RIP7755OutboxToOPStack is RIP7755Outbox {
     using StateValidator for address;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
@@ -68,12 +68,12 @@ contract OPStackProver is IProver {
     /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param proof The proof to validate
-    function validateProof(
+    function _validateProof(
         bytes memory inboxContractStorageKey,
         RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata proof
-    ) external view {
+    ) internal view override {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
         // Set the expected storage key and value for the `RIP7755Inbox` on the destination OP Stack chain
