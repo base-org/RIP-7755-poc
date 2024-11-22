@@ -12,4 +12,7 @@ contract MockProver is IProver {
         CrossChainRequest calldata,
         bytes calldata
     ) external pure {}
+
+    // Including to block from coverage report
+    function test() external {}
 }

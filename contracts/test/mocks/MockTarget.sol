@@ -13,4 +13,7 @@ contract MockTarget {
     function shouldFail() external pure {
         revert MockError();
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

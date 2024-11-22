@@ -13,4 +13,7 @@ contract MockPrecheck is IPrecheckContract {
             revert();
         }
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }
