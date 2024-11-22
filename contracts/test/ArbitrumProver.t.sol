@@ -181,7 +181,7 @@ contract ArbitrumProverTest is Test {
     }
 
     function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
-        return RIP7755Inbox.FulfillmentInfo({timestamp: 1731849964, filler: FILLER});
+        return RIP7755Inbox.FulfillmentInfo({timestamp: 1732234711, filler: FILLER});
     }
 
     function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
