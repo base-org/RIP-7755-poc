@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
+import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
@@ -28,7 +29,7 @@ contract ArbitrumProverTest is Test {
     string invalidL1State;
     string invalidConfirmData;
     string invalidBlockHeaders;
-    string finalityDelayInProgress;
+    string invalidL2Storage;
     uint256 private _REWARD_AMOUNT = 1 ether;
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
@@ -46,13 +47,13 @@ contract ArbitrumProverTest is Test {
             string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidConfirmData.json");
         string memory invalidBlockHeadersPath =
             string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidBlockHeaders.json");
-        string memory finalityDelayInProgressPath =
-            string.concat(rootPath, "/test/data/invalids/ArbitrumFinalityDelayInProgress.json");
+        string memory invalidL2StoragePath =
+            string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidL2Storage.json");
         validProof = vm.readFile(path);
         invalidL1State = vm.readFile(invalidPath);
         invalidConfirmData = vm.readFile(invalidConfirmDataPath);
         invalidBlockHeaders = vm.readFile(invalidBlockHeadersPath);
-        finalityDelayInProgress = vm.readFile(finalityDelayInProgressPath);
+        invalidL2Storage = vm.readFile(invalidL2StoragePath);
     }
 
     modifier fundAlice(uint256 amount) {
@@ -66,71 +67,65 @@ contract ArbitrumProverTest is Test {
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
 
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockArbitrumProver.RIP7755Proof memory proof = _buildProof(finalityDelayInProgress);
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
+        request.finalityDelaySeconds = type(uint256).max - 1 ether;
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToArbitrum.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToArbitrum.InvalidStateRoot.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, abi.encode(proof));
+        vm.expectRevert(ArbitrumProver.InvalidStateRoot.selector);
+        prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToArbitrum.InvalidBlockFieldRLP.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, abi.encode(proof));
+        vm.expectRevert(ArbitrumProver.InvalidBlockFieldRLP.selector);
+        prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidConfirmData() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidConfirmData);
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidConfirmData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToArbitrum.InvalidConfirmData.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, abi.encode(proof));
+        vm.expectRevert(ArbitrumProver.InvalidConfirmData.selector);
+        prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        fillInfo.timestamp++;
-        MockArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL2Storage);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToArbitrum.InvalidL2Storage.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, abi.encode(proof));
+        vm.expectRevert(ArbitrumProver.InvalidL2Storage.selector);
+        prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        prover.validateProof(inboxStorageKey, fillInfo, request, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
-    function _buildProof(string memory json) private returns (MockArbitrumProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (ArbitrumProver.RIP7755Proof memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
@@ -152,7 +147,7 @@ contract ArbitrumProverTest is Test {
 
         mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
 
-        return RIP7755OutboxToArbitrum.RIP7755Proof({
+        return ArbitrumProver.RIP7755Proof({
             sendRoot: json.readBytes(".sendRoot"),
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
             stateProofParams: stateProofParams,
@@ -177,10 +172,6 @@ contract ArbitrumProverTest is Test {
             expiry: 1828828574,
             extraData: new bytes[](0)
         });
-    }
-
-    function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
-        return RIP7755Inbox.FulfillmentInfo({timestamp: 1732304705, filler: FILLER});
     }
 
     function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {

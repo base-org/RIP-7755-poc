@@ -110,22 +110,16 @@ abstract contract RIP7755Outbox {
     /// can prove it with a valid nested storage proof
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
-    /// @param fulfillmentInfo The fill info that should be in storage in `RIP7755Inbox` on destination chain
     /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     /// storage on the destination chain
     /// @param payTo The address the Filler wants to receive the reward
-    function claimReward(
-        CrossChainRequest calldata request,
-        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
-        bytes calldata proof,
-        address payTo
-    ) external {
+    function claimReward(CrossChainRequest calldata request, bytes calldata proof, address payTo) external {
         bytes32 requestHash = hashRequest(request);
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validateProof(storageKey, fulfillmentInfo, request, proof);
+        _validateProof(storageKey, request, proof);
 
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
@@ -231,14 +225,27 @@ abstract contract RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
-    /// on the destination chain `RIP7755Inbox` contract
     /// @param request The original cross chain request submitted to this contract
     /// @param proofData The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
-        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
         CrossChainRequest calldata request,
         bytes calldata proofData
     ) internal virtual;
+
+    /// @notice Decodes the `FulfillmentInfo` struct from the `RIP7755Inbox` storage slot
+    ///
+    /// @param inboxContractStorageValue The storage value of the `RIP7755Inbox` storage slot
+    ///
+    /// @return fulfillmentInfo The decoded `FulfillmentInfo` struct
+    function _decodeFulfillmentInfo(bytes32 inboxContractStorageValue)
+        internal
+        pure
+        returns (RIP7755Inbox.FulfillmentInfo memory)
+    {
+        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo;
+        fulfillmentInfo.filler = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
+        fulfillmentInfo.timestamp = uint96(uint256(inboxContractStorageValue));
+        return fulfillmentInfo;
+    }
 }

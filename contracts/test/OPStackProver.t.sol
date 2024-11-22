@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
+import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
@@ -28,7 +29,6 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     string invalidL1StorageProof;
     string invalidL2StateRootProof;
     string invalidL2StorageProof;
-    string finalityDelayInProgressProof;
     uint256 private _REWARD_AMOUNT = 1 ether;
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
@@ -44,13 +44,10 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         string memory invalidL1StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL1Storage.json");
         string memory invalidL2StateRootPath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2StateRoot.json");
         string memory invalidL2StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2Storage.json");
-        string memory finalityDelayInProgressPath =
-            string.concat(rootPath, "/test/data/invalids/OPFinalityDelayInProgress.json");
         validProof = vm.readFile(path);
         invalidL1StorageProof = vm.readFile(invalidL1StoragePath);
         invalidL2StateRootProof = vm.readFile(invalidL2StateRootPath);
         invalidL2StorageProof = vm.readFile(invalidL2StoragePath);
-        finalityDelayInProgressProof = vm.readFile(finalityDelayInProgressPath);
     }
 
     modifier fundAlice(uint256 amount) {
@@ -64,103 +61,96 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
 
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        bytes memory storageProofData = _buildProofAndEncodeProof(finalityDelayInProgressProof);
+        bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
+        request.finalityDelaySeconds = type(uint256).max;
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1StorageProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToOPStack.InvalidL1Storage.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        vm.expectRevert(OPStackProver.InvalidL1Storage.selector);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StateRootProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToOPStack.InvalidL2StateRoot.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        vm.expectRevert(OPStackProver.InvalidL2StateRoot.selector);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StorageProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToOPStack.InvalidL2Storage.selector);
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        vm.expectRevert(OPStackProver.InvalidL2Storage.selector);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
-        RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
+        prover.validateProof(inboxStorageKey, request, storageProofData);
     }
 
     function _buildProofAndEncodeProof(string memory json) private returns (bytes memory) {
-        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(json);
+        OPStackProver.RIP7755Proof memory proofData = _buildProof(json);
         return abi.encode(proofData);
     }
 
-    function _buildProof(string memory json) private returns (MockOPStackProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (OPStackProver.RIP7755Proof memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
@@ -182,7 +172,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
 
-        return RIP7755OutboxToOPStack.RIP7755Proof({
+        return OPStackProver.RIP7755Proof({
             l2MessagePasserStorageRoot: json.readBytes32(".l2MessagePasserStorageRoot"),
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
             stateProofParams: stateProofParams,
@@ -206,10 +196,6 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
             expiry: 1828828574,
             extraData: new bytes[](0)
         });
-    }
-
-    function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
-        return RIP7755Inbox.FulfillmentInfo({timestamp: 1728949124, filler: FILLER});
     }
 
     function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
