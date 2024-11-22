@@ -44,7 +44,8 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         string memory invalidL1StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL1Storage.json");
         string memory invalidL2StateRootPath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2StateRoot.json");
         string memory invalidL2StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2Storage.json");
-        string memory finalityDelayInProgressPath = string.concat(rootPath, "/test/data/invalids/OPFinalityDelayInProgress.json");
+        string memory finalityDelayInProgressPath =
+            string.concat(rootPath, "/test/data/invalids/OPFinalityDelayInProgress.json");
         validProof = vm.readFile(path);
         invalidL1StorageProof = vm.readFile(invalidL1StoragePath);
         invalidL2StateRootProof = vm.readFile(invalidL2StateRootPath);
@@ -204,8 +205,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
             finalityDelaySeconds: 10,
             nonce: 1,
             expiry: 1828828574,
-            precheckContract: address(0),
-            precheckData: ""
+            extraData: new bytes[](0)
         });
     }
 

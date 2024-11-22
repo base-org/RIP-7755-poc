@@ -26,8 +26,7 @@ contract SubmitRequest is Script {
             finalityDelaySeconds: 1 weeks,
             nonce: 0,
             expiry: block.timestamp + 2 weeks,
-            precheckContract: address(0),
-            precheckData: ""
+            extraData: new bytes[](0)
         });
 
         vm.startBroadcast(pk);

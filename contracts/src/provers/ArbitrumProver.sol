@@ -147,7 +147,7 @@ contract ArbitrumProver is IProver {
 
     /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
     ///
-    /// @custom:reverts If the encoded block array does not have 16 elements
+    /// @custom:reverts If the encoded block array has less than 15 elements
     ///
     /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
     function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {

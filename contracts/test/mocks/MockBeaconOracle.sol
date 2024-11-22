@@ -15,4 +15,7 @@ contract MockBeaconOracle {
         latestBlock = blockNumber;
         beaconRoots[blockTimestamp] = beaconRoot;
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }
