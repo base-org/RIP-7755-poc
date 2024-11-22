@@ -4,17 +4,15 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
-import {DeployRIP7755Outbox} from "../script/DeployRIP7755Outbox.s.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
-import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
+import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 
-import {MockProver} from "./mocks/MockProver.sol";
+import {MockOutbox} from "./mocks/MockOutbox.sol";
 
 contract RIP7755OutboxTest is Test {
-    RIP7755Outbox outbox;
+    MockOutbox outbox;
     ERC20Mock mockErc20;
-    MockProver mockProver;
 
     Call[] calls;
     address ALICE = makeAddr("alice");
@@ -25,10 +23,8 @@ contract RIP7755OutboxTest is Test {
     event CrossChainCallCanceled(bytes32 indexed callHash);
 
     function setUp() public {
-        DeployRIP7755Outbox deployer = new DeployRIP7755Outbox();
-        outbox = deployer.run();
+        outbox = new MockOutbox();
         mockErc20 = new ERC20Mock();
-        mockProver = new MockProver();
     }
 
     modifier fundAlice(uint256 amount) {
@@ -492,7 +488,6 @@ contract RIP7755OutboxTest is Test {
         return CrossChainRequest({
             requester: ALICE,
             calls: calls,
-            proverContract: address(mockProver),
             destinationChainId: 0,
             inboxContract: address(0),
             l2Oracle: address(0),

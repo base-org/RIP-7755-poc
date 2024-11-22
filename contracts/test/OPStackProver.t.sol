@@ -5,17 +5,18 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
-import {DeployOPStackProver} from "../script/DeployOPStackProver.s.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {OPStackProver} from "../src/provers/OPStackProver.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
+import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
+
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
+import {MockOPStackProver} from "./mocks/MockOPStackProver.sol";
 
 contract RIP7755OutboxOPStackValidatorTest is Test {
     using stdJson for string;
 
-    OPStackProver prover;
+    MockOPStackProver prover;
     ERC20Mock mockErc20;
     MockBeaconOracle mockBeaconOracle;
 
@@ -33,8 +34,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
     function setUp() external {
-        DeployOPStackProver deployer = new DeployOPStackProver();
-        prover = deployer.run();
+        prover = new MockOPStackProver();
         mockErc20 = new ERC20Mock();
         deployCodeTo("MockBeaconOracle.sol", abi.encode(), 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
         mockBeaconOracle = MockBeaconOracle(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
@@ -69,14 +69,14 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(OPStackProver.FinalityDelaySecondsInProgress.selector);
+        vm.expectRevert(RIP7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
         prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
@@ -89,7 +89,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
@@ -102,7 +102,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         RIP7755Inbox.FulfillmentInfo memory fillInfo = _initFulfillmentInfo();
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
@@ -119,7 +119,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(OPStackProver.InvalidL1Storage.selector);
+        vm.expectRevert(RIP7755OutboxToOPStack.InvalidL1Storage.selector);
         prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
@@ -130,7 +130,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(OPStackProver.InvalidL2StateRoot.selector);
+        vm.expectRevert(RIP7755OutboxToOPStack.InvalidL2StateRoot.selector);
         prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
@@ -141,7 +141,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(OPStackProver.InvalidL2Storage.selector);
+        vm.expectRevert(RIP7755OutboxToOPStack.InvalidL2Storage.selector);
         prover.validateProof(inboxStorageKey, fillInfo, request, storageProofData);
     }
 
@@ -156,11 +156,11 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     }
 
     function _buildProofAndEncodeProof(string memory json) private returns (bytes memory) {
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(json);
+        MockOPStackProver.RIP7755Proof memory proofData = _buildProof(json);
         return abi.encode(proofData);
     }
 
-    function _buildProof(string memory json) private returns (OPStackProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (MockOPStackProver.RIP7755Proof memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
@@ -182,7 +182,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
 
-        return OPStackProver.RIP7755Proof({
+        return RIP7755OutboxToOPStack.RIP7755Proof({
             l2MessagePasserStorageRoot: json.readBytes32(".l2MessagePasserStorageRoot"),
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
             stateProofParams: stateProofParams,
@@ -195,7 +195,6 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         return CrossChainRequest({
             requester: ALICE,
             calls: calls,
-            proverContract: address(0),
             destinationChainId: 11155420,
             inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Optimism Sepolia
             l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629, // Anchor State Registry on Sepolia
