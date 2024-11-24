@@ -25,6 +25,9 @@ export enum SupportedChains {
   BaseSepolia = 84532,
   OptimismSepolia = 11155420,
   Sepolia = 11155111,
+  MockBase = 111111,
+  MockOptimism = 111112,
+  MockL1 = 31337,
 }
 
 export type ActiveChains = {
