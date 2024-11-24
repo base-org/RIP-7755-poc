@@ -79,10 +79,10 @@ library OPStackProver {
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
-        // Set the expected storage key and value for the `RIP7755Inbox` on the destination OP Stack chain
-        // NOTE: the following two lines are temporarily commented out for hacky tests
-        // proofData.dstL2AccountProofParams.storageKey = target.l2StorageKey;
-        // proofData.dstL2AccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
+        // Set the expected storage key for the L1 storage slot
+        proofData.dstL2StateRootProofParams.storageKey = abi.encode(target.l1StorageKey);
+        // Set the expected storage key for the `RIP7755Inbox` storage slot
+        proofData.dstL2AccountProofParams.storageKey = abi.encode(target.l2StorageKey);
 
         // We first need to validate knowledge of the destination L2 chain's state root.
         // StateValidator.validateState will accomplish each of the following 4 steps:
@@ -119,12 +119,7 @@ library OPStackProver {
         // This library function will accomplish the following 2 steps:
         //      5. Validate L2 account proof where `account` here is `RIP7755Inbox` on destination chain
         //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Inbox` storage
-        // NOTE: the following line is a temporary line used to validate proof logic. Will be removed in the near future.
-        bool validL2Storage = 0xAd6A7addf807D846A590E76C5830B609F831Ba2E.validateAccountStorage(
-            l2StateRoot, proofData.dstL2AccountProofParams
-        );
-        // bool validL2Storage =
-        //     target.l2Address.validateAccountStorage(proofData.l2StateRoot, proofData.dstL2AccountProofParams);
+        bool validL2Storage = target.l2Address.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
 
         if (!validL2Storage) {
             revert InvalidL2Storage();
