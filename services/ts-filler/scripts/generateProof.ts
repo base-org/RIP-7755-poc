@@ -2,7 +2,6 @@ import ChainService from "../src/chain/chain.service";
 import Prover from "../src/prover/prover.service";
 import config from "../src/config";
 import chains from "../src/chain/chains";
-import { SupportedChains } from "../src/common/types/chain";
 import ConfigService from "../src/config/config.service";
 import { replaceBigInts } from "../src/common/utils/bigIntReplacer";
 
@@ -10,7 +9,7 @@ import { replaceBigInts } from "../src/common/utils/bigIntReplacer";
 async function main() {
   const activeChains = {
     src: chains[config.sourceChain],
-    l1: chains[SupportedChains.Sepolia],
+    l1: chains[config.l1],
     dst: chains[config.dstChain],
   };
 
@@ -18,7 +17,7 @@ async function main() {
     throw new Error(`Invalid Source Chain: ${config.sourceChain}`);
   }
   if (!activeChains.l1) {
-    throw new Error(`Invalid L1 Chain: ${SupportedChains.Sepolia}`);
+    throw new Error(`Invalid L1 Chain: ${config.l1}`);
   }
   if (!activeChains.dst) {
     throw new Error(`Invalid Destination Chain: ${Number(config.dstChain)}`);

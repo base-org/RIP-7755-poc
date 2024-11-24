@@ -29,6 +29,8 @@ import type {
   ArbitrumProofType,
   OPStackProofType,
 } from "../common/types/proof";
+import config from "../config";
+import deriveBeaconRoot from "../common/utils/deriveBeaconRoot";
 
 export default class ProverService {
   constructor(
@@ -39,19 +41,34 @@ export default class ProverService {
   async generateProof(
     requestHash: Address
   ): Promise<ArbitrumProofType | OPStackProofType> {
-    const beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
-    const beaconBlock = await this.chainService.getBeaconBlock(
-      beaconData.beaconRoot
-    );
-    const stateRootInclusion = this.getExecutionStateRootProof(beaconBlock);
+    let beaconData: GetBeaconRootAndL2TimestampReturnType;
+    let l1BlockNumber: bigint;
+    let stateRootInclusion: StateRootProofReturnType;
 
-    const l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber);
+    if (config.devnet) {
+      const l1Block = await this.chainService.getL1Block();
+      l1BlockNumber = l1Block.number as bigint;
+      stateRootInclusion = {
+        proof: constants.mockL1StateRootProof,
+        leaf: l1Block.stateRoot,
+      };
+      beaconData = {
+        beaconRoot: deriveBeaconRoot(l1Block.stateRoot),
+        timestampForL2BeaconOracle: l1Block.timestamp,
+      };
+    } else {
+      beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
+      const beaconBlock = await this.chainService.getBeaconBlock(
+        beaconData.beaconRoot
+      );
+      stateRootInclusion = this.getExecutionStateRootProof(beaconBlock);
+      l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber);
+    }
 
     const { l2Block, sendRoot, nodeIndex } = await this.chainService.getL2Block(
       l1BlockNumber
     );
     const l2Slot = this.deriveRIP7755VerifierStorageSlot(requestHash);
-    // const l2Slot = deriveOpSepoliaWethStorageSlot();
 
     const storageProofOpts = {
       l1BlockNumber,
@@ -95,14 +112,16 @@ export default class ProverService {
         this.buildL1Proof(l1BlockNumber, nodeIndex)
       ),
       dstConfig.publicClient.getProof({
-        // address: dstConfig.contracts.weth,
         address: dstConfig.contracts.inbox,
         storageKeys: [l2Slot],
         blockNumber: l2Block.number,
       }),
     ];
 
-    if (dstConfig.chainId === SupportedChains.OptimismSepolia) {
+    if (
+      dstConfig.chainId === SupportedChains.OptimismSepolia ||
+      dstConfig.chainId === SupportedChains.MockOptimism
+    ) {
       calls.push(
         dstConfig.publicClient.getProof({
           address: dstConfig.contracts.l2MessagePasser,
@@ -124,7 +143,7 @@ export default class ProverService {
     nodeIndex?: bigint
   ): { address: Address; storageKeys: Address[]; blockNumber: bigint } {
     const l1Config = this.activeChains.l1;
-    let address = l1Config.contracts.anchorStateRegistry;
+    let address = this.activeChains.dst.l2Oracle;
     let storageKeys = [constants.slots.anchorStateRegistrySlot];
 
     if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
