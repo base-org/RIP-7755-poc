@@ -63,7 +63,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(request);
-        request.finalityDelaySeconds = type(uint256).max;
+        request.finalityDelaySeconds = type(uint256).max - 1 ether;
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
@@ -183,13 +183,13 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
     function _initRequest(uint256 rewardAmount) private view returns (CrossChainRequest memory) {
         return CrossChainRequest({
-            requester: ALICE,
+            requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6,
             calls: calls,
-            destinationChainId: 11155420,
-            inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Optimism Sepolia
-            l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629, // Anchor State Registry on Sepolia
+            destinationChainId: 111112,
+            inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, // RIP7755Inbox on mock Chain B
+            l2Oracle: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, // Anchor State Registry on mock L1
             l2OracleStorageKey: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49, // Anchor State Registry storage slot
-            rewardAsset: address(mockErc20),
+            rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b,
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
             nonce: 1,
