@@ -2,21 +2,28 @@
 pragma solidity 0.8.24;
 
 import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
-import {IProver} from "../interfaces/IProver.sol";
-import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
-import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Inbox} from "../RIP7755Inbox.sol";
-import {CrossChainRequest} from "../RIP7755Structs.sol";
+import {StateValidator} from "../StateValidator.sol";
+import {RIP7755Inbox} from "../../RIP7755Inbox.sol";
+import {CrossChainRequest} from "../../RIP7755Structs.sol";
 
 /// @title HashiProver
 ///
 /// @author Crosschain Alliance
 ///
-/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a chain where Hashi is available
-contract HashiProver is IProver {
+/// @notice This is a utility library for validating storage proofs using Hashi's block headers.
+library HashiProver {
     using StateValidator for address;
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
+
+    /// @notice The address and storage keys to validate on L1 and L2
+    struct Target {
+        /// @dev The address of the contract to validate. Should be Hashi's `RIP7755Inbox` contract
+        address addr;
+        /// @dev The storage key on to validate. Should be the `RIP7755Inbox` storage slot containing the
+        /// `FulfillmentInfo` struct
+        bytes32 storageKey;
+    }
 
     /// @notice Parameters needed for a full nested cross-chain storage proof
     struct RIP7755Proof {
@@ -27,66 +34,37 @@ contract HashiProver is IProver {
         StateValidator.AccountProofParameters dstAccountProofParams;
     }
 
-    /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
-    /// current destination chain block timestamp.
-    error FinalityDelaySecondsInProgress();
-
     /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
     /// destination chain fails
     error InvalidStorage();
 
-    /// @notice This error is thrown when verification of proof.blockHash agaist the one stored in Hashi fails
-    error InvalidBlockHeader();
-
-    /// @notice This error is thrown when the number of bytes to convert into an uin256 is greather than 32
-    error BytesLengthExceeds32();
-
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fulfillmentInfo not found at inboxContractStorageKey on request.inboxContract
+    /// @custom:reverts If fulfillmentInfo not found at verifyingContractStorageKey on request.verifyingContract
     /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
     /// chain block timestamp.
+    /// @custom:reverts If the L2StorageRoot does not correspond to our validated L1 storage slot
     ///
-    ///
-    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Inbox` contract
-    /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
-    /// on the destination chain `RIP7755Inbox` contract
-    /// @param request The original cross chain request submitted to this contract
     /// @param proof The proof to validate
-    function validateProof(
-        bytes memory inboxContractStorageKey,
-        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
-        CrossChainRequest calldata request,
-        bytes calldata proof
-    ) external view {
-        if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
-            revert FinalityDelaySecondsInProgress();
-        }
-
+    /// @param target The proof target on L1 and dst L2
+    ///
+    /// @return l2Timestamp The timestamp of the validated L2 state root
+    /// @return l2StorageValue The storage value of the `RIP7755Inbox` storage slot
+    function validate(bytes calldata proof, Target memory target) internal pure returns (uint256, bytes memory) {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
+
         // Set the expected storage key and value for the `RIP7755Inbox`
-        proofData.dstAccountProofParams.storageKey = inboxContractStorageKey;
-        proofData.dstAccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
+        proofData.dstAccountProofParams.storageKey = abi.encode(target.storageKey);
 
-        (uint256 blockNumber, bytes32 stateRoot) = _extractBlockNumberAndStateRoot(proofData.rlpEncodedBlockHeader);
+        (bytes32 stateRoot, uint256 timestamp) = _extractStateRootAndTimestamp(proofData.rlpEncodedBlockHeader);
 
-        /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
-        (address shoyuBashi) = abi.decode(request.precheckData, (address));
-        bytes32 blockHeaderHash = IShoyuBashi(shoyuBashi).getThresholdHash(request.destinationChainId, blockNumber);
-        if (blockHeaderHash != keccak256(proofData.rlpEncodedBlockHeader)) revert InvalidBlockHeader();
-
-        bool validStorage = request.inboxContract.validateAccountStorage(stateRoot, proofData.dstAccountProofParams);
+        bool validStorage = target.addr.validateAccountStorage(stateRoot, proofData.dstAccountProofParams);
         if (!validStorage) {
             revert InvalidStorage();
         }
-    }
 
-    /// @notice Converts a sequence of bytes into an uint256
-    function _bytesToUint256(bytes memory b) private pure returns (uint256) {
-        if (b.length > 32) revert BytesLengthExceeds32();
-        return abi.decode(abi.encodePacked(new bytes(32 - b.length), b), (uint256));
+        return (timestamp, proofData.dstAccountProofParams.storageValue);
     }
 
     /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
@@ -98,12 +76,13 @@ contract HashiProver is IProver {
         return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
     }
 
-    /// @notice Extracts the blockNumber and stateRoot from the RLP-encoded block header
+    /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
     ///
-    /// @dev The blockNumber should be the ninth element
-    /// @dev The stateRoot should be the fourth element
-    function _extractBlockNumberAndStateRoot(bytes memory encodedBlockArray) private pure returns (uint256, bytes32) {
+    /// @custom:reverts If the encoded block array has less than 15 elements
+    ///
+    /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
+    function _extractStateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
         RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
-        return (_bytesToUint256(blockFields[8].readBytes()), bytes32(blockFields[3].readBytes()));
+        return (bytes32(blockFields[3].readBytes()), uint256(bytes32(blockFields[11].readBytes())));
     }
 }
