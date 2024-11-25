@@ -5,9 +5,8 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
-import {IProver} from "./interfaces/IProver.sol";
 import {RIP7755Inbox} from "./RIP7755Inbox.sol";
-import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
+import {CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Outbox
 ///
@@ -15,7 +14,7 @@ import {Call, CrossChainRequest} from "./RIP7755Structs.sol";
 ///
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
-contract RIP7755Outbox {
+abstract contract RIP7755Outbox {
     using Address for address payable;
     using SafeERC20 for IERC20;
 
@@ -111,22 +110,17 @@ contract RIP7755Outbox {
     /// can prove it with a valid nested storage proof
     ///
     /// @param request A cross chain request structured as a `CrossChainRequest`
-    /// @param fulfillmentInfo The fill info that should be in storage in `RIP7755Inbox` on destination chain
     /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     /// storage on the destination chain
     /// @param payTo The address the Filler wants to receive the reward
-    function claimReward(
-        CrossChainRequest calldata request,
-        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
-        bytes calldata proof,
-        address payTo
-    ) external {
+    function claimReward(CrossChainRequest calldata request, bytes calldata proof, address payTo) external {
         bytes32 requestHash = hashRequest(request);
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
 
-        IProver(request.proverContract).validateProof(storageKey, fulfillmentInfo, request, proof);
+        _validateProof(storageKey, request, proof);
+
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
@@ -218,5 +212,40 @@ contract RIP7755Outbox {
         } else {
             _sendERC20(to, request.rewardAsset, request.rewardAmount);
         }
+    }
+
+    /// @notice Validates storage proofs and verifies fill
+    ///
+    /// @custom:reverts If storage proof invalid.
+    /// @custom:reverts If fillInfo not found at inboxContractStorageKey on crossChainCall.verifyingContract
+    /// @custom:reverts If fillInfo.timestamp is less than
+    /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
+    ///
+    /// @dev Implementation will vary by L2
+    ///
+    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
+    /// `RIP7755Inbox` contract
+    /// @param request The original cross chain request submitted to this contract
+    /// @param proofData The proof to validate
+    function _validateProof(
+        bytes memory inboxContractStorageKey,
+        CrossChainRequest calldata request,
+        bytes calldata proofData
+    ) internal virtual;
+
+    /// @notice Decodes the `FulfillmentInfo` struct from the `RIP7755Inbox` storage slot
+    ///
+    /// @param inboxContractStorageValue The storage value of the `RIP7755Inbox` storage slot
+    ///
+    /// @return fulfillmentInfo The decoded `FulfillmentInfo` struct
+    function _decodeFulfillmentInfo(bytes32 inboxContractStorageValue)
+        internal
+        pure
+        returns (RIP7755Inbox.FulfillmentInfo memory)
+    {
+        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo;
+        fulfillmentInfo.filler = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
+        fulfillmentInfo.timestamp = uint96(uint256(inboxContractStorageValue));
+        return fulfillmentInfo;
     }
 }

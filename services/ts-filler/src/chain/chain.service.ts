@@ -69,6 +69,10 @@ export default class ChainService {
     return signedBlock.message;
   }
 
+  async getL1Block(): Promise<Block> {
+    return await this.activeChains.l1.publicClient.getBlock();
+  }
+
   async getL2Block(blockNumber?: bigint): Promise<{
     l2Block: Block;
     sendRoot?: Address;
@@ -80,6 +84,7 @@ export default class ChainService {
       case SupportedChains.ArbitrumSepolia:
         return await this.getArbitrumSepoliaBlock();
       case SupportedChains.OptimismSepolia:
+      case SupportedChains.MockOptimism:
         if (!blockNumber) {
           throw new Error(
             "Block number is required for Optimism Sepolia Block retrieval"
@@ -102,7 +107,7 @@ export default class ChainService {
     // 1. Get latest node from Rollup contract
     const nodeIndex: bigint = await exponentialBackoff(async () => {
       return await this.activeChains.l1.publicClient.readContract({
-        address: this.activeChains.l1.contracts.arbRollupAddr,
+        address: this.activeChains.l1.contracts.arbRollup,
         abi: ArbitrumRollup,
         functionName: "latestConfirmed",
       });
@@ -155,7 +160,7 @@ export default class ChainService {
   private async getLogs(index: bigint): Promise<Log[]> {
     const etherscanApiKey = this.configService.getOrThrow("ETHERSCAN_API_KEY");
     const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${
-      this.activeChains.l1.contracts.arbRollupAddr
+      this.activeChains.l1.contracts.arbRollup
     }&topic0=0x4f4caa9e67fb994e349dd35d1ad0ce23053d4323f83ce11dc817b5435031d096&topic0_1_opr=and&topic1=${toHex(
       index,
       { size: 32 }
@@ -169,7 +174,7 @@ export default class ChainService {
     const [, l2BlockNumber]: [any, bigint] = await exponentialBackoff(
       async () => {
         return await config.publicClient.readContract({
-          address: config.contracts.anchorStateRegistryAddr,
+          address: this.activeChains.dst.l2Oracle,
           abi: AnchorStateRegistry,
           functionName: "anchors",
           args: [0n],

@@ -1,27 +1,42 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {IProver} from "../interfaces/IProver.sol";
-import {StateValidator} from "../libraries/StateValidator.sol";
-import {RIP7755Inbox} from "../RIP7755Inbox.sol";
-import {CrossChainRequest} from "../RIP7755Structs.sol";
+import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
 
-/// @title RIP7755OutboxOPStackValidator
+import {StateValidator} from "../StateValidator.sol";
+import {RIP7755Inbox} from "../../RIP7755Inbox.sol";
+import {RIP7755Outbox} from "../../RIP7755Outbox.sol";
+import {CrossChainRequest} from "../../RIP7755Structs.sol";
+
+/// @title OPStackProver
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
-contract OPStackProver is IProver {
+/// @notice This is a utility library for validating OP Stack storage proofs.
+library OPStackProver {
     using StateValidator for address;
+    using RLPReader for RLPReader.RLPItem;
+    using RLPReader for bytes;
+
+    /// @notice The address and storage keys to validate on L1 and L2
+    struct Target {
+        /// @dev The address of the L1 contract to validate. Should be Optimism's AnchorStateRegistry contract
+        address l1Address;
+        /// @dev The storage key on L1 to validate
+        bytes32 l1StorageKey;
+        /// @dev The address of the L2 contract to validate. Should be Optimism's `RIP7755Inbox` contract
+        address l2Address;
+        /// @dev The storage key on L2 to validate. Should be the `RIP7755Inbox` storage slot containing the
+        /// `FulfillmentInfo` struct
+        bytes32 l2StorageKey;
+    }
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof
     struct RIP7755Proof {
-        /// @dev The L2 stateRoot used to prove L2 storage value in `RIP7755Inbox`
-        bytes32 l2StateRoot;
         /// @dev The storage root of Optimism's MessagePasser contract - used to compute our L1 storage value
         bytes32 l2MessagePasserStorageRoot;
-        /// @dev the blockhash of the L2 block corresponding to the above l2StateRoot
-        bytes32 l2BlockHash;
+        /// @dev The RLP-encoded array of block headers of the chain's L2 block used for the proof. Hashing this bytes string should produce the blockhash.
+        bytes encodedBlockArray;
         /// @dev Parameters needed to validate the authenticity of Ethereum's execution client's state root
         StateValidator.StateProofParameters stateProofParams;
         /// @dev Parameters needed to validate the authenticity of the l2Oracle for the destination L2 chain on Eth
@@ -31,10 +46,6 @@ contract OPStackProver is IProver {
         /// the destination L2 chain
         StateValidator.AccountProofParameters dstL2AccountProofParams;
     }
-
-    /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
-    /// current destination chain block timestamp.
-    error FinalityDelaySecondsInProgress();
 
     /// @notice This error is thrown when verification of the authenticity of the l2Oracle for the destination L2 chain
     /// on Eth mainnet fails
@@ -47,6 +58,9 @@ contract OPStackProver is IProver {
     /// @notice This error is thrown when the supplied l2StateRoot does not correspond to our validated L1 state
     error InvalidL2StateRoot();
 
+    /// @notice This error is thrown when the encoded block headers does not contain all 16 fields
+    error InvalidBlockFieldRLP();
+
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
@@ -57,28 +71,18 @@ contract OPStackProver is IProver {
     ///
     /// @dev Implementation will vary by L2
     ///
-    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Inbox` contract
-    /// @param fulfillmentInfo The fulfillment info that should be located at `inboxContractStorageKey` in storage
-    /// on the destination chain `RIP7755Inbox` contract
-    /// @param request The original cross chain request submitted to this contract
     /// @param proof The proof to validate
-    function validateProof(
-        bytes memory inboxContractStorageKey,
-        RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo,
-        CrossChainRequest calldata request,
-        bytes calldata proof
-    ) external view {
-        if (block.timestamp - fulfillmentInfo.timestamp < request.finalityDelaySeconds) {
-            revert FinalityDelaySecondsInProgress();
-        }
-
+    /// @param target The proof target on L1 and dst L2
+    ///
+    /// @return l2Timestamp The timestamp of the validated L2 state root
+    /// @return l2StorageValue The storage value of the `RIP7755Inbox` storage slot
+    function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
-        // Set the expected storage key and value for the `RIP7755Inbox` on the destination OP Stack chain
-        // NOTE: the following two lines are temporarily commented out for hacky tests
-        // proofData.dstL2AccountProofParams.storageKey = inboxContractStorageKey;
-        // proofData.dstL2AccountProofParams.storageValue = _encodeFulfillmentInfo(fulfillmentInfo);
+        // Set the expected storage key for the L1 storage slot
+        proofData.dstL2StateRootProofParams.storageKey = abi.encode(target.l1StorageKey);
+        // Set the expected storage key for the `RIP7755Inbox` storage slot
+        proofData.dstL2AccountProofParams.storageKey = abi.encode(target.l2StorageKey);
 
         // We first need to validate knowledge of the destination L2 chain's state root.
         // StateValidator.validateState will accomplish each of the following 4 steps:
@@ -87,7 +91,7 @@ contract OPStackProver is IProver {
         //      3. Validate L1 account proof where `account` here is the destination chain's AnchorStateRegistry contract
         //      4. Validate storage proof proving destination L2 root stored in L1 AnchorStateRegistry contract
         bool validState =
-            request.l2Oracle.validateState(proofData.stateProofParams, proofData.dstL2StateRootProofParams);
+            target.l1Address.validateState(proofData.stateProofParams, proofData.dstL2StateRootProofParams);
 
         if (!validState) {
             revert InvalidL1Storage();
@@ -97,12 +101,14 @@ contract OPStackProver is IProver {
         // to the correct l2StateRoot before we can prove l2Storage
 
         bytes32 version;
+        // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
+        (bytes32 l2StateRoot, uint256 l2Timestamp) = _extractL2StateRootAndTimestamp(proofData.encodedBlockArray);
+        // Derive the L2 blockhash
+        bytes32 l2BlockHash = keccak256(proofData.encodedBlockArray);
+
         // Compute the expected destination chain output root (which is the value we just proved is in the L1 storage slot)
-        bytes32 expectedOutputRoot = keccak256(
-            abi.encodePacked(
-                version, proofData.l2StateRoot, proofData.l2MessagePasserStorageRoot, proofData.l2BlockHash
-            )
-        );
+        bytes32 expectedOutputRoot =
+            keccak256(abi.encodePacked(version, l2StateRoot, proofData.l2MessagePasserStorageRoot, l2BlockHash));
         // If this checks out, it means we know the correct l2StateRoot
         if (bytes32(proofData.dstL2StateRootProofParams.storageValue) != expectedOutputRoot) {
             revert InvalidL2StateRoot();
@@ -113,24 +119,27 @@ contract OPStackProver is IProver {
         // This library function will accomplish the following 2 steps:
         //      5. Validate L2 account proof where `account` here is `RIP7755Inbox` on destination chain
         //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Inbox` storage
-        // NOTE: the following line is a temporary line used to validate proof logic. Will be removed in the near future.
-        bool validL2Storage = 0xAd6A7addf807D846A590E76C5830B609F831Ba2E.validateAccountStorage(
-            proofData.l2StateRoot, proofData.dstL2AccountProofParams
-        );
-        // bool validL2Storage =
-        //     request.inboxContract.validateAccountStorage(proofData.l2StateRoot, proofData.dstL2AccountProofParams);
+        bool validL2Storage = target.l2Address.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
 
         if (!validL2Storage) {
             revert InvalidL2Storage();
         }
+
+        return (l2Timestamp, proofData.dstL2AccountProofParams.storageValue);
     }
 
-    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
-    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
+    /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
+    ///
+    /// @custom:reverts If the encoded block array has less than 15 elements
+    ///
+    /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
+    function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
+        RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
+
+        if (blockFields.length < 15) {
+            revert InvalidBlockFieldRLP();
+        }
+
+        return (bytes32(blockFields[3].readBytes()), uint256(bytes32(blockFields[11].readBytes())));
     }
 }

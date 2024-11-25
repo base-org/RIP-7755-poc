@@ -51,8 +51,8 @@ contract RIP7755InboxTest is Test {
     function test_fulfill_storesFulfillment_withSuccessfulPrecheck() external {
         CrossChainRequest memory request = _initRequest();
 
-        request.precheckContract = address(precheck);
-        request.precheckData = abi.encode(FULFILLER);
+        request.extraData = new bytes[](1);
+        request.extraData[0] = abi.encodePacked(address(precheck), FULFILLER);
 
         vm.prank(FULFILLER);
         inbox.fulfill(request, FULFILLER);
@@ -64,11 +64,20 @@ contract RIP7755InboxTest is Test {
         assertEq(info.timestamp, block.timestamp);
     }
 
+    function test_fulfill_reverts_invalidPrecheckData() external {
+        CrossChainRequest memory request = _initRequest();
+        request.extraData = new bytes[](1);
+        request.extraData[0] = abi.encodePacked("1");
+
+        vm.prank(FULFILLER);
+        vm.expectRevert(RIP7755Inbox.InvalidPrecheckData.selector);
+        inbox.fulfill(request, FULFILLER);
+    }
+
     function test_fulfill_reverts_failedPrecheck() external {
         CrossChainRequest memory request = _initRequest();
-
-        request.precheckContract = address(precheck);
-        request.precheckData = abi.encode(address(0));
+        request.extraData = new bytes[](1);
+        request.extraData[0] = abi.encode(address(precheck), address(0));
 
         vm.prank(FULFILLER);
         vm.expectRevert();
@@ -99,6 +108,18 @@ contract RIP7755InboxTest is Test {
         assertEq(target.number(), inputNum);
     }
 
+    function test_fulfill_sendsEth(uint256 amount) external {
+        CrossChainRequest memory request = _initRequest();
+        calls.push(Call({to: ALICE, data: "", value: amount}));
+        request.calls = calls;
+
+        vm.deal(FULFILLER, amount);
+        vm.prank(FULFILLER);
+        inbox.fulfill{value: amount}(request, FULFILLER);
+
+        assertEq(ALICE.balance, amount);
+    }
+
     function test_fulfill_reverts_ifTargetContractReverts() external {
         CrossChainRequest memory request = _initRequest();
         calls.push(Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0}));
@@ -111,6 +132,21 @@ contract RIP7755InboxTest is Test {
 
     function test_fulfill_storesFulfillment() external {
         CrossChainRequest memory request = _initRequest();
+
+        vm.prank(FULFILLER);
+        inbox.fulfill(request, FULFILLER);
+
+        bytes32 requestHash = inbox.hashRequest(request);
+        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
+
+        assertEq(info.filler, FULFILLER);
+        assertEq(info.timestamp, block.timestamp);
+    }
+
+    function test_fulfill_storesFulfillmentAfterSkippedPrecheck() external {
+        CrossChainRequest memory request = _initRequest();
+        request.extraData = new bytes[](1);
+        request.extraData[0] = abi.encodePacked(address(0));
 
         vm.prank(FULFILLER);
         inbox.fulfill(request, FULFILLER);
@@ -145,7 +181,6 @@ contract RIP7755InboxTest is Test {
         return CrossChainRequest({
             requester: ALICE,
             calls: calls,
-            proverContract: address(0),
             destinationChainId: block.chainid,
             inboxContract: address(inbox),
             l2Oracle: address(0),
@@ -155,8 +190,7 @@ contract RIP7755InboxTest is Test {
             finalityDelaySeconds: 0,
             nonce: 0,
             expiry: 0,
-            precheckContract: address(0),
-            precheckData: ""
+            extraData: new bytes[](0)
         });
     }
 }
