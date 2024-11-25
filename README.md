@@ -25,7 +25,7 @@ A successful storage proof from the source chain should follow these steps:
 5. Use the destination chain's state root to prove an account’s storage root. In this context, the “account” is the `RIP7755Inbox` contract on the destination chain.
 6. Prove the storage slot in `RIP7755Inbox` that represents a receipt of the requested call having been made.
 
-We use Storage Proofs in this manner to validate state for early iterations of a proof-of-concept for the protocol. However, this is not the only method available. To maintain flexibility for future, potentially more efficient or easier-to-implement solutions, we have abstracted the proof system from the `RIP7755Inbox` and `RIP7755Outbox` contracts.
+We use Storage Proofs in this manner to validate state for early iterations of a proof-of-concept for the protocol. However, this is not the only method available. To maintain flexibility for the future, potentially more efficient or easier-to-implement solutions, we have abstracted the proof system from the `RIP7755Inbox` and `RIP7755Outbox` contracts.
 
 ## License
 
