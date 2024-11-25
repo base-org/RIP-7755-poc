@@ -67,15 +67,6 @@ library HashiProver {
         return (timestamp, proofData.dstAccountProofParams.storageValue);
     }
 
-    /// @dev Encodes the FulfillmentInfo struct the way it should be stored on the destination chain
-    function _encodeFulfillmentInfo(RIP7755Inbox.FulfillmentInfo calldata fulfillmentInfo)
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(fulfillmentInfo.filler, fulfillmentInfo.timestamp);
-    }
-
     /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
     ///
     /// @custom:reverts If the encoded block array has less than 15 elements
