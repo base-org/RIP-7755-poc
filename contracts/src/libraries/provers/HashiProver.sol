@@ -54,7 +54,7 @@ library HashiProver {
     function validate(bytes calldata proof, Target memory target) internal pure returns (uint256, bytes memory) {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
-        // Set the expected storage key and value for the `RIP7755Inbox`
+        // Set the expected storage key for the `RIP7755Inbox`
         proofData.dstAccountProofParams.storageKey = abi.encode(target.storageKey);
 
         (bytes32 stateRoot, uint256 timestamp) = _extractStateRootAndTimestamp(proofData.rlpEncodedBlockHeader);
