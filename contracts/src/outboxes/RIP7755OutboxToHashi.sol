@@ -18,6 +18,9 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     using RLPReader for RLPReader.RLPItem;
     using RLPReader for bytes;
 
+    /// @notice The expected length of the request.extraData field as a constant
+    uint256 private constant EXPECTED_EXTRA_DATA_LENGTH = 2;
+
     /// @notice This error is thrown when the number of bytes to convert into an uin256 is greather than 32
     error BytesLengthExceeds32();
 
@@ -27,6 +30,9 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
 
     /// @notice This error is thrown when verification of proof.blockHash agaist the one stored in Hashi fails
     error InvalidBlockHeader();
+
+    /// @notice This error is thrown when the request.extraData field has an invalid length
+    error InvalidExtraDataLength();
 
     /// @notice Validates storage proofs and verifies fulfillment
     ///
@@ -50,6 +56,7 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         HashiProver.RIP7755Proof memory proofData = abi.decode(proof, (HashiProver.RIP7755Proof));
         uint256 blockNumber = _extractBlockNumber(proofData.rlpEncodedBlockHeader);
 
+        if (request.extraData.length != EXPECTED_EXTRA_DATA_LENGTH) revert InvalidExtraDataLength();
         /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
         (address shoyuBashi) = abi.decode(request.extraData[1], (address));
         bytes32 blockHeaderHash = IShoyuBashi(shoyuBashi).getThresholdHash(request.destinationChainId, blockNumber);
