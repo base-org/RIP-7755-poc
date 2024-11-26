@@ -12,7 +12,7 @@ import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
+/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM chain.
 contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
     using RLPReader for RLPReader.RLPItem;
