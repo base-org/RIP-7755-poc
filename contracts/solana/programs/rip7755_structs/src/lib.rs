@@ -17,7 +17,6 @@ pub struct Call {
 pub struct CrossChainRequest {
     pub requester: Pubkey,
     pub calls: Vec<Call>,
-    pub prover_contract: Pubkey,
     pub destination_chain_id: u64,
     pub inbox_contract: Pubkey,
     pub l2_oracle: Pubkey,
@@ -27,6 +26,5 @@ pub struct CrossChainRequest {
     pub finality_delay_seconds: u64,
     pub nonce: u64,
     pub expiry: u64,
-    pub precheck_contract: Pubkey,
-    pub precheck_data: Vec<u8>,
+    pub extra_data: Vec<Vec<u8>>
 }

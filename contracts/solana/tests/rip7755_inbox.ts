@@ -19,7 +19,6 @@ describe("rip7755_inbox", () => {
   const requester = anchor.web3.Keypair.generate();
   const caller = programProvider.wallet;
   const fulfiller = anchor.web3.Keypair.generate();
-  const prover = anchor.web3.Keypair.generate();
 
   let request: any;
   let accounts: any;
@@ -27,10 +26,10 @@ describe("rip7755_inbox", () => {
   let fulfillmentInfo: any;
   let transactionAccounts: any;
   let remainingAccounts: any;
+  let nonce = new BN(0);
 
   beforeEach(() => {
-    fulfillmentInfo = anchor.web3.Keypair.generate();
-
+    nonce = nonce.add(new BN(1));
     request = {
       requester: requester.publicKey,
       calls: [
@@ -42,24 +41,26 @@ describe("rip7755_inbox", () => {
           value: new BN(0),
         },
       ],
-      proverContract: prover.publicKey,
       destinationChainId: new BN(103),
       inboxContract: program.programId,
-      l2Oracle: prover.publicKey,
-      l2OracleStorageKey: [],
-      rewardAsset: prover.publicKey,
+      l2Oracle: fulfiller.publicKey,
+      l2OracleStorageKey: new Array(32).fill(0),
+      rewardAsset: fulfiller.publicKey,
       rewardAmount: new BN(0),
       finalityDelaySeconds: new BN(0),
-      nonce: new BN(0),
+      nonce,
       expiry: new BN(0),
-      precheckContract: anchor.web3.PublicKey.default,
-      precheckData: Buffer.from([]),
+      extraData: Buffer.from(Buffer.from([])),
     };
+    [fulfillmentInfo] = anchor.web3.PublicKey.findProgramAddressSync(
+      [request.requester.toBuffer(), request.nonce.toBuffer("be", 8)],
+      program.programId
+    );
     accounts = {
-      fulfillmentInfo: fulfillmentInfo.publicKey,
+      fulfillmentInfo: fulfillmentInfo,
       caller: caller.publicKey,
     };
-    signers = [fulfillmentInfo];
+    signers = [];
     transactionAccounts = [
       {
         isSigner: true,
@@ -90,9 +91,8 @@ describe("rip7755_inbox", () => {
       .rpc();
 
     const storedReceipt = await program.account.fulfillmentInfo.fetch(
-      fulfillmentInfo.publicKey
+      fulfillmentInfo
     );
-    expect(storedReceipt.exists).to.be.true;
     expect(storedReceipt.timestamp).to.not.equal(0);
     expect(storedReceipt.filler).to.eql(fulfiller.publicKey);
   });
@@ -110,7 +110,6 @@ describe("rip7755_inbox", () => {
       "Invalid chain ID"
     );
   });
-
   it("Should fail if invalid destination", async () => {
     request.inboxContract = target.programId;
     await shouldFail(
@@ -124,8 +123,22 @@ describe("rip7755_inbox", () => {
     );
   });
 
+  it("Should fail if invalid precheck data", async () => {
+    request.extraData = [Buffer.from([10])];
+
+    await shouldFail(
+      program.methods
+        .fulfill(request, fulfiller.publicKey, transactionAccounts)
+        .accounts(accounts)
+        .remainingAccounts(remainingAccounts)
+        .signers(signers)
+        .rpc(),
+      "Invalid precheck data"
+    );
+  });
+
   it("Should fail if invalid precheck", async () => {
-    request.precheckContract = target.programId;
+    request.extraData = [target.programId.toBuffer()];
 
     await shouldFail(
       program.methods
@@ -139,7 +152,7 @@ describe("rip7755_inbox", () => {
   });
 
   it("Should fail if precheck fails", async () => {
-    request.precheckContract = precheck.programId;
+    request.extraData = [precheck.programId.toBuffer()];
     request.rewardAmount = new BN(1);
 
     await shouldFail(
@@ -153,9 +166,13 @@ describe("rip7755_inbox", () => {
     );
   });
 
-  it("Should revert if zero calls", async () => {
-    request.calls = [];
-
+  it("Should revert if receipt already exists", async () => {
+    await program.methods
+      .fulfill(request, fulfiller.publicKey, transactionAccounts)
+      .accounts(accounts)
+      .remainingAccounts(remainingAccounts)
+      .signers(signers)
+      .rpc();
     await shouldFail(
       program.methods
         .fulfill(request, fulfiller.publicKey, transactionAccounts)
@@ -163,21 +180,7 @@ describe("rip7755_inbox", () => {
         .remainingAccounts(remainingAccounts)
         .signers(signers)
         .rpc(),
-      "Only one destination account supported for now"
-    );
-  });
-
-  it("Should revert if extra calls", async () => {
-    request.calls.push(request.calls[0]);
-
-    await shouldFail(
-      program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
-        .accounts(accounts)
-        .remainingAccounts(remainingAccounts)
-        .signers(signers)
-        .rpc(),
-      "Only one destination account supported for now"
+      ""
     );
   });
 });
@@ -187,9 +190,11 @@ async function shouldFail(fn: any, expectedError: string) {
     await fn;
     assert(false, "should've failed but didn't");
   } catch (e) {
-    expect(e).to.be.instanceOf(anchor.AnchorError);
-    expect((e as anchor.AnchorError).error.errorMessage).to.equal(
-      expectedError
-    );
+    if (expectedError != "") {
+      expect(e).to.be.instanceOf(anchor.AnchorError);
+      expect((e as anchor.AnchorError).error.errorMessage).to.equal(
+        expectedError
+      );
+    }
   }
 }
