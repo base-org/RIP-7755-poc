@@ -10,7 +10,7 @@ import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 
 /// @title RIP7755OutboxToHashi
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Crosschain Alliance
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM chain.
 contract RIP7755OutboxToHashi is RIP7755Outbox {
