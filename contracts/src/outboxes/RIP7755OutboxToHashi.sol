@@ -21,12 +21,18 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     /// @notice The expected length of the request.extraData field as a constant
     uint256 private constant EXPECTED_EXTRA_DATA_LENGTH = 2;
 
+    /// @notice The minimum block fields length
+    uint256 private constant MINIMUM_BLOCK_FIELDS_LENGTH = 9;
+
     /// @notice This error is thrown when the number of bytes to convert into an uin256 is greather than 32
     error BytesLengthExceeds32();
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
+
+    /// @notice This error is thrown when the block fields length is less than MINIMUM_BLOCK_FIELDS_LENGTH
+    error InvalidBlockFieldsLength();
 
     /// @notice This error is thrown when verification of proof.blockHash agaist the one stored in Hashi fails
     error InvalidBlockHeader();
@@ -79,6 +85,7 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     /// @dev The blockNumber should be the ninth element
     function _extractBlockNumber(bytes memory encodedBlockArray) private pure returns (uint256) {
         RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
+        if (blockFields.length < MINIMUM_BLOCK_FIELDS_LENGTH) revert InvalidBlockFieldsLength();
         return _bytesToUint256(blockFields[8].readBytes());
     }
 
