@@ -90,7 +90,7 @@ library OPStackProver {
         // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
         (bytes32 l2StateRoot, uint256 l2Timestamp) = proofData.encodedBlockArray.extractStateRootAndTimestamp();
         // Derive the L2 blockhash
-        bytes32 l2BlockHash = keccak256(proofData.encodedBlockArray);
+        bytes32 l2BlockHash = proofData.encodedBlockArray.toBlockHash();
 
         // Compute the expected destination chain output root (which is the value we just proved is in the L1 storage slot)
         bytes32 expectedOutputRoot =

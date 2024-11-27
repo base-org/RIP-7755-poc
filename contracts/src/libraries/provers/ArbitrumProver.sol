@@ -94,7 +94,7 @@ library ArbitrumProver {
         // to the correct l2StateRoot before we can prove l2Storage
 
         // Derive the L2 blockhash
-        bytes32 l2BlockHash = keccak256(proofData.encodedBlockArray);
+        bytes32 l2BlockHash = proofData.encodedBlockArray.toBlockHash();
         // Derive the RBlock's `confirmData` field
         bytes32 confirmData = keccak256(abi.encodePacked(l2BlockHash, proofData.sendRoot));
         // Extract the L2 stateRoot and timestamp from the RLP-encoded block array

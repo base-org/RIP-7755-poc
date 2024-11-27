@@ -13,6 +13,10 @@ library BlockHeaders {
     /// @notice This error is thrown when the encoded block headers does not contain all 16 fields
     error InvalidBlockFieldRLP();
 
+    function toBlockHash(bytes memory blockHeaders) internal pure returns (bytes32) {
+        return keccak256(blockHeaders);
+    }
+
     function extractStateRootAndTimestamp(bytes memory blockHeaders) internal pure returns (bytes32, uint256) {
         RLPReader.RLPItem[] memory blockFields = blockHeaders.readList();
 
