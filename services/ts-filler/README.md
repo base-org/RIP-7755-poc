@@ -39,10 +39,13 @@ To install the necessary dependencies, follow these steps:
    ```txt
    NODE=<An Ethereum Beacon Node API URL. Can get from a provider like QuickNode>
    ARBITRUM_SEPOLIA_RPC=<An RPC URL for Arbitrum Sepolia>
+   BASE_SEPOLIA_RPC=<An RPC URL for Base Sepolia>
    SEPOLIA_RPC=<An RPC URL for Sepolia>
    MONGO_URI=<A MongoDB connection string>
    ARBISCAN_API_KEY=<An API key for the Arbiscan API see https://docs.arbiscan.io/getting-started/viewing-api-usage-statistics>
    ETHERSCAN_API_KEY=<An API key for the Etherscan API>
+   BASESCAN_API_KEY=<An API key for the BaseScan API>
+   OPTIMISM_API_KEY=<An API key for the Optimism Etherscan API>
    PRIVATE_KEY=<A wallet private key for the signer that will be submitting transactions / claiming rewards>
    ```
 
