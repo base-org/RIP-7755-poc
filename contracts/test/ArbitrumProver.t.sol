@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
+import {BlockHeaders} from "../src/libraries/BlockHeaders.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
@@ -92,7 +93,7 @@ contract ArbitrumProverTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(ArbitrumProver.InvalidBlockFieldRLP.selector);
+        vm.expectRevert(BlockHeaders.InvalidBlockFieldRLP.selector);
         prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 

@@ -1,12 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
-
+import {BlockHeaders} from "../BlockHeaders.sol";
 import {StateValidator} from "../StateValidator.sol";
-import {RIP7755Inbox} from "../../RIP7755Inbox.sol";
-import {RIP7755Outbox} from "../../RIP7755Outbox.sol";
-import {CrossChainRequest} from "../../RIP7755Structs.sol";
 
 /// @title ArbitrumProver
 ///
@@ -15,8 +11,7 @@ import {CrossChainRequest} from "../../RIP7755Structs.sol";
 /// @notice This is a utility library for validating Arbitrum storage proofs.
 library ArbitrumProver {
     using StateValidator for address;
-    using RLPReader for RLPReader.RLPItem;
-    using RLPReader for bytes;
+    using BlockHeaders for bytes;
 
     /// @notice The address and storage keys to validate on L1 and L2
     struct Target {
@@ -24,10 +19,9 @@ library ArbitrumProver {
         address l1Address;
         /// @dev The storage key on L1 to validate
         bytes32 l1StorageKey;
-        /// @dev The address of the L2 contract to validate. Should be Arbitrum's `RIP7755Inbox` contract
+        /// @dev The address of the L2 contract to validate.
         address l2Address;
-        /// @dev The storage key on L2 to validate. Should be the `RIP7755Inbox` storage slot containing the
-        /// `FulfillmentInfo` struct
+        /// @dev The storage key on L2 to validate.
         bytes32 l2StorageKey;
     }
 
@@ -44,8 +38,7 @@ library ArbitrumProver {
         /// @dev Parameters needed to validate the authenticity of the l2Oracle for the destination L2 chain on Eth
         /// mainnet
         StateValidator.AccountProofParameters dstL2StateRootProofParams;
-        /// @dev Parameters needed to validate the authenticity of a specified storage location in `RIP7755Inbox` on
-        /// the destination L2 chain
+        /// @dev Parameters needed to validate the authenticity of a specified storage location on the destination L2 chain
         StateValidator.AccountProofParameters dstL2AccountProofParams;
     }
 
@@ -56,33 +49,26 @@ library ArbitrumProver {
     /// on Eth mainnet fails
     error InvalidStateRoot();
 
-    /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
-    /// destination L2 chain fails
+    /// @notice This error is thrown when verification of the authenticity of the storage slot on the destination L2 chain fails
     error InvalidL2Storage();
 
     /// @notice This error is thrown when the derived `confirmData` does not match the value in the validated L1 storage slot
     error InvalidConfirmData();
 
-    /// @notice This error is thrown when the encoded block headers does not contain all 16 fields
-    error InvalidBlockFieldRLP();
-
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fulfillmentInfo not found at verifyingContractStorageKey on request.verifyingContract
-    /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
-    /// chain block timestamp.
-    /// @custom:reverts If the L2StorageRoot does not correspond to our validated L1 storage slot
+    /// @custom:reverts If the L2 state root does not correspond to our validated L1 storage slot
     ///
     /// @param proof The proof to validate
     /// @param target The proof target on L1 and dst L2
     ///
     /// @return l2Timestamp The timestamp of the validated L2 state root
-    /// @return l2StorageValue The storage value of the `RIP7755Inbox` storage slot
+    /// @return l2StorageValue The storage value of the destination L2 storage slot
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
-        // Set the expected storage key and value for the `RIP7755Inbox` on Arbitrum
+        // Set the expected storage key and value for the destination L2 storage slot
         proofData.dstL2AccountProofParams.storageKey = abi.encode(target.l2StorageKey);
 
         // Derive the L1 storage key to use in the storage proof. For Arbitrum, we will use the storage slot containing
@@ -108,11 +94,11 @@ library ArbitrumProver {
         // to the correct l2StateRoot before we can prove l2Storage
 
         // Derive the L2 blockhash
-        bytes32 l2BlockHash = keccak256(proofData.encodedBlockArray);
+        bytes32 l2BlockHash = proofData.encodedBlockArray.toBlockHash();
         // Derive the RBlock's `confirmData` field
         bytes32 confirmData = keccak256(abi.encodePacked(l2BlockHash, proofData.sendRoot));
         // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
-        (bytes32 l2StateRoot, uint256 l2Timestamp) = _extractL2StateRootAndTimestamp(proofData.encodedBlockArray);
+        (bytes32 l2StateRoot, uint256 l2Timestamp) = proofData.encodedBlockArray.extractStateRootAndTimestamp();
 
         // The L1 storage value we proved was the node's confirmData
         if (bytes32(proofData.dstL2StateRootProofParams.storageValue) != confirmData) {
@@ -122,8 +108,8 @@ library ArbitrumProver {
         // Because the previous step confirmed L1 state, we do not need to repeat steps 1 and 2 again
         // We now just need to validate account storage on the destination L2 using StateValidator.validateAccountStorage
         // This library function will accomplish the following 2 steps:
-        //      5. Validate L2 account proof where `account` here is `RIP7755Inbox` on destination chain
-        //      6. Validate storage proof proving FulfillmentInfo in `RIP7755Inbox` storage
+        //      5. Validate L2 account proof where `account` here is the destination L2 contract
+        //      6. Validate storage proof proving the destination L2 storage slot
         bool validL2Storage = target.l2Address.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
 
         if (!validL2Storage) {
@@ -141,20 +127,5 @@ library ArbitrumProver {
     {
         uint256 startingStorageSlot = uint256(keccak256(abi.encode(proofData.nodeIndex, l1StorageKey)));
         return abi.encodePacked(startingStorageSlot + _ARBITRUM_RBLOCK_CONFIRMDATA_STORAGE_OFFSET);
-    }
-
-    /// @notice Extracts the l2StateRoot and l2Timestamp from the RLP-encoded block headers array
-    ///
-    /// @custom:reverts If the encoded block array has less than 15 elements
-    ///
-    /// @dev The stateRoot should be the 4th element, and the timestamp should be the 12th element
-    function _extractL2StateRootAndTimestamp(bytes memory encodedBlockArray) private pure returns (bytes32, uint256) {
-        RLPReader.RLPItem[] memory blockFields = encodedBlockArray.readList();
-
-        if (blockFields.length < 15) {
-            revert InvalidBlockFieldRLP();
-        }
-
-        return (bytes32(blockFields[3].readBytes()), uint256(bytes32(blockFields[11].readBytes())));
     }
 }
