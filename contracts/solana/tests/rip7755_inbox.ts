@@ -24,6 +24,7 @@ describe("rip7755_inbox", () => {
   let accounts: any;
   let signers: any;
   let fulfillmentInfo: any;
+  let precheckAccounts: any;
   let transactionAccounts: any;
   let remainingAccounts: any;
   let nonce = new BN(0);
@@ -61,6 +62,7 @@ describe("rip7755_inbox", () => {
       caller: caller.publicKey,
     };
     signers = [];
+    precheckAccounts = [];
     transactionAccounts = [
       {
         isSigner: true,
@@ -84,7 +86,12 @@ describe("rip7755_inbox", () => {
 
   it("Successfully fulfills a request", async () => {
     await program.methods
-      .fulfill(request, fulfiller.publicKey, transactionAccounts)
+      .fulfill(
+        request,
+        fulfiller.publicKey,
+        precheckAccounts,
+        transactionAccounts
+      )
       .accounts(accounts)
       .remainingAccounts(remainingAccounts)
       .signers(signers)
@@ -99,10 +106,14 @@ describe("rip7755_inbox", () => {
 
   it("Should fail if invalid chain ID", async () => {
     request.destinationChainId = new BN(0);
-
     await shouldFail(
       program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
+        .fulfill(
+          request,
+          fulfiller.publicKey,
+          precheckAccounts,
+          transactionAccounts
+        )
         .accounts(accounts)
         .remainingAccounts(remainingAccounts)
         .signers(signers)
@@ -114,7 +125,12 @@ describe("rip7755_inbox", () => {
     request.inboxContract = target.programId;
     await shouldFail(
       program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
+        .fulfill(
+          request,
+          fulfiller.publicKey,
+          precheckAccounts,
+          transactionAccounts
+        )
         .accounts(accounts)
         .remainingAccounts(remainingAccounts)
         .signers(signers)
@@ -128,7 +144,12 @@ describe("rip7755_inbox", () => {
 
     await shouldFail(
       program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
+        .fulfill(
+          request,
+          fulfiller.publicKey,
+          precheckAccounts,
+          transactionAccounts
+        )
         .accounts(accounts)
         .remainingAccounts(remainingAccounts)
         .signers(signers)
@@ -137,27 +158,33 @@ describe("rip7755_inbox", () => {
     );
   });
 
-  it("Should fail if invalid precheck", async () => {
-    request.extraData = [target.programId.toBuffer()];
-
-    await shouldFail(
-      program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
-        .accounts(accounts)
-        .remainingAccounts(remainingAccounts)
-        .signers(signers)
-        .rpc(),
-      "Invalid precheck contract"
-    );
-  });
-
   it("Should fail if precheck fails", async () => {
+    precheckAccounts = [
+      { isSigner: true, isWritable: true, pubkey: caller.publicKey },
+    ];
+    remainingAccounts.unshift(
+      {
+        isSigner: true,
+        isWritable: true,
+        pubkey: caller.publicKey,
+      },
+      {
+        isSigner: false,
+        isWritable: false,
+        pubkey: new PublicKey(precheck.programId),
+      }
+    );
     request.extraData = [precheck.programId.toBuffer()];
     request.rewardAmount = new BN(1);
 
     await shouldFail(
       program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
+        .fulfill(
+          request,
+          fulfiller.publicKey,
+          precheckAccounts,
+          transactionAccounts
+        )
         .accounts(accounts)
         .remainingAccounts(remainingAccounts)
         .signers(signers)
@@ -168,14 +195,24 @@ describe("rip7755_inbox", () => {
 
   it("Should revert if receipt already exists", async () => {
     await program.methods
-      .fulfill(request, fulfiller.publicKey, transactionAccounts)
+      .fulfill(
+        request,
+        fulfiller.publicKey,
+        precheckAccounts,
+        transactionAccounts
+      )
       .accounts(accounts)
       .remainingAccounts(remainingAccounts)
       .signers(signers)
       .rpc();
     await shouldFail(
       program.methods
-        .fulfill(request, fulfiller.publicKey, transactionAccounts)
+        .fulfill(
+          request,
+          fulfiller.publicKey,
+          precheckAccounts,
+          transactionAccounts
+        )
         .accounts(accounts)
         .remainingAccounts(remainingAccounts)
         .signers(signers)

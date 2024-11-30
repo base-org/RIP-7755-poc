@@ -1,8 +1,6 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::instruction::Instruction;
-use precheck::program::Precheck;
-use precheck::cpi::accounts::PrecheckCall;
 use rip7755_structs::{self, CrossChainRequest};
 
 mod fulfillment_info;
@@ -21,7 +19,13 @@ mod rip_7755_inbox {
     pub const CHAIN_ID: u64 = 103; // devnet
 
     // there's a max limit to tx size, if calls need to be broken up, we need to call fulfill multiple times
-    pub fn fulfill(ctx: Context<Fulfill>, request: CrossChainRequest, filler: Pubkey, accounts: Vec<TransactionAccount>) -> Result<()> {
+    pub fn fulfill(
+        ctx: Context<Fulfill>, 
+        request: CrossChainRequest, 
+        filler: Pubkey, 
+        precheck_accounts: Vec<TransactionAccount>, 
+        accounts: Vec<TransactionAccount>
+    ) -> Result<()> {
         if request.destination_chain_id != CHAIN_ID {
             return Err(ErrorCode::InvalidChainId.into());
         }
@@ -31,19 +35,19 @@ mod rip_7755_inbox {
         }
 
         // Run precheck if configured
-        handle_precheck(&ctx, &request)?;
+        handle_precheck(&ctx, &request, &precheck_accounts)?;
 
         // Initialize fulfillment info
         ctx.accounts.fulfillment_info.init(filler)?;
 
-        send_calls(ctx, request, accounts)?;
+        send_calls(ctx, request, accounts, precheck_accounts.len())?;
 
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-#[instruction(request: CrossChainRequest, filler: Pubkey, accounts: Vec<TransactionAccount>)]
+#[instruction(request: CrossChainRequest, filler: Pubkey, precheck_accounts: Vec<TransactionAccount>, accounts: Vec<TransactionAccount>)]
 pub struct Fulfill<'info> {
     #[account(
         init, 
@@ -59,7 +63,6 @@ pub struct Fulfill<'info> {
     #[account(mut)]
     pub caller: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub precheck_contract: Program<'info, Precheck>,
 }
 
 #[error_code]
@@ -68,8 +71,6 @@ pub enum ErrorCode {
     InvalidChainId,
     #[msg("Invalid inbox contract")]
     InvalidInboxContract,
-    #[msg("Invalid precheck contract")]
-    InvalidPrecheckContract,
     #[msg("Invalid precheck data")]
     InvalidPrecheckData,
     #[msg("Invalid account")]
@@ -84,6 +85,12 @@ pub struct TransactionAccount {
     pub call_index: u8,
 }
 
+#[derive(AnchorSerialize, AnchorDeserialize)]
+pub struct PrecheckData {
+    request: CrossChainRequest,
+    caller: Pubkey,
+}
+
 impl From<&TransactionAccount> for AccountMeta {
     fn from(account: &TransactionAccount) -> AccountMeta {
         match account.is_writable {
@@ -95,7 +102,7 @@ impl From<&TransactionAccount> for AccountMeta {
 
 // Helper function for facilitating the precheck call if configured
 // The precheck call is configured if extra_data is not empty and the first 32 bytes of the first element are not the default pubkey
-fn handle_precheck(ctx: &Context<Fulfill>, request: &CrossChainRequest) -> Result<()> {
+fn handle_precheck(ctx: &Context<Fulfill>, request: &CrossChainRequest, precheck_accounts: &Vec<TransactionAccount>) -> Result<()> {
     if request.extra_data.len() > 0 { 
         let precheck_data = request.extra_data[0].clone();
     
@@ -110,25 +117,49 @@ fn handle_precheck(ctx: &Context<Fulfill>, request: &CrossChainRequest) -> Resul
     
         // If the precheck contract is not the default pubkey, we need to call the precheck program
         if precheck_contract != Pubkey::default() {
-            // Ensure the precheck program is the expected program
-            require!(ctx.accounts.precheck_contract.key() == precheck_contract, ErrorCode::InvalidPrecheckContract);
-    
-            let cpi_ctx = CpiContext::new(
-                ctx.accounts.precheck_contract.to_account_info(),
-                PrecheckCall {
-                    caller: ctx.accounts.caller.to_account_info(),
+            let mut metas = Vec::new();
+            let mut remaining_accounts = vec![];
+            // Filter accounts for the current call index
+            // Assuming we cannot trust the order of accounts in the accounts array
+            for (index, acc) in precheck_accounts.iter().enumerate() {
+                metas.push(AccountMeta::from(acc));
+                // The remaining_accounts array provides access to all accounts passed in the transaction that aren't explicitly defined in the #[derive(Accounts)] struct.
+                remaining_accounts.push(ctx.remaining_accounts[index].clone());
+
+                if acc.pubkey != ctx.remaining_accounts[index].key() {
+                    return Err(ErrorCode::InvalidAccount.into());
                 }
-            );
-    
-            // Expecting the precheck call to revert if condition(s) not met
-            precheck::cpi::precheck_call(cpi_ctx, request.clone(), ctx.accounts.caller.key())?;
+            }
+
+            let caller = ctx.accounts.caller.key();
+
+            let precheck_data = PrecheckData {
+                request: request.clone(),
+                caller
+            };
+
+            let mut serialized_data = Vec::new();
+            precheck_data.serialize(&mut serialized_data).unwrap();
+
+            // Discriminator for precheck_call function in precheck program
+            let mut data: Vec<u8> = [ 72, 49, 94, 66, 197, 0, 175, 219 ].to_vec();
+            data.extend_from_slice(&serialized_data);
+
+            // Create the instruction for the current call
+            let ix = Instruction {
+                program_id: precheck_contract,
+                accounts: metas.clone(),
+                data
+            };
+
+            invoke(&ix, &remaining_accounts[..])?;
         }
     }
     Ok(())
 }
 
 // Helper function for sending calls
-fn send_calls(ctx: Context<Fulfill>, request: CrossChainRequest, accounts: Vec<TransactionAccount>) -> Result<()> {
+fn send_calls(ctx: Context<Fulfill>, request: CrossChainRequest, accounts: Vec<TransactionAccount>, offset: usize) -> Result<()> {
     for (index, call) in request.calls.iter().enumerate() {
         let mut metas = Vec::new();
         let mut remaining_accounts = vec![];
@@ -138,9 +169,9 @@ fn send_calls(ctx: Context<Fulfill>, request: CrossChainRequest, accounts: Vec<T
         for acc in accounts.iter().filter(|a| usize::from(a.call_index) == index) {
             metas.push(AccountMeta::from(acc));
             // The remaining_accounts array provides access to all accounts passed in the transaction that aren't explicitly defined in the #[derive(Accounts)] struct.
-            remaining_accounts.push(ctx.remaining_accounts[index].clone());
+            remaining_accounts.push(ctx.remaining_accounts[index + offset].clone());
 
-            if acc.pubkey != ctx.remaining_accounts[index].key() {
+            if acc.pubkey != ctx.remaining_accounts[index + offset].key() {
                 return Err(ErrorCode::InvalidAccount.into());
             }
         }
