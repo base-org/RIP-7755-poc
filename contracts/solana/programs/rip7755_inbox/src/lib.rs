@@ -1,11 +1,12 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::program::invoke;
 use anchor_lang::solana_program::instruction::Instruction;
-use rip7755_structs::{self, CrossChainRequest};
 
 mod fulfillment_info;
+mod structs;
 
 use fulfillment_info::FulfillmentInfo;
+pub use structs::CrossChainRequest;
 
 // This is your program's public key and it will update
 // automatically when you build the project.
@@ -109,7 +110,6 @@ fn handle_precheck(ctx: &Context<Fulfill>, request: &CrossChainRequest, precheck
         if precheck_data.len() < 32 {
             return Err(ErrorCode::InvalidPrecheckData.into());
         }
-
         // Extract the precheck contract from the first 32 bytes of extra_data and convert to pubkey
         let mut data_slice = [0; 32];
         data_slice.clone_from_slice(&precheck_data[0..32]);

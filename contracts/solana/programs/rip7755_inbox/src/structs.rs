@@ -1,11 +1,5 @@
 use anchor_lang::prelude::*;
 
-declare_id!("TkF3SRA8NrukNfxxmkAdhWRxebivtE6uuaCNmrsGwTj");
-
-#[program]
-pub mod rip7755_structs {
-}
-
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct Call {
     pub to: Pubkey,

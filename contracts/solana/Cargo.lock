@@ -1161,7 +1161,7 @@ name = "precheck"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
- "rip7755_structs",
+ "rip7755_inbox",
 ]
 
 [[package]]
@@ -1363,16 +1363,6 @@ checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "rip7755_inbox"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "call_target",
- "precheck",
- "rip7755_structs",
-]
-
-[[package]]
-name = "rip7755_structs"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",

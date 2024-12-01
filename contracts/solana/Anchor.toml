@@ -8,7 +8,6 @@ skip-lint = false
 call_target = "4rPLqoMbtPAMdYeytQagQyt5ucVxRJpx7BjL2jW49UsQ"
 precheck = "kXGFCQ2Bhj5z2zV9pPS7Ygz1PVt3EVYR7zTAGGcx7h9"
 rip7755_inbox = "2nfLnXeeWyAUBsCT8uskj8nvkk46FiwaaVvDx29zQcue"
-rip7755_structs = "TkF3SRA8NrukNfxxmkAdhWRxebivtE6uuaCNmrsGwTj"
 
 [registry]
 url = "https://api.apr.dev"
