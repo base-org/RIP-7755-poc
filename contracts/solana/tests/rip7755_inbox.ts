@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { BN, Program } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { assert, expect } from "chai";
 
 import { Rip7755Inbox } from "../target/types/rip_7755_inbox";
@@ -19,6 +19,7 @@ describe("rip7755_inbox", () => {
   const requester = anchor.web3.Keypair.generate();
   const caller = programProvider.wallet;
   const fulfiller = anchor.web3.Keypair.generate();
+  const bob = anchor.web3.Keypair.generate();
 
   let request: any;
   let accounts: any;
@@ -29,7 +30,7 @@ describe("rip7755_inbox", () => {
   let remainingAccounts: any;
   let nonce = new BN(0);
 
-  beforeEach(() => {
+  beforeEach(async () => {
     nonce = nonce.add(new BN(1));
     request = {
       requester: requester.publicKey,
@@ -82,26 +83,12 @@ describe("rip7755_inbox", () => {
         pubkey: new PublicKey(target.programId),
       },
     ];
-  });
 
-  it("Successfully fulfills a request", async () => {
-    await program.methods
-      .fulfill(
-        request,
-        fulfiller.publicKey,
-        precheckAccounts,
-        transactionAccounts
-      )
-      .accounts(accounts)
-      .remainingAccounts(remainingAccounts)
-      .signers(signers)
-      .rpc();
-
-    const storedReceipt = await program.account.fulfillmentInfo.fetch(
-      fulfillmentInfo
+    const airdropSignature = await programProvider.connection.requestAirdrop(
+      caller.publicKey,
+      5 * LAMPORTS_PER_SOL
     );
-    expect(storedReceipt.timestamp).to.not.equal(0);
-    expect(storedReceipt.filler).to.eql(fulfiller.publicKey);
+    await programProvider.connection.confirmTransaction(airdropSignature);
   });
 
   it("Should fail if invalid chain ID", async () => {
@@ -121,6 +108,7 @@ describe("rip7755_inbox", () => {
       "Invalid chain ID"
     );
   });
+
   it("Should fail if invalid destination", async () => {
     request.inboxContract = target.programId;
     await shouldFail(
@@ -205,6 +193,7 @@ describe("rip7755_inbox", () => {
       .remainingAccounts(remainingAccounts)
       .signers(signers)
       .rpc();
+
     await shouldFail(
       program.methods
         .fulfill(
@@ -219,6 +208,66 @@ describe("rip7755_inbox", () => {
         .rpc(),
       ""
     );
+  });
+
+  it("Successfully fulfills a request", async () => {
+    await program.methods
+      .fulfill(
+        request,
+        fulfiller.publicKey,
+        precheckAccounts,
+        transactionAccounts
+      )
+      .accounts(accounts)
+      .remainingAccounts(remainingAccounts)
+      .signers(signers)
+      .rpc();
+    const storedReceipt = await program.account.fulfillmentInfo.fetch(
+      fulfillmentInfo
+    );
+    expect(storedReceipt.timestamp).to.not.equal(0);
+    expect(storedReceipt.filler).to.eql(fulfiller.publicKey);
+  });
+
+  it("Successfully fulfills a request - send lamports", async () => {
+    request.calls = [
+      {
+        to: bob.publicKey,
+        data: Buffer.from([]),
+        value: new BN(1 * LAMPORTS_PER_SOL),
+      },
+    ];
+    remainingAccounts = [
+      {
+        isSigner: true,
+        isWritable: true,
+        pubkey: caller.publicKey,
+      },
+      {
+        isSigner: false,
+        isWritable: true,
+        pubkey: bob.publicKey,
+      },
+    ];
+
+    // Caller -> bob
+    await program.methods
+      .fulfill(
+        request,
+        fulfiller.publicKey,
+        precheckAccounts,
+        transactionAccounts
+      )
+      .accounts(accounts)
+      .remainingAccounts(remainingAccounts)
+      .signers(signers)
+      .rpc();
+
+    const storedReceipt = await program.account.fulfillmentInfo.fetch(
+      fulfillmentInfo
+    );
+    expect(storedReceipt.timestamp).to.not.equal(0);
+    expect(storedReceipt.filler).to.eql(fulfiller.publicKey);
   });
 });
 
