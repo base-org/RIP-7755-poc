@@ -142,15 +142,13 @@ export default class ProverService {
     l1BlockNumber: bigint,
     nodeIndex?: bigint
   ): { address: Address; storageKeys: Address[]; blockNumber: bigint } {
-    const l1Config = this.activeChains.l1;
-    let address = this.activeChains.dst.l2Oracle;
+    const address = this.activeChains.dst.l2Oracle;
     let storageKeys = [constants.slots.anchorStateRegistrySlot];
 
     if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
       if (!nodeIndex) {
         throw new Error("Node index is required for Arbitrum proofs");
       }
-      address = l1Config.contracts.arbRollup;
       const slot = 118n;
       const offset = 2n; // confirmData is offset by 2 slots in Node struct
       const derivedSlotStart = keccak256(
