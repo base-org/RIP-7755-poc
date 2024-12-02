@@ -86,6 +86,8 @@ abstract contract RIP7755Outbox {
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = _getNextNonce();
         request.requester = msg.sender;
+        request.sourceChainId = block.chainid;
+        request.origin = address(this);
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 

@@ -162,6 +162,8 @@ contract ArbitrumProverTest is Test {
         return CrossChainRequest({
             requester: ALICE,
             calls: calls,
+            sourceChainId: block.chainid,
+            origin: address(this),
             destinationChainId: 421614, // arbitrum sepolia chain ID
             inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Arbitrum Sepolia
             l2Oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8, // Arbitrum Rollup on Sepolia

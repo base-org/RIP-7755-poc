@@ -181,6 +181,8 @@ contract RIP7755InboxTest is Test {
         return CrossChainRequest({
             requester: ALICE,
             calls: calls,
+            sourceChainId: block.chainid,
+            origin: address(this),
             destinationChainId: block.chainid,
             inboxContract: address(inbox),
             l2Oracle: address(0),

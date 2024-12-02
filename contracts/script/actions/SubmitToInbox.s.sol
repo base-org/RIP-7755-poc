@@ -22,6 +22,8 @@ contract SubmitToInbox is Script {
         return CrossChainRequest({
             requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6,
             calls: new Call[](0),
+            sourceChainId: 11155420,
+            origin: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Optimism Sepolia
             destinationChainId: 111112,
             inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, // RIP7755Inbox on mock Chain B
             l2Oracle: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, // Anchor State Registry on mock L1
