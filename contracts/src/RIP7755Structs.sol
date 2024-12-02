@@ -17,6 +17,10 @@ struct CrossChainRequest {
     address requester;
     /// @dev Array of calls to make on the destination chain
     Call[] calls;
+    /// @dev The chainId of the source chain
+    uint256 sourceChainId;
+    /// @dev The contract address the request was submitted to
+    address origin;
     /// @dev The chainId of the destination chain
     uint256 destinationChainId;
     /// @dev The L2 contract on destination chain that's storage will be used to verify whether or not this call was made
