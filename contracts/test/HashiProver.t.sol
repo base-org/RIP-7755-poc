@@ -84,7 +84,7 @@ contract HashiProverTest is Test {
         bytes memory inboxStorageKey = _deriveStorageKey(request);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToHashi.InvalidBlockHeader.selector);
+        vm.expectRevert(HashiProver.InvalidBlockHeader.selector);
         prover.validateProof(inboxStorageKey, request, abi.encode(proof));
     }
 
