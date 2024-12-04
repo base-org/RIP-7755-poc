@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use rip7755_inbox::CrossChainRequest;
+use rip7755_inbox::types::request::CrossChainRequest;
 
 declare_id!("kXGFCQ2Bhj5z2zV9pPS7Ygz1PVt3EVYR7zTAGGcx7h9");
 

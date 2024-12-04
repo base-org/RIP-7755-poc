@@ -22,5 +22,5 @@ pub struct CrossChainRequest {
     pub finality_delay_seconds: u64,
     pub nonce: u64,
     pub expiry: u64,
-    pub extra_data: Vec<Vec<u8>>
+    pub extra_data: Vec<Vec<u8>>,
 }
