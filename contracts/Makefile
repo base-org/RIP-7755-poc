@@ -33,6 +33,9 @@ deploy-mock:
 deploy-mock-opt-sep:
 	forge create --rpc-url $(OPTIMISM_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
 
+deploy-mock-chiado:
+	forge create --rpc-url $(CHIADO_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
+
 read-mock:
 	cast call $(MOCK_VERIFIER_ADDRESS) "getFulfillmentInfo(bytes32)(uint96,address)" $(ARBITRUM_REQUEST_HASH) --rpc-url $(ARBITRUM_RPC)
 
@@ -44,6 +47,12 @@ read-mock-op:
 
 set-mock-op:
 	cast send $(MOCK_VERIFIER_ADDRESS) "storeFulfillmentInfo(bytes32,address)" $(OPTIMISM_REQUEST_HASH) $(FULFILLER_ADDRESS) --rpc-url $(OPTIMISM_RPC) --private-key $(PRIVATE_KEY)
+
+read-mock-chiado:
+	cast call 0xdA7D9c8C3eBd2F0A790b1AbCFcdA3d309379B4d8 "getFulfillmentInfo(bytes32)(uint96,address)" 0x44d313e0c91083225689fc582c66e76e3653a588daa2b5cffbcd3b9158cb6078 --rpc-url $(CHIADO_RPC)
+
+set-mock-chiado:
+	cast send 0xdA7D9c8C3eBd2F0A790b1AbCFcdA3d309379B4d8 "storeFulfillmentInfo(bytes32,address)" 0x44d313e0c91083225689fc582c66e76e3653a588daa2b5cffbcd3b9158cb6078 0x23214a0864fc0014cab6030267738f01affdd547 --rpc-url $(CHIADO_RPC) --private-key $(PRIVATE_KEY)
 
 deploy-arbitrum-sepolia:
 	forge script script/chains/DeployArbitrum.s.sol:DeployArbitrum --rpc-url $(ARBITRUM_RPC) --broadcast -vvvv
