@@ -3,22 +3,19 @@ use crate::CrossChainRequest;
 use anchor_lang::prelude::*;
 
 #[derive(Accounts, Clone)]
-#[instruction(data: FulfillData)]
+#[instruction(
+    request: CrossChainRequest,
+    filler: Pubkey,
+    precheck_accounts: Vec<TransactionAccount>,
+    accounts: Vec<TransactionAccount>,
+    request_hash: Vec<u8>
+)]
 pub struct Fulfill<'info> {
-    #[account(init, payer = caller, space = 8 + 8 + 32, seeds = [&data.request_hash], bump)]
+    #[account(init, payer = caller, space = 8 + 8 + 32, seeds = [&request_hash], bump)]
     pub fulfillment_info: Account<'info, FulfillmentInfo>,
     #[account(mut)]
     pub caller: Signer<'info>,
     pub system_program: Program<'info, System>,
-}
-
-#[derive(AnchorSerialize, AnchorDeserialize, Clone)]
-pub struct FulfillData {
-    pub request: CrossChainRequest,
-    pub filler: Pubkey,
-    pub precheck_accounts: Vec<TransactionAccount>,
-    pub accounts: Vec<TransactionAccount>,
-    pub request_hash: Vec<u8>,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
