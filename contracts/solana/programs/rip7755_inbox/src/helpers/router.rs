@@ -48,6 +48,8 @@ pub fn send_calls(
     Ok(())
 }
 
+// We can deduct lamports from the fulfillment info account since it's owned by the inbox
+// We don't need to own the "to_account"s to transfer funds to them
 fn send_lamports(ctx: &Context<Fulfill>, target: Pubkey, amount: u64) -> Result<()> {
     let to_account_option = ctx.remaining_accounts.iter().find(|a| a.key() == target);
     let to_account = to_account_option.expect("Missing target account").clone();

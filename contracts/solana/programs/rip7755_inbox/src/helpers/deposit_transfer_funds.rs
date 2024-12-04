@@ -2,6 +2,8 @@ use crate::types::*;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::system_instruction;
 
+// To aid in the lamport transfers to an unknown amount of accounts, we'll first transfer to the owned fulfillment info account
+// and then transfer from there to the destination accounts
 pub fn deposit_transfer_funds(ctx: &Context<Fulfill>, request: &CrossChainRequest) -> Result<()> {
     let mut amount = 0;
 

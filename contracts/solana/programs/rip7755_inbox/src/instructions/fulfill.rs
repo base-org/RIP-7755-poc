@@ -32,6 +32,7 @@ pub fn fulfill(
     // Initialize fulfillment info
     ctx.accounts.fulfillment_info.init(*filler)?;
 
+    // Transfer funds to the fulfillment info account if any calls are only lamport transfers
     deposit_transfer_funds(&ctx, &request)?;
 
     send_calls(&ctx, &request, &accounts, precheck_accounts.len())?;
