@@ -11,6 +11,8 @@ pub struct Call {
 pub struct CrossChainRequest {
     pub requester: Pubkey,
     pub calls: Vec<Call>,
+    pub source_chain_id: u64,
+    pub origin: Pubkey,
     pub destination_chain_id: u64,
     pub inbox_contract: Pubkey,
     pub l2_oracle: Pubkey,

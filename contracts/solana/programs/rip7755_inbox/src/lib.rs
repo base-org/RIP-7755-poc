@@ -26,7 +26,8 @@ mod rip_7755_inbox {
         request: CrossChainRequest, 
         filler: Pubkey, 
         precheck_accounts: Vec<TransactionAccount>, 
-        accounts: Vec<TransactionAccount>
+        accounts: Vec<TransactionAccount>,
+        request_hash: Vec<u8>
     ) -> Result<()> {
         if request.destination_chain_id != CHAIN_ID {
             return Err(ErrorCode::InvalidChainId.into());
@@ -34,6 +35,11 @@ mod rip_7755_inbox {
 
         if ctx.program_id.clone() != request.inbox_contract {
             return Err(ErrorCode::InvalidInboxContract.into());
+        }
+
+        // confirm request_hash
+        if request_hash != hash_request(&request) {
+            return Err(ErrorCode::InvalidRequestHash.into());
         }
 
         // Run precheck if configured
@@ -51,16 +57,13 @@ mod rip_7755_inbox {
 }
 
 #[derive(Accounts, Clone)]
-#[instruction(request: CrossChainRequest, filler: Pubkey, precheck_accounts: Vec<TransactionAccount>, accounts: Vec<TransactionAccount>)]
+#[instruction(request: CrossChainRequest, filler: Pubkey, precheck_accounts: Vec<TransactionAccount>, accounts: Vec<TransactionAccount>, request_hash: Vec<u8>)]
 pub struct Fulfill<'info> {
     #[account(
         init, 
         payer = caller, 
         space = 8 + 8 + 32, 
-        seeds = [
-            request.requester.key().as_ref(),
-            &request.nonce.to_be_bytes(),
-        ],
+        seeds = [&request_hash],
         bump
     )]
     pub fulfillment_info: Account<'info, FulfillmentInfo>,
@@ -79,6 +82,8 @@ pub enum ErrorCode {
     InvalidPrecheckData,
     #[msg("Invalid account")]
     InvalidAccount,
+    #[msg("Invalid request hash")]
+    InvalidRequestHash,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
@@ -231,4 +236,10 @@ fn send_lamports(ctx: &Context<Fulfill>, target: Pubkey, amount: u64) -> Result<
     **to_account.try_borrow_mut_lamports()? += amount;
 
     Ok(())
+}
+
+fn hash_request(request: &CrossChainRequest) -> [u8; 32] {
+    let serialized_data: Vec<u8> = request.try_to_vec().expect("Error serializing request");
+    let hash = anchor_lang::solana_program::keccak::hash(&serialized_data);
+    return hash.to_bytes();
 }
