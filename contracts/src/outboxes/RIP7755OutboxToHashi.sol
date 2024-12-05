@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 import {HashiProver} from "../libraries/provers/HashiProver.sol";
+import {GlobalTypes} from "../libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
-import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 
 /// @title RIP7755OutboxToHashi
 ///
@@ -14,6 +15,7 @@ import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM chain.
 contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
+    using GlobalTypes for bytes32;
 
     /// @notice The expected length of the request.extraData field as a constant
     uint256 private constant EXPECTED_EXTRA_DATA_LENGTH = 2;
@@ -48,7 +50,7 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
         (address shoyuBashi) = abi.decode(request.extraData[1], (address));
         HashiProver.Target memory target = HashiProver.Target({
-            addr: request.inboxContract,
+            addr: request.inboxContract.bytes32ToAddress(),
             storageKey: bytes32(inboxContractStorageKey),
             destinationChainId: request.destinationChainId,
             shoyuBashi: shoyuBashi

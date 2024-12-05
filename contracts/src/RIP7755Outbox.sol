@@ -5,6 +5,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
+import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 import {CrossChainRequest} from "./RIP7755Structs.sol";
 
@@ -17,6 +18,8 @@ import {CrossChainRequest} from "./RIP7755Structs.sol";
 abstract contract RIP7755Outbox {
     using Address for address payable;
     using SafeERC20 for IERC20;
+    using GlobalTypes for address;
+    using GlobalTypes for bytes32;
 
     /// @notice An enum representing the status of an RIP-7755 cross chain call
     enum CrossChainCallStatus {
@@ -29,8 +32,8 @@ abstract contract RIP7755Outbox {
     /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current status
     mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
 
-    /// @notice The address representing the native currency of the blockchain this contract is deployed on following ERC-7528
-    address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    /// @notice The bytes32 representation of the address representing the native currency of the blockchain this contract is deployed on following ERC-7528
+    bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     // Main storage location in `RIP7755Inbox` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
@@ -85,9 +88,9 @@ abstract contract RIP7755Outbox {
     /// @param request A cross chain request structured as a `CrossChainRequest`
     function requestCrossChainCall(CrossChainRequest memory request) external payable {
         request.nonce = _getNextNonce();
-        request.requester = msg.sender;
+        request.requester = msg.sender.addressToBytes32();
         request.sourceChainId = block.chainid;
-        request.origin = address(this);
+        request.origin = address(this).addressToBytes32();
         bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
         uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
 
@@ -102,7 +105,7 @@ abstract contract RIP7755Outbox {
         _requestStatus[requestHash] = CrossChainCallStatus.Requested;
 
         if (!usingNativeCurrency) {
-            _pullERC20({owner: msg.sender, asset: request.rewardAsset, amount: request.rewardAmount});
+            _pullERC20({owner: msg.sender, asset: request.rewardAsset.bytes32ToAddress(), amount: request.rewardAmount});
         }
 
         emit CrossChainCallRequested(requestHash, request);
@@ -137,8 +140,8 @@ abstract contract RIP7755Outbox {
         bytes32 requestHash = hashRequest(request);
 
         _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
-        if (msg.sender != request.requester) {
-            revert InvalidCaller({caller: msg.sender, expectedCaller: request.requester});
+        if (msg.sender.addressToBytes32() != request.requester) {
+            revert InvalidCaller({caller: msg.sender, expectedCaller: request.requester.bytes32ToAddress()});
         }
         if (block.timestamp < request.expiry + CANCEL_DELAY_SECONDS) {
             revert CannotCancelRequestBeforeExpiry({
@@ -150,7 +153,7 @@ abstract contract RIP7755Outbox {
         _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
 
         // Return the stored reward back to the original requester
-        _sendReward(request, request.requester);
+        _sendReward(request, request.requester.bytes32ToAddress());
 
         emit CrossChainCallCanceled(requestHash);
     }
@@ -212,7 +215,7 @@ abstract contract RIP7755Outbox {
         if (request.rewardAsset == _NATIVE_ASSET) {
             payable(to).sendValue(request.rewardAmount);
         } else {
-            _sendERC20(to, request.rewardAsset, request.rewardAmount);
+            _sendERC20(to, request.rewardAsset.bytes32ToAddress(), request.rewardAmount);
         }
     }
 

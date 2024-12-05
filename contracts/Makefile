@@ -58,7 +58,7 @@ deploy-arbitrum-sepolia:
 	forge script script/chains/DeployArbitrum.s.sol:DeployArbitrum --rpc-url $(ARBITRUM_RPC) --broadcast -vvvv
 
 deploy-optimism-sepolia:
-	forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv
+	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv
 
 deploy-base-sepolia:
 	forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(BASE_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
@@ -73,4 +73,4 @@ submit-request:
 	forge script script/actions/SubmitRequest.s.sol:SubmitRequest --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv
 
 fulfill-request:
-	forge script script/actions/SubmitToInbox.s.sol:SubmitToInbox --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv
+	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/actions/SubmitToInbox.s.sol:SubmitToInbox --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv

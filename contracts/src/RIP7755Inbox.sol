@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
+import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Inbox
@@ -15,6 +16,7 @@ import {CrossChainRequest} from "./RIP7755Structs.sol";
 contract RIP7755Inbox {
     using Address for address;
     using Address for address payable;
+    using GlobalTypes for bytes32;
 
     struct MainStorage {
         /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
@@ -72,7 +74,7 @@ contract RIP7755Inbox {
             revert InvalidChainId();
         }
 
-        if (address(this) != request.inboxContract) {
+        if (address(this) != request.inboxContract.bytes32ToAddress()) {
             revert InvalidInboxContract();
         }
 
@@ -127,7 +129,7 @@ contract RIP7755Inbox {
         uint256 valueSent;
 
         for (uint256 i; i < request.calls.length; i++) {
-            _call(payable(request.calls[i].to), request.calls[i].data, request.calls[i].value);
+            _call(payable(request.calls[i].to.bytes32ToAddress()), request.calls[i].data, request.calls[i].value);
 
             unchecked {
                 valueSent += request.calls[i].value;
