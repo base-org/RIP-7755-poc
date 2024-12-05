@@ -199,7 +199,6 @@ contract RIP7755InboxTest is Test {
             destinationChainId: block.chainid,
             inboxContract: address(inbox).addressToBytes32(),
             l2Oracle: address(0).addressToBytes32(),
-            l2OracleStorageKey: bytes32(0),
             rewardAsset: address(0).addressToBytes32(),
             rewardAmount: 0,
             finalityDelaySeconds: 0,

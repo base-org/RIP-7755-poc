@@ -17,12 +17,10 @@ library OPStackProver {
     struct Target {
         /// @dev The address of the L1 contract to validate. Should be Optimism's AnchorStateRegistry contract
         address l1Address;
-        /// @dev The storage key on L1 to validate
-        bytes32 l1StorageKey;
         /// @dev The address of the L2 contract to validate.
         address l2Address;
         /// @dev The storage key on L2 to validate.
-        bytes32 l2StorageKey;
+        bytes l2StorageKey;
     }
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof
@@ -39,6 +37,10 @@ library OPStackProver {
         /// @dev Parameters needed to validate the authenticity of a specified storage location on the destination L2 chain
         StateValidator.AccountProofParameters dstL2AccountProofParams;
     }
+
+    /// @notice The storage key on L1 to validate
+    bytes private constant _L1_STORAGE_KEY =
+        abi.encode(0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49);
 
     /// @notice This error is thrown when verification of the authenticity of the l2Oracle for the destination L2 chain
     /// on Eth mainnet fails
@@ -66,9 +68,9 @@ library OPStackProver {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
         // Set the expected storage key for the L1 storage slot
-        proofData.dstL2StateRootProofParams.storageKey = abi.encode(target.l1StorageKey);
+        proofData.dstL2StateRootProofParams.storageKey = _L1_STORAGE_KEY;
         // Set the expected storage key for the destination L2 storage slot
-        proofData.dstL2AccountProofParams.storageKey = abi.encode(target.l2StorageKey);
+        proofData.dstL2AccountProofParams.storageKey = target.l2StorageKey;
 
         // We first need to validate knowledge of the destination L2 chain's state root.
         // StateValidator.validateState will accomplish each of the following 4 steps:

@@ -487,7 +487,6 @@ contract RIP7755OutboxTest is Test {
             destinationChainId: 0,
             inboxContract: address(0).addressToBytes32(),
             l2Oracle: address(0).addressToBytes32(),
-            l2OracleStorageKey: bytes32(0),
             rewardAsset: address(mockErc20).addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,

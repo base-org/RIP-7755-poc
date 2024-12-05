@@ -168,7 +168,6 @@ contract ArbitrumProverTest is Test {
             destinationChainId: 421614, // arbitrum sepolia chain ID
             inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(), // RIP7755Inbox on Arbitrum Sepolia
             l2Oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8.addressToBytes32(), // Arbitrum Rollup on Sepolia
-            l2OracleStorageKey: bytes32(uint256(118)), // Arbitrum Rollup _nodes storage slot
             rewardAsset: address(mockErc20).addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,

@@ -27,8 +27,6 @@ struct CrossChainRequest {
     bytes32 inboxContract;
     /// @dev The L1 address of the contract that should have L2 block info stored
     bytes32 l2Oracle;
-    /// @dev The storage key at which we expect to find the L2 block info on the l2Oracle
-    bytes32 l2OracleStorageKey;
     /// @dev The address of the ERC20 reward asset to be paid to whoever proves they filled this call
     /// @dev Native asset specified as in ERC-7528 format
     bytes32 rewardAsset;
