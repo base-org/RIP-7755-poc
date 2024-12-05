@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {ArbitrumProver} from "../libraries/provers/ArbitrumProver.sol";
+import {GlobalTypes} from "../libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 import {CrossChainRequest} from "../RIP7755Structs.sol";
-import {ArbitrumProver} from "../libraries/provers/ArbitrumProver.sol";
 
 /// @title RIP7755OutboxToArbitrum
 ///
@@ -13,6 +14,7 @@ import {ArbitrumProver} from "../libraries/provers/ArbitrumProver.sol";
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on Arbitrum
 contract RIP7755OutboxToArbitrum is RIP7755Outbox {
     using ArbitrumProver for bytes;
+    using GlobalTypes for bytes32;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
@@ -36,9 +38,9 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
         bytes calldata proof
     ) internal view override {
         ArbitrumProver.Target memory target = ArbitrumProver.Target({
-            l1Address: request.l2Oracle,
+            l1Address: request.l2Oracle.bytes32ToAddress(),
             l1StorageKey: request.l2OracleStorageKey,
-            l2Address: request.inboxContract,
+            l2Address: request.inboxContract.bytes32ToAddress(),
             l2StorageKey: bytes32(inboxContractStorageKey)
         });
         (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);

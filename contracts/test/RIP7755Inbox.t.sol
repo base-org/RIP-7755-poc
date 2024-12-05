@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
+import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 
@@ -11,6 +12,8 @@ import {MockPrecheck} from "./mocks/MockPrecheck.sol";
 import {MockTarget} from "./mocks/MockTarget.sol";
 
 contract RIP7755InboxTest is Test {
+    using GlobalTypes for address;
+
     RIP7755Inbox inbox;
     MockPrecheck precheck;
     MockTarget target;
@@ -41,7 +44,7 @@ contract RIP7755InboxTest is Test {
     function test_fulfill_reverts_invalidDestinationAddress() external {
         CrossChainRequest memory request = _initRequest();
 
-        request.inboxContract = address(0);
+        request.inboxContract = address(0).addressToBytes32();
 
         vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Inbox.InvalidInboxContract.selector);
@@ -98,7 +101,11 @@ contract RIP7755InboxTest is Test {
     function test_fulfill_callsTargetContract(uint256 inputNum) external {
         CrossChainRequest memory request = _initRequest();
         calls.push(
-            Call({to: address(target), data: abi.encodeWithSelector(target.target.selector, inputNum), value: 0})
+            Call({
+                to: address(target).addressToBytes32(),
+                data: abi.encodeWithSelector(target.target.selector, inputNum),
+                value: 0
+            })
         );
         request.calls = calls;
 
@@ -110,7 +117,7 @@ contract RIP7755InboxTest is Test {
 
     function test_fulfill_sendsEth(uint256 amount) external {
         CrossChainRequest memory request = _initRequest();
-        calls.push(Call({to: ALICE, data: "", value: amount}));
+        calls.push(Call({to: ALICE.addressToBytes32(), data: "", value: amount}));
         request.calls = calls;
 
         vm.deal(FULFILLER, amount);
@@ -122,7 +129,13 @@ contract RIP7755InboxTest is Test {
 
     function test_fulfill_reverts_ifTargetContractReverts() external {
         CrossChainRequest memory request = _initRequest();
-        calls.push(Call({to: address(target), data: abi.encodeWithSelector(target.shouldFail.selector), value: 0}));
+        calls.push(
+            Call({
+                to: address(target).addressToBytes32(),
+                data: abi.encodeWithSelector(target.shouldFail.selector),
+                value: 0
+            })
+        );
         request.calls = calls;
 
         vm.prank(FULFILLER);
@@ -179,15 +192,15 @@ contract RIP7755InboxTest is Test {
 
     function _initRequest() private view returns (CrossChainRequest memory) {
         return CrossChainRequest({
-            requester: ALICE,
+            requester: ALICE.addressToBytes32(),
             calls: calls,
             sourceChainId: block.chainid,
-            origin: address(this),
+            origin: address(this).addressToBytes32(),
             destinationChainId: block.chainid,
-            inboxContract: address(inbox),
-            l2Oracle: address(0),
+            inboxContract: address(inbox).addressToBytes32(),
+            l2Oracle: address(0).addressToBytes32(),
             l2OracleStorageKey: bytes32(0),
-            rewardAsset: address(0),
+            rewardAsset: address(0).addressToBytes32(),
             rewardAmount: 0,
             finalityDelaySeconds: 0,
             nonce: 0,

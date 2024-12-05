@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 
+import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
@@ -11,13 +12,15 @@ import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 import {MockOutbox} from "./mocks/MockOutbox.sol";
 
 contract RIP7755OutboxTest is Test {
+    using GlobalTypes for address;
+
     MockOutbox outbox;
     ERC20Mock mockErc20;
 
     Call[] calls;
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
-    address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+    bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainRequest request);
     event CrossChainCallCanceled(bytes32 indexed callHash);
@@ -477,15 +480,15 @@ contract RIP7755OutboxTest is Test {
 
     function _initRequest(uint256 rewardAmount) private view returns (CrossChainRequest memory) {
         return CrossChainRequest({
-            requester: ALICE,
+            requester: ALICE.addressToBytes32(),
             calls: calls,
             sourceChainId: block.chainid,
-            origin: address(outbox),
+            origin: address(outbox).addressToBytes32(),
             destinationChainId: 0,
-            inboxContract: address(0),
-            l2Oracle: address(0),
+            inboxContract: address(0).addressToBytes32(),
+            l2Oracle: address(0).addressToBytes32(),
             l2OracleStorageKey: bytes32(0),
-            rewardAsset: address(mockErc20),
+            rewardAsset: address(mockErc20).addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
             nonce: 1,

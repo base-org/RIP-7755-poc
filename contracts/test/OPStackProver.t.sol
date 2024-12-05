@@ -6,6 +6,7 @@ import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
+import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
@@ -16,6 +17,7 @@ import {MockOPStackProver} from "./mocks/MockOPStackProver.sol";
 
 contract RIP7755OutboxOPStackValidatorTest is Test {
     using stdJson for string;
+    using GlobalTypes for address;
 
     MockOPStackProver prover;
     ERC20Mock mockErc20;
@@ -24,7 +26,6 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     Call[] calls;
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
-    address internal constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     string validProof;
     string invalidL1StorageProof;
     string invalidL2StateRootProof;
@@ -183,15 +184,15 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
 
     function _initRequest(uint256 rewardAmount) private view returns (CrossChainRequest memory) {
         return CrossChainRequest({
-            requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6,
+            requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32(),
             calls: calls,
             sourceChainId: 11155420,
-            origin: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874,
+            origin: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(),
             destinationChainId: 111112,
-            inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, // RIP7755Inbox on mock Chain B
-            l2Oracle: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512, // Anchor State Registry on mock L1
+            inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // RIP7755Inbox on mock Chain B
+            l2Oracle: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // Anchor State Registry on mock L1
             l2OracleStorageKey: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49, // Anchor State Registry storage slot
-            rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b,
+            rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
             nonce: 1,

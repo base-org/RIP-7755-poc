@@ -6,6 +6,7 @@ import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {BlockHeaders} from "../src/libraries/BlockHeaders.sol";
+import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
@@ -17,6 +18,7 @@ import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
 contract ArbitrumProverTest is Test {
     using stdJson for string;
+    using GlobalTypes for address;
 
     MockArbitrumProver prover;
     ERC20Mock mockErc20;
@@ -25,7 +27,6 @@ contract ArbitrumProverTest is Test {
     Call[] calls;
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
-    address private constant _NATIVE_ASSET = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     string validProof;
     string invalidL1State;
     string invalidConfirmData;
@@ -160,15 +161,15 @@ contract ArbitrumProverTest is Test {
 
     function _initRequest(uint256 rewardAmount) private view returns (CrossChainRequest memory) {
         return CrossChainRequest({
-            requester: ALICE,
+            requester: ALICE.addressToBytes32(),
             calls: calls,
             sourceChainId: block.chainid,
-            origin: address(this),
+            origin: address(this).addressToBytes32(),
             destinationChainId: 421614, // arbitrum sepolia chain ID
-            inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, // RIP7755Inbox on Arbitrum Sepolia
-            l2Oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8, // Arbitrum Rollup on Sepolia
+            inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(), // RIP7755Inbox on Arbitrum Sepolia
+            l2Oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8.addressToBytes32(), // Arbitrum Rollup on Sepolia
             l2OracleStorageKey: bytes32(uint256(118)), // Arbitrum Rollup _nodes storage slot
-            rewardAsset: address(mockErc20),
+            rewardAsset: address(mockErc20).addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
             nonce: 1,
