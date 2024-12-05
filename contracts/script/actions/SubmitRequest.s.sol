@@ -30,7 +30,6 @@ contract SubmitRequest is Script {
             destinationChainId: 11155420,
             inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(), // RIP7755Inbox on Optimism Sepolia
             l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629.addressToBytes32(), // Anchor State Registry on Sepolia
-            l2OracleStorageKey: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49, // Anchor State Registry storage slot
             rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(),
             rewardAmount: 1 ether,
             finalityDelaySeconds: 10,

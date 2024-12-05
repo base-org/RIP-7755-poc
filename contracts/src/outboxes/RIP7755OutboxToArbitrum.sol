@@ -39,9 +39,8 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
     ) internal view override {
         ArbitrumProver.Target memory target = ArbitrumProver.Target({
             l1Address: request.l2Oracle.bytes32ToAddress(),
-            l1StorageKey: request.l2OracleStorageKey,
             l2Address: request.inboxContract.bytes32ToAddress(),
-            l2StorageKey: bytes32(inboxContractStorageKey)
+            l2StorageKey: inboxContractStorageKey
         });
         (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
 

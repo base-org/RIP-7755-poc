@@ -35,7 +35,6 @@ contract SubmitToInbox is Script {
             destinationChainId: 111112,
             inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(),
             l2Oracle: bytes32(0),
-            l2OracleStorageKey: bytes32(0),
             rewardAsset: 0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a,
             rewardAmount: 1 ether,
             finalityDelaySeconds: 10,

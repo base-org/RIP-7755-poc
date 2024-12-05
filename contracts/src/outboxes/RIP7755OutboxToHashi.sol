@@ -51,7 +51,7 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         (address shoyuBashi) = abi.decode(request.extraData[1], (address));
         HashiProver.Target memory target = HashiProver.Target({
             addr: request.inboxContract.bytes32ToAddress(),
-            storageKey: bytes32(inboxContractStorageKey),
+            storageKey: inboxContractStorageKey,
             destinationChainId: request.destinationChainId,
             shoyuBashi: shoyuBashi
         });

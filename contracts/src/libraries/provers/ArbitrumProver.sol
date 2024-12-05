@@ -17,12 +17,10 @@ library ArbitrumProver {
     struct Target {
         /// @dev The address of the L1 contract to validate. Should be Arbitrum's Rollup contract
         address l1Address;
-        /// @dev The storage key on L1 to validate
-        bytes32 l1StorageKey;
         /// @dev The address of the L2 contract to validate.
         address l2Address;
         /// @dev The storage key on L2 to validate.
-        bytes32 l2StorageKey;
+        bytes l2StorageKey;
     }
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof with Arbitrum as the destination chain
@@ -44,6 +42,9 @@ library ArbitrumProver {
 
     /// @notice The storage slot offset of the `confirmData` field in an Arbitrum RBlock
     uint256 private constant _ARBITRUM_RBLOCK_CONFIRMDATA_STORAGE_OFFSET = 2;
+
+    /// @notice The storage key on L1 to validate
+    bytes32 private constant _L1_STORAGE_KEY = 0x0000000000000000000000000000000000000000000000000000000000000076;
 
     /// @notice This error is thrown when verification of the authenticity of the l2Oracle for the destination L2 chain
     /// on Eth mainnet fails
@@ -69,13 +70,13 @@ library ArbitrumProver {
         RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
 
         // Set the expected storage key and value for the destination L2 storage slot
-        proofData.dstL2AccountProofParams.storageKey = abi.encode(target.l2StorageKey);
+        proofData.dstL2AccountProofParams.storageKey = target.l2StorageKey;
 
         // Derive the L1 storage key to use in the storage proof. For Arbitrum, we will use the storage slot containing
         // the `confirmData` field in a posted RBlock
         // See https://github.com/OffchainLabs/nitro-contracts/blob/main/src/rollup/Node.sol#L21 for the RBlock structure
         // See https://github.com/OffchainLabs/nitro-contracts/blob/main/src/rollup/RollupCore.sol#L64 for the mapping location
-        proofData.dstL2StateRootProofParams.storageKey = _deriveL1StorageKey(proofData, target.l1StorageKey);
+        proofData.dstL2StateRootProofParams.storageKey = _deriveL1StorageKey(proofData);
 
         // We first need to validate knowledge of the destination L2 chain's state root.
         // StateValidator.validateState will accomplish each of the following 4 steps:
@@ -120,12 +121,8 @@ library ArbitrumProver {
     }
 
     /// @notice Derives the L1 storageKey using the supplied `nodeIndex` and the `confirmData` storage slot offset
-    function _deriveL1StorageKey(RIP7755Proof memory proofData, bytes32 l1StorageKey)
-        private
-        pure
-        returns (bytes memory)
-    {
-        uint256 startingStorageSlot = uint256(keccak256(abi.encode(proofData.nodeIndex, l1StorageKey)));
+    function _deriveL1StorageKey(RIP7755Proof memory proofData) private pure returns (bytes memory) {
+        uint256 startingStorageSlot = uint256(keccak256(abi.encode(proofData.nodeIndex, _L1_STORAGE_KEY)));
         return abi.encodePacked(startingStorageSlot + _ARBITRUM_RBLOCK_CONFIRMDATA_STORAGE_OFFSET);
     }
 }

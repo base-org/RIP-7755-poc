@@ -191,7 +191,6 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
             destinationChainId: 111112,
             inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // RIP7755Inbox on mock Chain B
             l2Oracle: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // Anchor State Registry on mock L1
-            l2OracleStorageKey: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49, // Anchor State Registry storage slot
             rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,

@@ -23,12 +23,8 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fulfillmentInfo not found at inboxContractStorageKey on request.inboxContract
     /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
     /// chain block timestamp.
-    /// @custom:reverts If the L2StateRoot does not correspond to the validated L1 storage slot
-    ///
-    /// @dev Implementation will vary by L2
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
@@ -41,9 +37,8 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     ) internal view override {
         OPStackProver.Target memory target = OPStackProver.Target({
             l1Address: request.l2Oracle.bytes32ToAddress(),
-            l1StorageKey: request.l2OracleStorageKey,
             l2Address: request.inboxContract.bytes32ToAddress(),
-            l2StorageKey: bytes32(inboxContractStorageKey)
+            l2StorageKey: inboxContractStorageKey
         });
         (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
 

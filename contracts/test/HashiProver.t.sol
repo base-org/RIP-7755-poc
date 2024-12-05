@@ -69,7 +69,7 @@ contract HashiProverTest is Test {
         CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
         HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
 
-        (, uint256 blockNumber, ) = proof.rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
+        (, uint256 blockNumber,) = proof.rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
 
         bytes32 wrongBlockHeaderHash = bytes32(uint256(0));
         shoyuBashi.setHash(HASHI_DOMAIN_DST_CHAIN_ID, blockNumber, wrongBlockHeaderHash);
@@ -113,7 +113,7 @@ contract HashiProverTest is Test {
         });
 
         bytes memory rlpEncodedBlockHeader = json.readBytes(".rlpEncodedBlockHeader");
-        (, uint256 blockNumber, ) = rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
+        (, uint256 blockNumber,) = rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
 
         shoyuBashi.setHash(HASHI_DOMAIN_DST_CHAIN_ID, blockNumber, rlpEncodedBlockHeader.toBlockHash());
 
@@ -136,7 +136,6 @@ contract HashiProverTest is Test {
             destinationChainId: HASHI_DOMAIN_DST_CHAIN_ID,
             inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // RIP7755Inbox on Gnosis Chiado
             l2Oracle: address(0).addressToBytes32(), // we don't use any L1 contract
-            l2OracleStorageKey: bytes32(0), // same as above
             rewardAsset: address(mockErc20).addressToBytes32(),
             rewardAmount: rewardAmount,
             finalityDelaySeconds: 10,
