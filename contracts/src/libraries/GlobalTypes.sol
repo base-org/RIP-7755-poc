@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.24;
+pragma solidity ^0.8.0;
 
 library GlobalTypes {
     function addressToBytes32(address addr) internal pure returns (bytes32) {
