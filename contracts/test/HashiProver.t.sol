@@ -145,10 +145,6 @@ contract HashiProverTest is Test {
         });
     }
 
-    function _initFulfillmentInfo() private view returns (RIP7755Inbox.FulfillmentInfo memory) {
-        return RIP7755Inbox.FulfillmentInfo({timestamp: 1730125190, filler: FILLER});
-    }
-
     function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
         bytes32 requestHash = keccak256(abi.encode(request));
         return abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));

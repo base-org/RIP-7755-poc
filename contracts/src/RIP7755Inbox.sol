@@ -28,7 +28,7 @@ contract RIP7755Inbox {
         /// @dev Block timestamp when fulfilled
         uint96 timestamp;
         /// @dev Msg.sender of fulfillment call
-        address filler;
+        address fulfiller;
     }
 
     // Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
@@ -87,7 +87,7 @@ contract RIP7755Inbox {
             revert CallAlreadyFulfilled();
         }
 
-        _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: fulfiller}));
+        _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
 
         _sendCallsAndValidateMsgValue(request);
 
