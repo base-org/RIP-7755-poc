@@ -23,6 +23,7 @@ contract RIP7755OutboxTest is Test {
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainRequest request);
+    event CrossChainCallCompleted(bytes32 indexed requestHash, address submitter);
     event CrossChainCallCanceled(bytes32 indexed callHash);
 
     function setUp() public {
@@ -215,6 +216,20 @@ contract RIP7755OutboxTest is Test {
                 RIP7755Outbox.CrossChainCallStatus.Canceled
             )
         );
+        outbox.claimReward(request, storageProofData, FILLER);
+    }
+
+    function test_claimReward_emitsEvent(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        CrossChainRequest memory request = _submitRequest(rewardAmount);
+        bytes memory storageProofData = abi.encode(true);
+        bytes32 requestHash = outbox.hashRequest(request);
+
+        vm.prank(FILLER);
+        vm.expectEmit(true, false, false, true);
+        emit CrossChainCallCompleted(requestHash, FILLER);
         outbox.claimReward(request, storageProofData, FILLER);
     }
 

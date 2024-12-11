@@ -50,6 +50,11 @@ abstract contract RIP7755Outbox {
     /// @param request The requested cross chain call
     event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainRequest request);
 
+    /// @notice Event emitted when a cross chain call is successfully completed
+    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    /// @param submitter The address of the fulfiller that successfully completed the cross chain call
+    event CrossChainCallCompleted(bytes32 indexed requestHash, address submitter);
+
     /// @notice Event emitted when an expired cross chain call request is canceled
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     event CrossChainCallCanceled(bytes32 indexed requestHash);
@@ -129,6 +134,8 @@ abstract contract RIP7755Outbox {
         _requestStatus[requestHash] = CrossChainCallStatus.Completed;
 
         _sendReward(request, payTo);
+
+        emit CrossChainCallCompleted(requestHash, msg.sender);
     }
 
     /// @notice Cancels a pending request that has expired
@@ -249,7 +256,7 @@ abstract contract RIP7755Outbox {
         returns (RIP7755Inbox.FulfillmentInfo memory)
     {
         RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo;
-        fulfillmentInfo.filler = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
+        fulfillmentInfo.fulfiller = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
         fulfillmentInfo.timestamp = uint96(uint256(inboxContractStorageValue));
         return fulfillmentInfo;
     }

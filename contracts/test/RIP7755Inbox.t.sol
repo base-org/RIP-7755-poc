@@ -63,7 +63,7 @@ contract RIP7755InboxTest is Test {
         bytes32 requestHash = inbox.hashRequest(request);
         RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
 
-        assertEq(info.filler, FULFILLER);
+        assertEq(info.fulfiller, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
@@ -152,7 +152,7 @@ contract RIP7755InboxTest is Test {
         bytes32 requestHash = inbox.hashRequest(request);
         RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
 
-        assertEq(info.filler, FULFILLER);
+        assertEq(info.fulfiller, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
@@ -167,7 +167,7 @@ contract RIP7755InboxTest is Test {
         bytes32 requestHash = inbox.hashRequest(request);
         RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
 
-        assertEq(info.filler, FULFILLER);
+        assertEq(info.fulfiller, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
