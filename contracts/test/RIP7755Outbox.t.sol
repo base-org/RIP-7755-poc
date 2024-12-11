@@ -219,10 +219,7 @@ contract RIP7755OutboxTest is Test {
         outbox.claimReward(request, storageProofData, FILLER);
     }
 
-    function test_claimReward_emitsEvent(uint256 rewardAmount)
-        external
-        fundAlice(rewardAmount)
-    {
+    function test_claimReward_emitsEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
         CrossChainRequest memory request = _submitRequest(rewardAmount);
         bytes memory storageProofData = abi.encode(true);
         bytes32 requestHash = outbox.hashRequest(request);
