@@ -6,13 +6,22 @@ import {Script} from "forge-std/Script.sol";
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 import {CrossChainRequest, Call} from "../../src/RIP7755Structs.sol";
+import {HelperConfig} from "../HelperConfig.s.sol";
 
 contract SubmitRequest is Script {
     using GlobalTypes for address;
 
+    HelperConfig public helperConfig;
+
+    bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
+
+    constructor() {
+        helperConfig = new HelperConfig();
+    }
+
     function run() external {
-        uint256 pk = vm.envUint("PRIVATE_KEY");
-        RIP7755Outbox outbox = RIP7755Outbox(0xBCd5762cF9B07EF5597014c350CE2efB2b0DB2D2);
+        (,address opStackOutbox,,,,uint256 pk) = helperConfig.networkConfig();
+        RIP7755Outbox outbox = RIP7755Outbox(opStackOutbox);
 
         CrossChainRequest memory request = _getRequest();
 
@@ -21,20 +30,29 @@ contract SubmitRequest is Script {
         vm.stopBroadcast();
     }
 
-    function _getRequest() private pure returns (CrossChainRequest memory) {
+    function _getRequest() private view returns (CrossChainRequest memory) {
+        HelperConfig.NetworkConfig memory config = helperConfig.getBaseSepoliaConfig();
+
+        Call[] memory calls = new Call[](1);
+        calls[0] = Call({
+            to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(),
+            data: "",
+            value: 0.0001 ether
+        });
+
         return CrossChainRequest({
             requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32(),
-            calls: new Call[](0),
-            sourceChainId: 11155420,
-            origin: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(), // RIP7755Inbox on Optimism Sepolia
-            destinationChainId: 11155420,
-            inboxContract: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(), // RIP7755Inbox on Optimism Sepolia
-            l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629.addressToBytes32(), // Anchor State Registry on Sepolia
-            rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(),
-            rewardAmount: 1 ether,
-            finalityDelaySeconds: 10,
-            nonce: 1,
-            expiry: 1828828574,
+            calls: calls,
+            sourceChainId: 0,
+            origin: bytes32(0),
+            destinationChainId: config.chainId,
+            inboxContract: config.inbox.addressToBytes32(),
+            l2Oracle: config.l2Oracle.addressToBytes32(),
+            rewardAsset: _NATIVE_ASSET,
+            rewardAmount: 0.0002 ether,
+            finalityDelaySeconds: 1 weeks,
+            nonce: 0,
+            expiry: block.timestamp + 2 weeks,
             extraData: new bytes[](0)
         });
     }
