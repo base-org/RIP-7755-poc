@@ -36,6 +36,8 @@ export default {
     targetProver: Provers.Arbitrum,
     exposesL1State: false,
     sharesStateWithL1: true,
+    etherscanApiKey: process.env.ARBISCAN_API_KEY,
+    etherscanApiUrl: "https://api-sepolia.arbiscan.io",
   },
   // Base Sepolia
   84532: {
@@ -59,6 +61,8 @@ export default {
     targetProver: Provers.OPStack,
     exposesL1State: true,
     sharesStateWithL1: true,
+    etherscanApiKey: process.env.BASESCAN_API_KEY,
+    etherscanApiUrl: "https://api-sepolia.basescan.org",
   },
   // Optimism Sepolia
   11155420: {
@@ -85,6 +89,8 @@ export default {
     targetProver: Provers.OPStack,
     exposesL1State: true,
     sharesStateWithL1: true,
+    etherscanApiKey: process.env.OPTIMISM_API_KEY,
+    etherscanApiUrl: "https://api-sepolia-optimistic.etherscan.io",
   },
   // Sepolia
   11155111: {
@@ -101,6 +107,8 @@ export default {
     targetProver: Provers.None,
     exposesL1State: false,
     sharesStateWithL1: false,
+    etherscanApiKey: process.env.ETHERSCAN_API_KEY,
+    etherscanApiUrl: "",
   },
   // Mock Base
   111111: {
@@ -123,6 +131,8 @@ export default {
     targetProver: Provers.OPStack,
     exposesL1State: true,
     sharesStateWithL1: true,
+    etherscanApiKey: "",
+    etherscanApiUrl: "",
   },
   // Mock Optimism
   111112: {
@@ -146,6 +156,8 @@ export default {
     targetProver: Provers.OPStack,
     exposesL1State: true,
     sharesStateWithL1: true,
+    etherscanApiKey: "",
+    etherscanApiUrl: "",
   },
   // Mock L1
   31337: {
@@ -162,5 +174,7 @@ export default {
     targetProver: Provers.None,
     exposesL1State: false,
     sharesStateWithL1: false,
+    etherscanApiKey: "",
+    etherscanApiUrl: "",
   },
 } as Record<number, ChainConfig>;
