@@ -1,3 +1,4 @@
+import { sleep } from "bun";
 import { decodeEventLog, type Address } from "viem";
 
 import ChainService from "../chain/chain.service";
@@ -9,6 +10,7 @@ import type { RequestType } from "../common/types/request";
 import SignerService from "../signer/signer.service";
 import DBService from "../database/db.service";
 import HandlerService from "../handler/handler.service";
+import config from "../config";
 
 export default class IndexerService {
   constructor(
@@ -16,9 +18,38 @@ export default class IndexerService {
     private readonly configService: ConfigService
   ) {}
 
-  async poll(
+  async startPoll(
     sourceChain: SupportedChains,
-    startingBlock: number
+    startingBlock: number,
+    outboxAddress: Address
+  ) {
+    let success = false;
+
+    while (true) {
+      try {
+        startingBlock = await this.poll(
+          sourceChain,
+          startingBlock,
+          outboxAddress
+        );
+        success = true;
+      } catch (e) {
+        console.error(e);
+
+        if (!success) {
+          console.error("First process failed - exiting...");
+          break;
+        }
+      } finally {
+        await sleep(3000);
+      }
+    }
+  }
+
+  private async poll(
+    sourceChain: SupportedChains,
+    startingBlock: number,
+    outboxAddress: Address
   ): Promise<number> {
     const configChains = {
       src: chains[sourceChain],
@@ -27,7 +58,7 @@ export default class IndexerService {
     };
     const chainService = new ChainService(configChains, this.configService);
 
-    const logs = await chainService.getOutboxLogs(startingBlock);
+    const logs = await chainService.getOutboxLogs(startingBlock, outboxAddress);
 
     if (logs.length === 0) {
       return startingBlock;
@@ -85,7 +116,7 @@ export default class IndexerService {
 
     const activeChains = {
       src: chains[sourceChain],
-      l1: chains[SupportedChains.Sepolia],
+      l1: chains[config.l1],
       dst: chains[Number(request.destinationChainId)],
     };
 
@@ -93,7 +124,7 @@ export default class IndexerService {
       throw new Error(`Invalid Source Chain: ${sourceChain}`);
     }
     if (!activeChains.l1) {
-      throw new Error(`Invalid L1 Chain: ${SupportedChains.Sepolia}`);
+      throw new Error(`Invalid L1 Chain: ${config.l1}`);
     }
     if (!activeChains.dst) {
       throw new Error(

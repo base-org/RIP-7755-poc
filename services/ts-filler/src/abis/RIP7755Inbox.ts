@@ -10,15 +10,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -28,10 +28,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -39,23 +40,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -70,11 +66,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
       { name: "fulfiller", type: "address", internalType: "address" },
@@ -93,7 +88,11 @@ export default [
         internalType: "struct RIP7755Inbox.FulfillmentInfo",
         components: [
           { name: "timestamp", type: "uint96", internalType: "uint96" },
-          { name: "filler", type: "address", internalType: "address" },
+          {
+            name: "fulfiller",
+            type: "address",
+            internalType: "address",
+          },
         ],
       },
     ],
@@ -110,15 +109,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -128,10 +127,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -139,23 +139,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -170,11 +165,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
     ],
@@ -214,4 +208,13 @@ export default [
   { type: "error", name: "FailedInnerCall", inputs: [] },
   { type: "error", name: "InvalidChainId", inputs: [] },
   { type: "error", name: "InvalidInboxContract", inputs: [] },
+  { type: "error", name: "InvalidPrecheckData", inputs: [] },
+  {
+    type: "error",
+    name: "InvalidValue",
+    inputs: [
+      { name: "expected", type: "uint256", internalType: "uint256" },
+      { name: "actual", type: "uint256", internalType: "uint256" },
+    ],
+  },
 ] as const;

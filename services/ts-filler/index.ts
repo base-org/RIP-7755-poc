@@ -1,5 +1,3 @@
-import { sleep } from "bun";
-
 import { SupportedChains } from "./src/common/types/chain";
 import IndexerService from "./src/indexer/indexer.service";
 import DBService from "./src/database/db.service";
@@ -14,26 +12,18 @@ async function main() {
   const indexerService = new IndexerService(dbService, configService);
   new RewardMonitorService(dbService, configService);
 
-  let success = false;
   let startingBlock = Number(
     await chains[sourceChain].publicClient.getBlockNumber()
   );
 
-  while (true) {
-    try {
-      startingBlock = await indexerService.poll(sourceChain, startingBlock);
-      success = true;
-    } catch (e) {
-      console.error(e);
+  const outboxes = Object.values(chains[sourceChain].outboxContracts);
 
-      if (!success) {
-        console.error("First process failed - exiting...");
-        break;
-      }
-    } finally {
-      await sleep(3000);
-    }
-  }
+  console.log("Starting polls for outboxes:", outboxes);
+  await Promise.allSettled(
+    outboxes.map((outbox) =>
+      indexerService.startPoll(sourceChain, startingBlock, outbox)
+    )
+  );
 }
 
 main().catch((error) => {
