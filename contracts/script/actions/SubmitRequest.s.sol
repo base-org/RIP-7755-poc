@@ -20,34 +20,35 @@ contract SubmitRequest is Script {
     }
 
     function run() external {
-        (,address opStackOutbox,,,,uint256 pk) = helperConfig.networkConfig();
-        RIP7755Outbox outbox = RIP7755Outbox(opStackOutbox);
+        HelperConfig.NetworkConfig memory config = helperConfig.getConfig(block.chainid);
 
-        CrossChainRequest memory request = _getRequest();
+        address outboxAddr = config.hashiOutbox;
+        uint256 destinationChainId = helperConfig.BASE_SEPOLIA_CHAIN_ID();
 
-        vm.startBroadcast(pk);
+        RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
+
+        CrossChainRequest memory request = _getRequest(destinationChainId);
+
+        vm.startBroadcast(config.deployerKey);
         outbox.requestCrossChainCall{value: request.rewardAmount}(request);
         vm.stopBroadcast();
     }
 
-    function _getRequest() private view returns (CrossChainRequest memory) {
-        HelperConfig.NetworkConfig memory config = helperConfig.getBaseSepoliaConfig();
+    function _getRequest(uint256 destinationChainId) private view returns (CrossChainRequest memory) {
+        HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
 
         Call[] memory calls = new Call[](1);
-        calls[0] = Call({
-            to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(),
-            data: "",
-            value: 0.0001 ether
-        });
+        calls[0] =
+            Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
         return CrossChainRequest({
-            requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32(),
+            requester: bytes32(0),
             calls: calls,
             sourceChainId: 0,
             origin: bytes32(0),
-            destinationChainId: config.chainId,
-            inboxContract: config.inbox.addressToBytes32(),
-            l2Oracle: config.l2Oracle.addressToBytes32(),
+            destinationChainId: dstConfig.chainId,
+            inboxContract: dstConfig.inbox.addressToBytes32(),
+            l2Oracle: dstConfig.l2Oracle.addressToBytes32(),
             rewardAsset: _NATIVE_ASSET,
             rewardAmount: 0.0002 ether,
             finalityDelaySeconds: 1 weeks,

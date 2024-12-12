@@ -19,6 +19,8 @@ ARBITRUM_RPC = $(ARBITRUM_SEPOLIA_RPC)
 OPTIMISM_RPC = $(CHAIN_B_URL)
 BASE_RPC = $(CHAIN_A_URL)
 
+SUBMIT_REQUEST_RPC = $(ARBITRUM_SEPOLIA_RPC)
+
 test:
 	forge fmt
 	forge test
@@ -70,7 +72,7 @@ verify-base-sepolia:
 	forge verify-contract 0xB482b292878FDe64691d028A2237B34e91c7c7ea src/RIP7755Inbox.sol:RIP7755Inbox --rpc-url $(BASE_RPC) --etherscan-api-key $(BASESCAN_API_KEY)
 
 submit-request:
-	forge script script/actions/SubmitRequest.s.sol:SubmitRequest --rpc-url $(ARBITRUM_RPC) --broadcast -vvvv
+	forge script script/actions/SubmitRequest.s.sol:SubmitRequest --rpc-url $(SUBMIT_REQUEST_RPC) --broadcast -vvvv
 
 fulfill-request:
 	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/actions/SubmitToInbox.s.sol:SubmitToInbox --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv
