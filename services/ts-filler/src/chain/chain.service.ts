@@ -189,8 +189,8 @@ export default class ChainService {
     fromBlock: number,
     outboxAddress: Address
   ): Promise<Log[]> {
-    const arbiscanApiKey = this.configService.getOrThrow("ARBISCAN_API_KEY");
-    const url = `https://api-sepolia.arbiscan.io/api?module=logs&action=getLogs&address=${outboxAddress}&topic0=0x513fade1f2861a5deef5d7a92a5b2ca923eae36c137aa45ebe2ecc62ae3fbf07&page=1&apikey=${arbiscanApiKey}&fromBlock=${fromBlock}`;
+    const apiKey = this.activeChains.src.etherscanApiKey;
+    const url = `${this.activeChains.src.etherscanApiUrl}/api?module=logs&action=getLogs&address=${outboxAddress}&topic0=0x513fade1f2861a5deef5d7a92a5b2ca923eae36c137aa45ebe2ecc62ae3fbf07&page=1&apikey=${apiKey}&fromBlock=${fromBlock}`;
 
     return await this.request(url);
   }

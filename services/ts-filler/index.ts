@@ -6,7 +6,7 @@ import ConfigService from "./src/config/config.service";
 import chains from "./src/chain/chains";
 
 async function main() {
-  const sourceChain = SupportedChains.ArbitrumSepolia;
+  const sourceChain = SupportedChains.BaseSepolia;
   const dbService = new DBService();
   const configService = new ConfigService();
   const indexerService = new IndexerService(dbService, configService);

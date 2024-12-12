@@ -20,6 +20,8 @@ export type ChainConfig = {
   targetProver: Provers;
   exposesL1State: boolean;
   sharesStateWithL1: boolean;
+  etherscanApiKey: string;
+  etherscanApiUrl: string;
 };
 
 export enum SupportedChains {
