@@ -17,15 +17,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -35,10 +35,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -46,23 +47,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -77,11 +73,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
     ],
@@ -99,15 +94,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -117,10 +112,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -128,23 +124,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -159,20 +150,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
-        ],
-      },
-      {
-        name: "fulfillmentInfo",
-        type: "tuple",
-        internalType: "struct RIP7755Inbox.FulfillmentInfo",
-        components: [
-          { name: "timestamp", type: "uint96", internalType: "uint96" },
-          { name: "filler", type: "address", internalType: "address" },
         ],
       },
       { name: "proof", type: "bytes", internalType: "bytes" },
@@ -205,15 +186,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -223,10 +204,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -234,23 +216,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -265,11 +242,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
     ],
@@ -287,15 +263,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -305,10 +281,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -316,23 +293,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -347,11 +319,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
     ],
@@ -369,15 +340,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -387,10 +358,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -398,23 +370,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -429,11 +396,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
     ],
@@ -449,6 +415,25 @@ export default [
         type: "bytes32",
         indexed: true,
         internalType: "bytes32",
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: "event",
+    name: "CrossChainCallCompleted",
+    inputs: [
+      {
+        name: "requestHash",
+        type: "bytes32",
+        indexed: true,
+        internalType: "bytes32",
+      },
+      {
+        name: "submitter",
+        type: "address",
+        indexed: false,
+        internalType: "address",
       },
     ],
     anonymous: false,
@@ -471,15 +456,15 @@ export default [
         components: [
           {
             name: "requester",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "calls",
             type: "tuple[]",
             internalType: "struct Call[]",
             components: [
-              { name: "to", type: "address", internalType: "address" },
+              { name: "to", type: "bytes32", internalType: "bytes32" },
               { name: "data", type: "bytes", internalType: "bytes" },
               {
                 name: "value",
@@ -489,10 +474,11 @@ export default [
             ],
           },
           {
-            name: "proverContract",
-            type: "address",
-            internalType: "address",
+            name: "sourceChainId",
+            type: "uint256",
+            internalType: "uint256",
           },
+          { name: "origin", type: "bytes32", internalType: "bytes32" },
           {
             name: "destinationChainId",
             type: "uint256",
@@ -500,23 +486,18 @@ export default [
           },
           {
             name: "inboxContract",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "l2Oracle",
-            type: "address",
-            internalType: "address",
-          },
-          {
-            name: "l2OracleStorageKey",
             type: "bytes32",
             internalType: "bytes32",
           },
           {
             name: "rewardAsset",
-            type: "address",
-            internalType: "address",
+            type: "bytes32",
+            internalType: "bytes32",
           },
           {
             name: "rewardAmount",
@@ -531,11 +512,10 @@ export default [
           { name: "nonce", type: "uint256", internalType: "uint256" },
           { name: "expiry", type: "uint256", internalType: "uint256" },
           {
-            name: "precheckContract",
-            type: "address",
-            internalType: "address",
+            name: "extraData",
+            type: "bytes[]",
+            internalType: "bytes[]",
           },
-          { name: "precheckData", type: "bytes", internalType: "bytes" },
         ],
       },
     ],
@@ -553,6 +533,20 @@ export default [
   },
   {
     type: "error",
+    name: "BeaconRootDoesNotMatch",
+    inputs: [
+      { name: "expected", type: "bytes32", internalType: "bytes32" },
+      { name: "actual", type: "bytes32", internalType: "bytes32" },
+    ],
+  },
+  {
+    type: "error",
+    name: "BeaconRootsOracleCallFailed",
+    inputs: [{ name: "callData", type: "bytes", internalType: "bytes" }],
+  },
+  { type: "error", name: "BytesLengthExceeds32", inputs: [] },
+  {
+    type: "error",
     name: "CannotCancelRequestBeforeExpiry",
     inputs: [
       {
@@ -563,8 +557,18 @@ export default [
       { name: "expiry", type: "uint256", internalType: "uint256" },
     ],
   },
+  { type: "error", name: "ContentLengthMismatch", inputs: [] },
+  { type: "error", name: "EmptyItem", inputs: [] },
+  {
+    type: "error",
+    name: "ExecutionStateRootMerkleProofFailed",
+    inputs: [],
+  },
   { type: "error", name: "ExpiryTooSoon", inputs: [] },
   { type: "error", name: "FailedInnerCall", inputs: [] },
+  { type: "error", name: "FinalityDelaySecondsInProgress", inputs: [] },
+  { type: "error", name: "InvalidAccountRLP", inputs: [] },
+  { type: "error", name: "InvalidBlockFieldRLP", inputs: [] },
   {
     type: "error",
     name: "InvalidCaller",
@@ -577,6 +581,11 @@ export default [
       },
     ],
   },
+  { type: "error", name: "InvalidDataRemainder", inputs: [] },
+  { type: "error", name: "InvalidHeader", inputs: [] },
+  { type: "error", name: "InvalidL1Storage", inputs: [] },
+  { type: "error", name: "InvalidL2StateRoot", inputs: [] },
+  { type: "error", name: "InvalidL2Storage", inputs: [] },
   {
     type: "error",
     name: "InvalidStatus",
@@ -607,4 +616,6 @@ export default [
     name: "SafeERC20FailedOperation",
     inputs: [{ name: "token", type: "address", internalType: "address" }],
   },
+  { type: "error", name: "UnexpectedList", inputs: [] },
+  { type: "error", name: "UnexpectedString", inputs: [] },
 ] as const;

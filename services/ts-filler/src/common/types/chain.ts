@@ -11,7 +11,7 @@ export type DecodedNodeCreatedLog = { args: { assertion: any } };
 
 export type ChainConfig = {
   chainId: number;
-  proverContracts: Record<string, Address>;
+  outboxContracts: Record<string, Address>;
   rpcUrl: string;
   l2Oracle: Address;
   l2OracleStorageKey: Address;
@@ -38,6 +38,6 @@ export type ActiveChains = {
 
 export enum Provers {
   None = "None",
-  ArbitrumProver = "ArbitrumProver",
-  OPStackProver = "OPStackProver",
+  Arbitrum = "Arbitrum",
+  OPStack = "OPStack",
 }

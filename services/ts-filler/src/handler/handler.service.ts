@@ -5,6 +5,7 @@ import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
 import type { ActiveChains } from "../common/types/chain";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
+import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 
 export default class HandlerService {
   constructor(
@@ -17,14 +18,14 @@ export default class HandlerService {
     requestHash: Address,
     request: RequestType
   ): Promise<void> {
-    // - Confirm valid proverContract address on source chain
+    // - Confirm outbox is associated with destination chain ID
     const proverName = this.activeChains.dst.targetProver;
     const expectedProverAddr =
-      this.activeChains.src.proverContracts[proverName].toLowerCase();
+      this.activeChains.src.outboxContracts[proverName];
 
     if (
-      this.activeChains.src.proverContracts[proverName].toLowerCase() !==
-      expectedProverAddr
+      expectedProverAddr &&
+      bytes32ToAddress(request.origin) !== expectedProverAddr.toLowerCase()
     ) {
       throw new Error("Unknown Prover contract");
     }
@@ -32,23 +33,17 @@ export default class HandlerService {
     // - Make sure inboxContract matches the trusted inbox for dst chain Id
     if (
       this.activeChains.dst.contracts.inbox.toLowerCase() !==
-      request.inboxContract.toLowerCase()
+      bytes32ToAddress(request.inboxContract)
     ) {
       throw new Error("Unknown Inbox contract on dst chain");
     }
 
-    // - Confirm l2Oracle and l2OracleStorageKey are valid for dst chain
+    // - Confirm l2Oracle is valid for dst chain
     if (
-      request.l2Oracle.toLowerCase() !==
+      bytes32ToAddress(request.l2Oracle) !==
       this.activeChains.dst.l2Oracle.toLowerCase()
     ) {
       throw new Error("Unkown Oracle contract for dst chain");
-    }
-    if (
-      request.l2OracleStorageKey.toLowerCase() !==
-      this.activeChains.dst.l2OracleStorageKey.toLowerCase()
-    ) {
-      throw new Error("Unknown storage key for dst L2Oracle");
     }
 
     // - Add up total value needed
@@ -60,7 +55,7 @@ export default class HandlerService {
 
     // Gather transaction params
     const fulfillerAddr = this.signerService.getFulfillerAddress();
-    const address = request.inboxContract;
+    const address = bytes32ToAddress(request.inboxContract);
     const abi = RIP7755Inbox;
     const functionName = "fulfill";
     const args = [request, fulfillerAddr];
@@ -122,7 +117,7 @@ export default class HandlerService {
     console.log("Validating reward");
     // This is a simplified case to just support ETH rewards. More sophisticated validation needed to support ERC20 rewards
     return (
-      request.rewardAsset.toLowerCase() ===
+      bytes32ToAddress(request.rewardAsset) ===
         "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
       request.rewardAmount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
     );

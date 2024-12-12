@@ -14,6 +14,7 @@ import type {
   ArbitrumProofType,
   OPStackProofType,
 } from "../common/types/proof";
+import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 
 export default class RewardMonitorService {
   private processing = false;
@@ -75,7 +76,7 @@ export default class RewardMonitorService {
     );
 
     const txnHash = await signerService.sendTransaction(
-      activeChains.src.contracts.outbox,
+      bytes32ToAddress(job.request.origin),
       RIP7755Outbox,
       functionName,
       args
