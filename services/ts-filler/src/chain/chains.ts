@@ -34,6 +34,8 @@ export default {
       transport: http(process.env.ARBITRUM_SEPOLIA_RPC),
     }),
     targetProver: Provers.Arbitrum,
+    exposesL1State: false,
+    sharesStateWithL1: true,
   },
   // Base Sepolia
   84532: {
@@ -55,6 +57,8 @@ export default {
       transport: http(),
     }),
     targetProver: Provers.OPStack,
+    exposesL1State: true,
+    sharesStateWithL1: true,
   },
   // Optimism Sepolia
   11155420: {
@@ -79,6 +83,8 @@ export default {
       transport: http(),
     }),
     targetProver: Provers.OPStack,
+    exposesL1State: true,
+    sharesStateWithL1: true,
   },
   // Sepolia
   11155111: {
@@ -93,6 +99,8 @@ export default {
       transport: http(process.env.SEPOLIA_RPC),
     }),
     targetProver: Provers.None,
+    exposesL1State: false,
+    sharesStateWithL1: false,
   },
   // Mock Base
   111111: {
@@ -113,6 +121,8 @@ export default {
       transport: http(),
     }),
     targetProver: Provers.OPStack,
+    exposesL1State: true,
+    sharesStateWithL1: true,
   },
   // Mock Optimism
   111112: {
@@ -134,6 +144,8 @@ export default {
       transport: http(),
     }),
     targetProver: Provers.OPStack,
+    exposesL1State: true,
+    sharesStateWithL1: true,
   },
   // Mock L1
   31337: {
@@ -148,5 +160,7 @@ export default {
       transport: http(),
     }),
     targetProver: Provers.None,
+    exposesL1State: false,
+    sharesStateWithL1: false,
   },
 } as Record<number, ChainConfig>;

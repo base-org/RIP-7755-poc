@@ -3,7 +3,7 @@ import type { Address } from "viem";
 import type { RequestType } from "../common/types/request";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
-import type { ActiveChains } from "../common/types/chain";
+import { Provers, type ActiveChains } from "../common/types/chain";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
 import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 
@@ -19,7 +19,13 @@ export default class HandlerService {
     request: RequestType
   ): Promise<void> {
     // - Confirm outbox is associated with destination chain ID
-    const proverName = this.activeChains.dst.targetProver;
+    // Use Hashi if source chain doesn't expose L1 state OR dst chain doesn't share state with L1
+    const proverName =
+      this.activeChains.src.exposesL1State &&
+      this.activeChains.dst.sharesStateWithL1
+        ? this.activeChains.dst.targetProver
+        : Provers.Hashi;
+
     const expectedProverAddr =
       this.activeChains.src.outboxContracts[proverName];
 
