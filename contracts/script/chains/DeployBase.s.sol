@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 
 import {RIP7755OutboxToArbitrum} from "../../src/outboxes/RIP7755OutboxToArbitrum.sol";
 import {RIP7755OutboxToOPStack} from "../../src/outboxes/RIP7755OutboxToOPStack.sol";
+import {RIP7755OutboxToHashi} from "../../src/outboxes/RIP7755OutboxToHashi.sol";
 import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
 
 contract DeployBase is Script {
@@ -15,6 +16,7 @@ contract DeployBase is Script {
         new RIP7755Inbox();
         new RIP7755OutboxToArbitrum();
         new RIP7755OutboxToOPStack();
+        new RIP7755OutboxToHashi();
         vm.stopBroadcast();
     }
 }
