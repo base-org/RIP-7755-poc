@@ -18,6 +18,8 @@ export type ChainConfig = {
   publicClient: any;
   contracts: Record<string, Address>;
   targetProver: Provers;
+  exposesL1State: boolean;
+  sharesStateWithL1: boolean;
 };
 
 export enum SupportedChains {
@@ -40,4 +42,5 @@ export enum Provers {
   None = "None",
   Arbitrum = "Arbitrum",
   OPStack = "OPStack",
+  Hashi = "Hashi",
 }
