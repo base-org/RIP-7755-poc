@@ -10,5 +10,11 @@ contract MockOutbox is RIP7755Outbox {
         bytes memory inboxContractStorageKey,
         CrossChainRequest calldata request,
         bytes calldata proofData
+    ) internal {}
+
+    function _validateProof2(
+        bytes memory inboxContractStorageKey,
+        bytes[] calldata attributes,
+        bytes calldata proofData
     ) internal override {}
 }

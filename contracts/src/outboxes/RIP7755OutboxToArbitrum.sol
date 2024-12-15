@@ -36,7 +36,7 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
         bytes memory inboxContractStorageKey,
         CrossChainRequest calldata request,
         bytes calldata proof
-    ) internal view override {
+    ) internal view {
         ArbitrumProver.Target memory target = ArbitrumProver.Target({
             l1Address: request.l2Oracle.bytes32ToAddress(),
             l2Address: request.inboxContract.bytes32ToAddress(),
@@ -51,4 +51,10 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
             revert FinalityDelaySecondsInProgress();
         }
     }
+
+    function _validateProof2(
+        bytes memory inboxContractStorageKey,
+        bytes[] calldata attributes,
+        bytes calldata proofData
+    ) internal override {}
 }

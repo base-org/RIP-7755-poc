@@ -45,7 +45,7 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         bytes memory inboxContractStorageKey,
         CrossChainRequest calldata request,
         bytes calldata proof
-    ) internal view override {
+    ) internal view {
         if (request.extraData.length != EXPECTED_EXTRA_DATA_LENGTH) revert InvalidExtraDataLength();
         /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
         (address shoyuBashi) = abi.decode(request.extraData[1], (address));
@@ -64,4 +64,10 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
             revert FinalityDelaySecondsInProgress();
         }
     }
+
+    function _validateProof2(
+        bytes memory inboxContractStorageKey,
+        bytes[] calldata attributes,
+        bytes calldata proofData
+    ) internal override {}
 }

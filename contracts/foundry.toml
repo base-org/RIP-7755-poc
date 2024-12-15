@@ -4,5 +4,4 @@ out = "out"
 libs = ["lib"]
 solc_version = "0.8.24"
 fs_permissions = [{ access = "read-write", path = "./"}]
-evm_version = "shanghai"
 extra_output_files = ['abi']

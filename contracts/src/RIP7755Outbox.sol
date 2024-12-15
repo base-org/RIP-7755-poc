@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {SafeERC20, IERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
+import {CAIP10} from "./libraries/CAIP10.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "./RIP7755Inbox.sol";
-import {CrossChainRequest} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Outbox
 ///
@@ -20,6 +19,7 @@ abstract contract RIP7755Outbox {
     using SafeERC20 for IERC20;
     using GlobalTypes for address;
     using GlobalTypes for bytes32;
+    using CAIP10 for address;
 
     /// @notice An enum representing the status of an RIP-7755 cross chain call
     enum CrossChainCallStatus {
@@ -29,8 +29,8 @@ abstract contract RIP7755Outbox {
         Completed
     }
 
-    /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its current status
-    mapping(bytes32 requestHash => CrossChainCallStatus status) private _requestStatus;
+    /// @notice A mapping from the keccak256 hash of a message request to its current status
+    mapping(bytes32 messageId => CrossChainCallStatus status) private _messageStatus;
 
     /// @notice The bytes32 representation of the address representing the native currency of the blockchain this contract is deployed on following ERC-7528
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
@@ -42,13 +42,34 @@ abstract contract RIP7755Outbox {
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
 
+    /// @notice The selector for the nonce attribute
+    bytes4 private constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
+
+    /// @notice The selector for the reward attribute
+    bytes4 private constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
+
+    /// @notice The selector for the delay attribute
+    bytes4 private constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
+
+    /// @notice The selector for the requester attribute
+    bytes4 private constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
+
+    /// @notice The expected length of the attributes array supplied to `sendMessage`
+    uint256 private constant _EXPECTED_ATTRIBUTE_LENGTH = 2;
+
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
 
-    /// @notice Event emitted when a user requests a cross chain call to be made by a filler
-    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
-    /// @param request The requested cross chain call
-    event CrossChainCallRequested(bytes32 indexed requestHash, CrossChainRequest request);
+    /// @notice Event emitted when a user sends a message to the `RIP7755Inbox`
+    /// @param outboxId The keccak256 hash of the message request
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param payload The encoded calls array
+    /// @param value The value of the transaction
+    /// @param attributes The attributes to be included in the message
+    event MessagePosted(
+        bytes32 indexed outboxId, string sender, string receiver, bytes payload, uint256 value, bytes[] attributes
+    );
 
     /// @notice Event emitted when a cross chain call is successfully completed
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
@@ -84,122 +105,189 @@ abstract contract RIP7755Outbox {
     /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
     error ExpiryTooSoon();
 
-    /// @notice This error is thrown if the prover contract fails to validate the storage proof for a cross chain call
-    /// being submitted to `RIP7755Inbox`
-    error ProofValidationFailed();
+    /// @notice This error is thrown if an unsupported attribute is provided
+    /// @param selector The selector of the unsupported attribute
+    error UnsupportedAttribute(bytes4 selector);
 
-    /// @notice Submits an RIP-7755 request for a cross chain call
+    /// @notice This error is thrown if the attribute length supplied to `sendMessage` is not equal to the expected length
+    /// @param expected The expected length of the attributes
+    /// @param actual The actual length of the attributes
+    error InvalidAttributeLength(uint256 expected, uint256 actual);
+
+    /// @notice This error is thrown if an attribute is not found in the attributes array
+    /// @param selector The selector of the attribute that was not found
+    error AttributeNotFound(bytes4 selector);
+
+    /// @notice Initiates the sending of a message
     ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    function requestCrossChainCall(CrossChainRequest memory request) external payable {
-        request.nonce = _getNextNonce();
-        request.requester = msg.sender.addressToBytes32();
-        request.sourceChainId = block.chainid;
-        request.origin = address(this).addressToBytes32();
-        bool usingNativeCurrency = request.rewardAsset == _NATIVE_ASSET;
-        uint256 expectedValue = usingNativeCurrency ? request.rewardAmount : 0;
+    /// @custom:reverts If the attribute length is not equal to 2
+    /// @custom:reverts If an unsupported attribute is provided
+    ///
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param payload The encoded calls array
+    /// @param attributes The attributes to be included in the message
+    ///
+    /// @return messageId The generated message id
+    function sendMessage(
+        string calldata, // destinationChain The CAIP-2 chain identifier of the destination chain
+        string calldata receiver,
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) external payable returns (bytes32) {
+        bytes[] memory expandedAttributes = _processAttributes(attributes);
+        string memory sender = address(this).local();
 
-        if (msg.value != expectedValue) {
-            revert InvalidValue(expectedValue, msg.value);
-        }
-        if (request.expiry < block.timestamp + request.finalityDelaySeconds) {
-            revert ExpiryTooSoon();
-        }
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, expandedAttributes));
+        _messageStatus[messageId] = CrossChainCallStatus.Requested;
 
-        bytes32 requestHash = hashRequestMemory(request);
-        _requestStatus[requestHash] = CrossChainCallStatus.Requested;
+        emit MessagePosted(messageId, sender, receiver, payload, msg.value, expandedAttributes);
 
-        if (!usingNativeCurrency) {
-            _pullERC20({owner: msg.sender, asset: request.rewardAsset.bytes32ToAddress(), amount: request.rewardAmount});
-        }
-
-        emit CrossChainCallRequested(requestHash, request);
+        return messageId;
     }
 
     /// @notice To be called by a Filler that successfully submitted a cross chain request to the destination chain and
     /// can prove it with a valid nested storage proof
     ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param payload The encoded calls array
+    /// @param expandedAttributes The attributes to be included in the message
     /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     /// storage on the destination chain
     /// @param payTo The address the Filler wants to receive the reward
-    function claimReward(CrossChainRequest calldata request, bytes calldata proof, address payTo) external {
-        bytes32 requestHash = hashRequest(request);
-        bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
+    function claimReward(
+        string calldata sender,
+        string calldata receiver,
+        bytes calldata payload,
+        bytes[] calldata expandedAttributes,
+        bytes calldata proof,
+        address payTo
+    ) external {
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, expandedAttributes));
+        bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
 
-        _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
+        _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validateProof(storageKey, request, proof);
+        _validateProof2(storageKey, expandedAttributes, proof);
 
-        _requestStatus[requestHash] = CrossChainCallStatus.Completed;
+        _messageStatus[messageId] = CrossChainCallStatus.Completed;
 
-        _sendReward(request, payTo);
+        _sendReward(expandedAttributes, payTo);
 
-        emit CrossChainCallCompleted(requestHash, msg.sender);
+        emit CrossChainCallCompleted(messageId, msg.sender);
     }
 
     /// @notice Cancels a pending request that has expired
     ///
     /// @dev Can only be called if the request is in the `CrossChainCallStatus.Requested` state
     ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    function cancelRequest(CrossChainRequest calldata request) external {
-        bytes32 requestHash = hashRequest(request);
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param payload The encoded calls array
+    /// @param expandedAttributes The attributes to be included in the message
+    function cancelMessage(
+        string calldata sender,
+        string calldata receiver,
+        bytes calldata payload,
+        bytes[] calldata expandedAttributes
+    ) external {
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, expandedAttributes));
 
-        _checkValidStatus({requestHash: requestHash, expectedStatus: CrossChainCallStatus.Requested});
-        if (msg.sender.addressToBytes32() != request.requester) {
-            revert InvalidCaller({caller: msg.sender, expectedCaller: request.requester.bytes32ToAddress()});
+        _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
+
+        bytes calldata requesterAttribute = _locateAttribute(expandedAttributes, _REQUESTER_ATTRIBUTE_SELECTOR);
+        bytes calldata delayAttribute = _locateAttribute(expandedAttributes, _DELAY_ATTRIBUTE_SELECTOR);
+        (, uint256 expiry) = abi.decode(delayAttribute[4:], (uint256, uint256));
+        bytes32 requester = abi.decode(requesterAttribute[4:], (bytes32));
+
+        if (msg.sender.addressToBytes32() != requester) {
+            revert InvalidCaller({caller: msg.sender, expectedCaller: requester.bytes32ToAddress()});
         }
-        if (block.timestamp < request.expiry + CANCEL_DELAY_SECONDS) {
+        if (block.timestamp < expiry + CANCEL_DELAY_SECONDS) {
             revert CannotCancelRequestBeforeExpiry({
                 currentTimestamp: block.timestamp,
-                expiry: request.expiry + CANCEL_DELAY_SECONDS
+                expiry: expiry + CANCEL_DELAY_SECONDS
             });
         }
 
-        _requestStatus[requestHash] = CrossChainCallStatus.Canceled;
+        _messageStatus[messageId] = CrossChainCallStatus.Canceled;
 
         // Return the stored reward back to the original requester
-        _sendReward(request, request.requester.bytes32ToAddress());
+        _sendReward(expandedAttributes, requester.bytes32ToAddress());
 
-        emit CrossChainCallCanceled(requestHash);
+        emit CrossChainCallCanceled(messageId);
     }
 
     /// @notice Returns the cross chain call request status for a hashed request
     ///
-    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    /// @param messageId The keccak256 hash of a message request
     ///
-    /// @return _ The `CrossChainCallStatus` status for the associated cross chain call request
-    function getRequestStatus(bytes32 requestHash) external view returns (CrossChainCallStatus) {
-        return _requestStatus[requestHash];
+    /// @return _ The `CrossChainCallStatus` status for the associated message request
+    function getMessageStatus(bytes32 messageId) external view returns (CrossChainCallStatus) {
+        return _messageStatus[messageId];
     }
 
-    /// @notice Hashes a `CrossChainRequest` request to use as a request identifier
+    /// @notice Returns true if the attribute selector is supported by this contract
     ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
+    /// @param selector The selector of the attribute
     ///
-    /// @return _ A keccak256 hash of the `CrossChainRequest`
-    function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
-        return keccak256(abi.encode(request));
+    /// @return _ True if the attribute selector is supported by this contract
+    function supportsAttribute(bytes4 selector) external pure returns (bool) {
+        return selector == _REWARD_ATTRIBUTE_SELECTOR || selector == _DELAY_ATTRIBUTE_SELECTOR;
     }
 
-    /// @notice Hashes a `CrossChainRequest` request to use as a request identifier
-    ///
-    /// @param request A cross chain request structured as a `CrossChainRequest`
-    ///
-    /// @return _ A keccak256 hash of the `CrossChainRequest`
-    function hashRequestMemory(CrossChainRequest memory request) public pure returns (bytes32) {
-        return keccak256(abi.encode(request));
+    function _processAttributes(bytes[] calldata attributes) private returns (bytes[] memory) {
+        if (attributes.length != _EXPECTED_ATTRIBUTE_LENGTH) {
+            revert InvalidAttributeLength(_EXPECTED_ATTRIBUTE_LENGTH, attributes.length);
+        }
+
+        bytes[] memory adjustedAttributes = new bytes[](_EXPECTED_ATTRIBUTE_LENGTH + 2);
+        bool[2] memory attributeProcessed = [false, false];
+
+        for (uint256 i; i < attributes.length; i++) {
+            bytes4 attributeSelector = bytes4(attributes[i]);
+
+            if (attributeSelector == _REWARD_ATTRIBUTE_SELECTOR && !attributeProcessed[0]) {
+                _handleRewardAttribute(attributes[i]);
+                attributeProcessed[0] = true;
+            } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
+                _handleDelayAttribute(attributes[i]);
+                attributeProcessed[1] = true;
+            } else {
+                revert UnsupportedAttribute(attributeSelector);
+            }
+
+            adjustedAttributes[i] = attributes[i];
+        }
+
+        adjustedAttributes[attributes.length] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, _getNextNonce());
+        adjustedAttributes[attributes.length + 1] =
+            abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, msg.sender.addressToBytes32());
+
+        return adjustedAttributes;
     }
 
-    /// @notice Pulls `amount` of `asset` from `owner` to address(this)
-    function _pullERC20(address owner, address asset, uint256 amount) private {
-        IERC20(asset).safeTransferFrom(owner, address(this), amount);
+    function _handleRewardAttribute(bytes calldata attribute) private {
+        (bytes32 rewardAsset, uint256 rewardAmount) = abi.decode(attribute[4:], (bytes32, uint256));
+
+        bool usingNativeCurrency = rewardAsset == _NATIVE_ASSET;
+        uint256 expectedValue = usingNativeCurrency ? rewardAmount : 0;
+
+        if (msg.value != expectedValue) {
+            revert InvalidValue(expectedValue, msg.value);
+        }
+
+        if (!usingNativeCurrency) {
+            IERC20(rewardAsset.bytes32ToAddress()).safeTransferFrom(msg.sender, address(this), rewardAmount);
+        }
     }
 
-    /// @notice Sends `amount` of `asset` to `to`
-    function _sendERC20(address to, address asset, uint256 amount) private {
-        IERC20(asset).safeTransfer(to, amount);
+    function _handleDelayAttribute(bytes calldata attribute) private view {
+        (uint256 finalityDelaySeconds, uint256 expiry) = abi.decode(attribute[4:], (uint256, uint256));
+
+        if (expiry < block.timestamp + finalityDelaySeconds) {
+            revert ExpiryTooSoon();
+        }
     }
 
     function _getNextNonce() private returns (uint256) {
@@ -211,19 +299,31 @@ abstract contract RIP7755Outbox {
     }
 
     function _checkValidStatus(bytes32 requestHash, CrossChainCallStatus expectedStatus) private view {
-        CrossChainCallStatus status = _requestStatus[requestHash];
+        CrossChainCallStatus status = _messageStatus[requestHash];
 
         if (status != expectedStatus) {
             revert InvalidStatus({expected: expectedStatus, actual: status});
         }
     }
 
-    function _sendReward(CrossChainRequest calldata request, address to) private {
-        if (request.rewardAsset == _NATIVE_ASSET) {
-            payable(to).sendValue(request.rewardAmount);
+    function _sendReward(bytes[] calldata attributes, address to) private {
+        bytes calldata rewardAttribute = _locateAttribute(attributes, _REWARD_ATTRIBUTE_SELECTOR);
+        (bytes32 rewardAsset, uint256 rewardAmount) = abi.decode(rewardAttribute[4:], (bytes32, uint256));
+
+        if (rewardAsset == _NATIVE_ASSET) {
+            payable(to).sendValue(rewardAmount);
         } else {
-            _sendERC20(to, request.rewardAsset.bytes32ToAddress(), request.rewardAmount);
+            IERC20(rewardAsset.bytes32ToAddress()).safeTransfer(to, rewardAmount);
         }
+    }
+
+    function _locateAttribute(bytes[] calldata attributes, bytes4 selector) private pure returns (bytes calldata) {
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) == selector) {
+                return attributes[i];
+            }
+        }
+        revert AttributeNotFound(selector);
     }
 
     /// @notice Validates storage proofs and verifies fill
@@ -237,11 +337,11 @@ abstract contract RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param request The original cross chain request submitted to this contract
+    /// @param attributes The attributes to be included in the message
     /// @param proofData The proof to validate
-    function _validateProof(
+    function _validateProof2(
         bytes memory inboxContractStorageKey,
-        CrossChainRequest calldata request,
+        bytes[] calldata attributes,
         bytes calldata proofData
     ) internal virtual;
 

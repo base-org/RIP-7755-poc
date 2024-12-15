@@ -30,7 +30,8 @@ contract SubmitRequest is Script {
         CrossChainRequest memory request = _getRequest(destinationChainId);
 
         vm.startBroadcast(config.deployerKey);
-        outbox.requestCrossChainCall{value: request.rewardAmount}(request);
+        // TODO
+        // outbox.requestCrossChainCall{value: request.rewardAmount}(request);
         vm.stopBroadcast();
     }
 
