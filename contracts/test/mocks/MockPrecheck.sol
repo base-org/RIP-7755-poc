@@ -2,12 +2,18 @@
 pragma solidity 0.8.24;
 
 import {IPrecheckContract} from "../../src/interfaces/IPrecheckContract.sol";
-import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
+import {ERC7786Base} from "../../src/ERC7786Base.sol";
 
-contract MockPrecheck is IPrecheckContract {
-    function precheckCall(CrossChainRequest calldata request, address caller) external pure {
-        bytes calldata precheckData = request.extraData[0];
-        address expectedCaller = address(bytes20(precheckData[20:]));
+contract MockPrecheck is ERC7786Base, IPrecheckContract {
+    function precheckCall(
+        string calldata, // [CAIP-2] chain identifier
+        string calldata, // [CAIP-10] account address
+        bytes calldata,
+        bytes[] calldata attributes,
+        address caller
+    ) external pure {
+        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+        address expectedCaller = abi.decode(fulfillerAttribute[4:], (address));
 
         if (expectedCaller != caller) {
             revert();

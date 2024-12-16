@@ -17,7 +17,8 @@ contract SubmitToInbox is Script {
         CrossChainRequest memory request = _getRequest();
 
         vm.startBroadcast(pk);
-        inbox.fulfill(request, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+        // TODO
+        // inbox.fulfill(request, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
         vm.stopBroadcast();
     }
 
