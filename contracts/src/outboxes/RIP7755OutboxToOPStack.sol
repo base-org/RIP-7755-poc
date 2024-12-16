@@ -54,5 +54,5 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
         bytes memory inboxContractStorageKey,
         bytes[] calldata attributes,
         bytes calldata proofData
-    ) internal override {}
+    ) internal view override {}
 }

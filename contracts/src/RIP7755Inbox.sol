@@ -49,15 +49,6 @@ contract RIP7755Inbox is ERC7786Base {
     /// @param actual The received `msg.value`
     error InvalidValue(uint256 expected, uint256 actual);
 
-    /// @notice Returns the stored fulfillment info for a passed in call hash
-    ///
-    /// @param requestHash A keccak256 hash of a CrossChainRequest
-    ///
-    /// @return _ Fulfillment info stored for the call hash
-    function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
-        return _getFulfillmentInfo(requestHash);
-    }
-
     /// @notice Delivery of a message sent from another chain.
     ///
     /// @param sourceChain The CAIP-2 source chain identifier
@@ -92,26 +83,13 @@ contract RIP7755Inbox is ERC7786Base {
         return 0x675b049b; // this function's sig
     }
 
-    function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
-        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
-        return abi.decode(fulfillerAttribute[4:], (address));
-    }
-
-    function _runPrecheck(
-        string calldata sourceChain, // [CAIP-2] chain identifier
-        string calldata sender, // [CAIP-10] account address
-        bytes calldata payload,
-        bytes[] calldata attributes
-    ) private view {
-        (bool found, bytes calldata precheckAttribute) =
-            _locateAttributeUnchecked(attributes, _PRECHECK_ATTRIBUTE_SELECTOR);
-
-        if (!found) {
-            return;
-        }
-
-        address precheckContract = abi.decode(precheckAttribute[4:], (address));
-        IPrecheckContract(precheckContract).precheckCall(sourceChain, sender, payload, attributes, msg.sender);
+    /// @notice Returns the stored fulfillment info for a passed in call hash
+    ///
+    /// @param requestHash A keccak256 hash of a CrossChainRequest
+    ///
+    /// @return _ Fulfillment info stored for the call hash
+    function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
+        return _getFulfillmentInfo(requestHash);
     }
 
     function _sendCallsAndValidateMsgValue(bytes calldata payload) private {
@@ -140,10 +118,26 @@ contract RIP7755Inbox is ERC7786Base {
         }
     }
 
-    function _getMainStorage() private pure returns (MainStorage storage $) {
-        assembly {
-            $.slot := _MAIN_STORAGE_LOCATION
+    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
+        MainStorage storage $ = _getMainStorage();
+        $.fulfillmentInfo[requestHash] = fulfillmentInfo;
+    }
+
+    function _runPrecheck(
+        string calldata sourceChain, // [CAIP-2] chain identifier
+        string calldata sender, // [CAIP-10] account address
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) private view {
+        (bool found, bytes calldata precheckAttribute) =
+            _locateAttributeUnchecked(attributes, _PRECHECK_ATTRIBUTE_SELECTOR);
+
+        if (!found) {
+            return;
         }
+
+        address precheckContract = abi.decode(precheckAttribute[4:], (address));
+        IPrecheckContract(precheckContract).precheckCall(sourceChain, sender, payload, attributes, msg.sender);
     }
 
     function _getFulfillmentInfo(bytes32 requestHash) private view returns (FulfillmentInfo memory) {
@@ -151,8 +145,14 @@ contract RIP7755Inbox is ERC7786Base {
         return $.fulfillmentInfo[requestHash];
     }
 
-    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
-        MainStorage storage $ = _getMainStorage();
-        $.fulfillmentInfo[requestHash] = fulfillmentInfo;
+    function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
+        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+        return abi.decode(fulfillerAttribute[4:], (address));
+    }
+
+    function _getMainStorage() private pure returns (MainStorage storage $) {
+        assembly {
+            $.slot := _MAIN_STORAGE_LOCATION
+        }
     }
 }

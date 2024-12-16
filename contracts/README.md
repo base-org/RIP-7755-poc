@@ -1,6 +1,6 @@
 # RIP-7755 Contracts
 
-This repo consists of work-in-progress implementations of the smart contracts making up [RIP-7755](https://github.com/ethereum/RIPs/pull/31);
+This repo consists of work-in-progress implementations of the smart contracts making up [RIP-7755](https://github.com/ethereum/RIPs/pull/43);
 
 ## Getting Started
 

@@ -6,13 +6,14 @@ import {Test} from "forge-std/Test.sol";
 import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
 import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
+import {ERC7786Base} from "../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
 import {MockTarget} from "./mocks/MockTarget.sol";
 
-contract RIP7755InboxTest is Test {
+contract RIP7755InboxTest is Test, ERC7786Base {
     using GlobalTypes for address;
     using CAIP10 for address;
 
@@ -23,13 +24,6 @@ contract RIP7755InboxTest is Test {
     Call[] calls;
     address ALICE = makeAddr("alice");
     address FULFILLER = makeAddr("fulfiller");
-
-    bytes4 private constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xfa1e5831; // precheck(address)
-    bytes4 private constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
-    bytes4 private constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
-    bytes4 private constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
-    bytes4 private constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
-    bytes4 private constant _FULFILLER_ATTRIBUTE_SELECTOR = 0x138a03fc; // fulfiller(address)
 
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 

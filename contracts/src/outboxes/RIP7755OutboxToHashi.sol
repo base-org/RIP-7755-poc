@@ -69,5 +69,5 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         bytes memory inboxContractStorageKey,
         bytes[] calldata attributes,
         bytes calldata proofData
-    ) internal override {}
+    ) internal view override {}
 }

@@ -6,12 +6,13 @@ import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 
 import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
+import {ERC7786Base} from "../src/ERC7786Base.sol";
 import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 
 import {MockOutbox} from "./mocks/MockOutbox.sol";
 
-contract RIP7755OutboxTest is Test {
+contract RIP7755OutboxTest is Test, ERC7786Base {
     using GlobalTypes for address;
     using CAIP10 for address;
 
@@ -23,10 +24,6 @@ contract RIP7755OutboxTest is Test {
     address FILLER = makeAddr("filler");
 
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
-    bytes4 private constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
-    bytes4 private constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
-    bytes4 private constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
-    bytes4 private constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
 
     event MessagePosted(
         bytes32 indexed outboxId, string sender, string receiver, bytes payload, uint256 value, bytes[] attributes

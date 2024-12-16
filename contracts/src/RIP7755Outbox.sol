@@ -6,6 +6,7 @@ import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {CAIP10} from "./libraries/CAIP10.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
+import {ERC7786Base} from "./ERC7786Base.sol";
 import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 
 /// @title RIP7755Outbox
@@ -14,7 +15,7 @@ import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 ///
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
 /// submit the cross chain calls to destination chains.
-abstract contract RIP7755Outbox {
+abstract contract RIP7755Outbox is ERC7786Base {
     using Address for address payable;
     using SafeERC20 for IERC20;
     using GlobalTypes for address;
@@ -41,18 +42,6 @@ abstract contract RIP7755Outbox {
 
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
-
-    /// @notice The selector for the nonce attribute
-    bytes4 private constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
-
-    /// @notice The selector for the reward attribute
-    bytes4 private constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
-
-    /// @notice The selector for the delay attribute
-    bytes4 private constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
-
-    /// @notice The selector for the requester attribute
-    bytes4 private constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
 
     /// @notice The expected length of the attributes array supplied to `sendMessage`
     uint256 private constant _EXPECTED_ATTRIBUTE_LENGTH = 2;
@@ -113,10 +102,6 @@ abstract contract RIP7755Outbox {
     /// @param expected The expected length of the attributes
     /// @param actual The actual length of the attributes
     error InvalidAttributeLength(uint256 expected, uint256 actual);
-
-    /// @notice This error is thrown if an attribute is not found in the attributes array
-    /// @param selector The selector of the attribute that was not found
-    error AttributeNotFound(bytes4 selector);
 
     /// @notice Initiates the sending of a message
     ///
@@ -236,6 +221,41 @@ abstract contract RIP7755Outbox {
         return selector == _REWARD_ATTRIBUTE_SELECTOR || selector == _DELAY_ATTRIBUTE_SELECTOR;
     }
 
+    /// @notice Validates storage proofs and verifies fill
+    ///
+    /// @custom:reverts If storage proof invalid.
+    /// @custom:reverts If fillInfo not found at inboxContractStorageKey on crossChainCall.verifyingContract
+    /// @custom:reverts If fillInfo.timestamp is less than
+    /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
+    ///
+    /// @dev Implementation will vary by L2
+    ///
+    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
+    /// `RIP7755Inbox` contract
+    /// @param attributes The attributes to be included in the message
+    /// @param proofData The proof to validate
+    function _validateProof2(
+        bytes memory inboxContractStorageKey,
+        bytes[] calldata attributes,
+        bytes calldata proofData
+    ) internal view virtual;
+
+    /// @notice Decodes the `FulfillmentInfo` struct from the `RIP7755Inbox` storage slot
+    ///
+    /// @param inboxContractStorageValue The storage value of the `RIP7755Inbox` storage slot
+    ///
+    /// @return fulfillmentInfo The decoded `FulfillmentInfo` struct
+    function _decodeFulfillmentInfo(bytes32 inboxContractStorageValue)
+        internal
+        pure
+        returns (RIP7755Inbox.FulfillmentInfo memory)
+    {
+        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo;
+        fulfillmentInfo.fulfiller = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
+        fulfillmentInfo.timestamp = uint96(uint256(inboxContractStorageValue));
+        return fulfillmentInfo;
+    }
+
     function _processAttributes(bytes[] calldata attributes) private returns (bytes[] memory) {
         if (attributes.length != _EXPECTED_ATTRIBUTE_LENGTH) {
             revert InvalidAttributeLength(_EXPECTED_ATTRIBUTE_LENGTH, attributes.length);
@@ -282,27 +302,11 @@ abstract contract RIP7755Outbox {
         }
     }
 
-    function _handleDelayAttribute(bytes calldata attribute) private view {
-        (uint256 finalityDelaySeconds, uint256 expiry) = abi.decode(attribute[4:], (uint256, uint256));
-
-        if (expiry < block.timestamp + finalityDelaySeconds) {
-            revert ExpiryTooSoon();
-        }
-    }
-
     function _getNextNonce() private returns (uint256) {
         unchecked {
             // It would take ~3,671,743,063,080,802,746,815,416,825,491,118,336,290,905,145,409,708,398,004 years
             // with a sustained request rate of 1 trillion requests per second to overflow the nonce counter
             return ++_nonce;
-        }
-    }
-
-    function _checkValidStatus(bytes32 requestHash, CrossChainCallStatus expectedStatus) private view {
-        CrossChainCallStatus status = _messageStatus[requestHash];
-
-        if (status != expectedStatus) {
-            revert InvalidStatus({expected: expectedStatus, actual: status});
         }
     }
 
@@ -317,47 +321,19 @@ abstract contract RIP7755Outbox {
         }
     }
 
-    function _locateAttribute(bytes[] calldata attributes, bytes4 selector) private pure returns (bytes calldata) {
-        for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) == selector) {
-                return attributes[i];
-            }
+    function _handleDelayAttribute(bytes calldata attribute) private view {
+        (uint256 finalityDelaySeconds, uint256 expiry) = abi.decode(attribute[4:], (uint256, uint256));
+
+        if (expiry < block.timestamp + finalityDelaySeconds) {
+            revert ExpiryTooSoon();
         }
-        revert AttributeNotFound(selector);
     }
 
-    /// @notice Validates storage proofs and verifies fill
-    ///
-    /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fillInfo not found at inboxContractStorageKey on crossChainCall.verifyingContract
-    /// @custom:reverts If fillInfo.timestamp is less than
-    /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
-    ///
-    /// @dev Implementation will vary by L2
-    ///
-    /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Inbox` contract
-    /// @param attributes The attributes to be included in the message
-    /// @param proofData The proof to validate
-    function _validateProof2(
-        bytes memory inboxContractStorageKey,
-        bytes[] calldata attributes,
-        bytes calldata proofData
-    ) internal virtual;
+    function _checkValidStatus(bytes32 requestHash, CrossChainCallStatus expectedStatus) private view {
+        CrossChainCallStatus status = _messageStatus[requestHash];
 
-    /// @notice Decodes the `FulfillmentInfo` struct from the `RIP7755Inbox` storage slot
-    ///
-    /// @param inboxContractStorageValue The storage value of the `RIP7755Inbox` storage slot
-    ///
-    /// @return fulfillmentInfo The decoded `FulfillmentInfo` struct
-    function _decodeFulfillmentInfo(bytes32 inboxContractStorageValue)
-        internal
-        pure
-        returns (RIP7755Inbox.FulfillmentInfo memory)
-    {
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo;
-        fulfillmentInfo.fulfiller = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
-        fulfillmentInfo.timestamp = uint96(uint256(inboxContractStorageValue));
-        return fulfillmentInfo;
+        if (status != expectedStatus) {
+            revert InvalidStatus({expected: expectedStatus, actual: status});
+        }
     }
 }

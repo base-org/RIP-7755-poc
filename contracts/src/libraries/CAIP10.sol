@@ -39,17 +39,4 @@ library CAIP10 {
     function format(string memory caip2, string memory account) internal pure returns (string memory) {
         return string.concat(caip2, ":", account);
     }
-
-    // /**
-    //  * @dev Parse a CAIP-10 identifier into its components.
-    //  *
-    //  * NOTE: This function does not verify that the CAIP-10 input is properly formatted. The `caip2` return can be
-    //  * parsed using the {CAIP2} library.
-    //  */
-    // function parse(string memory caip10) internal pure returns (string memory caip2, string memory account) {
-    //     bytes memory buffer = bytes(caip10);
-
-    //     uint256 pos = buffer.lastIndexOf(":");
-    //     return (string(buffer.slice(0, pos)), string(buffer.slice(pos + 1)));
-    // }
 }
