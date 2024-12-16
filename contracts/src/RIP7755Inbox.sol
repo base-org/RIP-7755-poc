@@ -58,13 +58,14 @@ contract RIP7755Inbox is ERC7786Base {
     ///
     /// @return selector The selector of the function
     function executeMessage(
-        string calldata sourceChain, // [CAIP-2] chain identifier
-        string calldata sender, // [CAIP-10] account address
+        string calldata sourceChain,
+        string calldata sender,
         bytes calldata payload,
         bytes[] calldata attributes
     ) external payable returns (bytes4) {
         string memory receiver = address(this).local();
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        string memory combinedSender = CAIP10.format(sourceChain, sender);
+        bytes32 messageId = keccak256(abi.encode(combinedSender, receiver, payload, attributes));
 
         _runPrecheck(sourceChain, sender, payload, attributes);
 

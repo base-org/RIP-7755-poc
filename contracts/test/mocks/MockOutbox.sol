@@ -14,6 +14,7 @@ contract MockOutbox is RIP7755Outbox {
 
     function _validateProof2(
         bytes memory inboxContractStorageKey,
+        address inboxContract,
         bytes[] calldata attributes,
         bytes calldata proofData
     ) internal view override {}

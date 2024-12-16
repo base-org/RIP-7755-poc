@@ -20,6 +20,9 @@ contract ERC7786Base {
     /// @notice The selector for the fulfiller attribute
     bytes4 internal constant _FULFILLER_ATTRIBUTE_SELECTOR = 0x138a03fc; // fulfiller(address)
 
+    /// @notice The selector for the l2Oracle attribute
+    bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
+
     /// @notice This error is thrown if an attribute is not found in the attributes array
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);

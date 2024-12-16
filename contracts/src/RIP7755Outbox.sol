@@ -108,24 +108,26 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @custom:reverts If the attribute length is not equal to 2
     /// @custom:reverts If an unsupported attribute is provided
     ///
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
     /// @param receiver The CAIP-10 account address of the receiver
     /// @param payload The encoded calls array
     /// @param attributes The attributes to be included in the message
     ///
     /// @return messageId The generated message id
     function sendMessage(
-        string calldata, // destinationChain The CAIP-2 chain identifier of the destination chain
+        string calldata destinationChain,
         string calldata receiver,
         bytes calldata payload,
         bytes[] calldata attributes
     ) external payable returns (bytes32) {
         bytes[] memory expandedAttributes = _processAttributes(attributes);
         string memory sender = address(this).local();
+        string memory combinedReceiver = CAIP10.format(destinationChain, receiver);
 
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, expandedAttributes));
+        bytes32 messageId = keccak256(abi.encode(sender, combinedReceiver, payload, expandedAttributes));
         _messageStatus[messageId] = CrossChainCallStatus.Requested;
 
-        emit MessagePosted(messageId, sender, receiver, payload, msg.value, expandedAttributes);
+        emit MessagePosted(messageId, sender, combinedReceiver, payload, msg.value, expandedAttributes);
 
         return messageId;
     }
@@ -153,7 +155,10 @@ abstract contract RIP7755Outbox is ERC7786Base {
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validateProof2(storageKey, expandedAttributes, proof);
+        (, string memory inboxString) = CAIP10.parse(receiver);
+        address inboxContract = address(bytes20(bytes(inboxString)));
+
+        _validateProof2(storageKey, inboxContract, expandedAttributes, proof);
 
         _messageStatus[messageId] = CrossChainCallStatus.Completed;
 
@@ -232,10 +237,12 @@ abstract contract RIP7755Outbox is ERC7786Base {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
+    /// @param inboxContract The `RIP7755Inbox` contract
     /// @param attributes The attributes to be included in the message
     /// @param proofData The proof to validate
     function _validateProof2(
         bytes memory inboxContractStorageKey,
+        address inboxContract,
         bytes[] calldata attributes,
         bytes calldata proofData
     ) internal view virtual;

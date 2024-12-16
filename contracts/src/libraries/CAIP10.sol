@@ -27,8 +27,15 @@ library CAIP10 {
 
     /// @dev Return the CAIP-10 identifier for an account on the current (local) chain.
     function local(address account) internal view returns (string memory) {
-        string memory caip2 = format("eip155", block.chainid.toString());
-        return format(caip2, account.toChecksumHexString());
+        return format(localCaip2(), account.toChecksumHexString());
+    }
+
+    function localCaip2() internal view returns (string memory) {
+        return formatCaip2(block.chainid);
+    }
+
+    function formatCaip2(uint256 chainId) internal pure returns (string memory) {
+        return format("eip155", chainId.toString());
     }
 
     /**
@@ -38,5 +45,35 @@ library CAIP10 {
      */
     function format(string memory caip2, string memory account) internal pure returns (string memory) {
         return string.concat(caip2, ":", account);
+    }
+
+    /**
+     * @dev Parse a CAIP-10 identifier into its components.
+     *
+     * NOTE: This function does not verify that the CAIP-10 input is properly formatted. The `caip2` return can be
+     * parsed using the {CAIP2} library.
+     */
+    function parse(string memory caip10) internal pure returns (string memory caip2, string memory account) {
+        bytes memory buffer = bytes(caip10);
+
+        uint256 pos = _lastIndexOf(buffer, ":");
+        return (string(_slice(buffer, 0, pos)), string(_slice(buffer, pos + 1, buffer.length)));
+    }
+
+    function _lastIndexOf(bytes memory buffer, bytes1 value) private pure returns (uint256) {
+        for (uint256 i = buffer.length - 1; i >= 0; i--) {
+            if (buffer[i] == value) {
+                return i;
+            }
+        }
+        revert("Value not found");
+    }
+
+    function _slice(bytes memory buffer, uint256 start, uint256 end) private pure returns (bytes memory) {
+        bytes memory result = new bytes(end - start);
+        for (uint256 i = start; i < end; i++) {
+            result[i - start] = buffer[i];
+        }
+        return result;
     }
 }

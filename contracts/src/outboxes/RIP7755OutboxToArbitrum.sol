@@ -54,7 +54,28 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
 
     function _validateProof2(
         bytes memory inboxContractStorageKey,
+        address inboxContract,
         bytes[] calldata attributes,
-        bytes calldata proofData
-    ) internal view override {}
+        bytes calldata proof
+    ) internal view override {
+        bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
+        address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
+
+        ArbitrumProver.Target memory target = ArbitrumProver.Target({
+            l1Address: l2Oracle,
+            l2Address: inboxContract,
+            l2StorageKey: inboxContractStorageKey
+        });
+        (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
+
+        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
+
+        bytes calldata delayAttribute = _locateAttribute(attributes, _DELAY_ATTRIBUTE_SELECTOR);
+        (uint256 delaySeconds,) = abi.decode(delayAttribute[4:], (uint256, uint256));
+
+        // Ensure that the fulfillment timestamp is not within the finality delay
+        if (fulfillmentInfo.timestamp + delaySeconds > l2Timestamp) {
+            revert FinalityDelaySecondsInProgress();
+        }
+    }
 }

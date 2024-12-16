@@ -12,4 +12,13 @@ contract MockArbitrumProver is RIP7755OutboxToArbitrum {
     {
         _validateProof(storageKey, request, proof);
     }
+
+    function validateProof2(
+        bytes memory storageKey,
+        address inboxContract,
+        bytes[] calldata attributes,
+        bytes calldata proof
+    ) external view {
+        _validateProof2(storageKey, inboxContract, attributes, proof);
+    }
 }
