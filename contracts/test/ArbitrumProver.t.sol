@@ -73,8 +73,9 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT, true);
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -86,7 +87,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT, true);
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
@@ -99,7 +100,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT, true);
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
@@ -112,7 +113,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
     function test_reverts_ifInvalidConfirmData() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT, true);
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidConfirmData);
@@ -125,7 +126,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT, true);
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL2Storage);
@@ -138,7 +139,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT, true);
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
@@ -180,25 +181,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
         });
     }
 
-    function _initRequest(uint256 rewardAmount) private view returns (CrossChainRequest memory) {
-        return CrossChainRequest({
-            requester: ALICE.addressToBytes32(),
-            calls: calls,
-            sourceChainId: block.chainid,
-            origin: address(this).addressToBytes32(),
-            destinationChainId: 421614, // arbitrum sepolia chain ID
-            inboxContract: _INBOX_CONTRACT.addressToBytes32(), // RIP7755Inbox on Arbitrum Sepolia
-            l2Oracle: 0xd80810638dbDF9081b72C1B33c65375e807281C8.addressToBytes32(), // Arbitrum Rollup on Sepolia
-            rewardAsset: address(mockErc20).addressToBytes32(),
-            rewardAmount: rewardAmount,
-            finalityDelaySeconds: 10,
-            nonce: 1,
-            expiry: 1828828574,
-            extraData: new bytes[](0)
-        });
-    }
-
-    function _initMessage(uint256 rewardAmount, bool extendFinalityDelay)
+    function _initMessage(uint256 rewardAmount)
         private
         view
         returns (string memory, string memory, bytes memory, bytes[] memory)
@@ -210,9 +193,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
 
         attributes[0] =
             abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
-        attributes[1] = abi.encodeWithSelector(
-            _DELAY_ATTRIBUTE_SELECTOR, extendFinalityDelay ? type(uint256).max - 1 ether : 10, 1828828574
-        );
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1828828574);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
         attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);

@@ -28,32 +28,30 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param request The original cross chain request submitted to this contract
+    /// @param inboxContract The inbox contract address
+    /// @param attributes The attributes of the request
     /// @param proof The proof to validate
-    function _validateProof(
-        bytes memory inboxContractStorageKey,
-        CrossChainRequest calldata request,
-        bytes calldata proof
-    ) internal view {
-        OPStackProver.Target memory target = OPStackProver.Target({
-            l1Address: request.l2Oracle.bytes32ToAddress(),
-            l2Address: request.inboxContract.bytes32ToAddress(),
-            l2StorageKey: inboxContractStorageKey
-        });
-        (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
-
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
-
-        // Ensure that the fulfillment timestamp is not within the finality delay
-        if (fulfillmentInfo.timestamp + request.finalityDelaySeconds > l2Timestamp) {
-            revert FinalityDelaySecondsInProgress();
-        }
-    }
-
     function _validateProof2(
         bytes memory inboxContractStorageKey,
         address inboxContract,
         bytes[] calldata attributes,
-        bytes calldata proofData
-    ) internal view override {}
+        bytes calldata proof
+    ) internal view override {
+        bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
+        address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
+
+        OPStackProver.Target memory target =
+            OPStackProver.Target({l1Address: l2Oracle, l2Address: inboxContract, l2StorageKey: inboxContractStorageKey});
+        (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
+
+        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
+
+        bytes calldata delayAttribute = _locateAttribute(attributes, _DELAY_ATTRIBUTE_SELECTOR);
+        (uint256 delaySeconds,) = abi.decode(delayAttribute[4:], (uint256, uint256));
+
+        // Ensure that the fulfillment timestamp is not within the finality delay
+        if (fulfillmentInfo.timestamp + delaySeconds > l2Timestamp) {
+            revert FinalityDelaySecondsInProgress();
+        }
+    }
 }

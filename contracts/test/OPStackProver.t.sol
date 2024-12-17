@@ -6,8 +6,10 @@ import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
+import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
+import {ERC7786Base} from "../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
 import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
@@ -15,9 +17,10 @@ import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 import {MockOPStackProver} from "./mocks/MockOPStackProver.sol";
 
-contract RIP7755OutboxOPStackValidatorTest is Test {
+contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
     using stdJson for string;
     using GlobalTypes for address;
+    using CAIP10 for address;
 
     MockOPStackProver prover;
     ERC20Mock mockErc20;
@@ -33,6 +36,8 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     uint256 private _REWARD_AMOUNT = 1 ether;
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+
+    address private constant _INBOX_CONTRACT = 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512;
 
     function setUp() external {
         prover = new MockOPStackProver();
@@ -60,90 +65,113 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
     }
 
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1735681520);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
-        request.finalityDelaySeconds = type(uint256).max - 1 ether;
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
         bytes memory storageProofData = abi.encode(proofData);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1StorageProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL1Storage.selector);
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StateRootProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2StateRoot.selector);
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StorageProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2Storage.selector);
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        CrossChainRequest memory request = _initRequest(_REWARD_AMOUNT);
+        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(request);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        prover.validateProof(inboxStorageKey, request, storageProofData);
+        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
     function _buildProofAndEncodeProof(string memory json) private returns (bytes memory) {
@@ -182,26 +210,32 @@ contract RIP7755OutboxOPStackValidatorTest is Test {
         });
     }
 
-    function _initRequest(uint256 rewardAmount) private view returns (CrossChainRequest memory) {
-        return CrossChainRequest({
-            requester: 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32(),
-            calls: calls,
-            sourceChainId: 11155420,
-            origin: 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.addressToBytes32(),
-            destinationChainId: 111112,
-            inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // RIP7755Inbox on mock Chain B
-            l2Oracle: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(), // Anchor State Registry on mock L1
-            rewardAsset: 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(),
-            rewardAmount: rewardAmount,
-            finalityDelaySeconds: 10,
-            nonce: 1,
-            expiry: 1828828574,
-            extraData: new bytes[](0)
-        });
+    function _initMessage(uint256 rewardAmount)
+        private
+        view
+        returns (string memory, string memory, bytes memory, bytes[] memory)
+    {
+        string memory sender = 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.remote(11155420);
+        string memory receiver = _INBOX_CONTRACT.remote(111112);
+        bytes memory payload = abi.encode(calls);
+        bytes[] memory attributes = new bytes[](6);
+
+        attributes[0] = abi.encodeWithSelector(
+            _REWARD_ATTRIBUTE_SELECTOR, 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(), rewardAmount
+        );
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1735681520);
+        attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
+        attributes[3] = abi.encodeWithSelector(
+            _REQUESTER_ATTRIBUTE_SELECTOR, 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32()
+        );
+        attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
+        attributes[5] =
+            abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
+
+        return (sender, receiver, payload, attributes);
     }
 
-    function _deriveStorageKey(CrossChainRequest memory request) private pure returns (bytes memory) {
-        bytes32 requestHash = keccak256(abi.encode(request));
-        return abi.encode(keccak256(abi.encodePacked(requestHash, _VERIFIER_STORAGE_LOCATION)));
+    function _deriveStorageKey(bytes32 messageId) private pure returns (bytes memory) {
+        return abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
     }
 }

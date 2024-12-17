@@ -30,6 +30,10 @@ library CAIP10 {
         return format(localCaip2(), account.toChecksumHexString());
     }
 
+    function remote(address account, uint256 chainId) internal pure returns (string memory) {
+        return format(formatCaip2(chainId), account.toChecksumHexString());
+    }
+
     function localCaip2() internal view returns (string memory) {
         return formatCaip2(block.chainid);
     }
