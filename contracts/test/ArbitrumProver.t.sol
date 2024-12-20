@@ -32,7 +32,6 @@ contract ArbitrumProverTest is Test, ERC7786Base {
     address FILLER = makeAddr("filler");
     string validProof;
     string invalidL1State;
-    string invalidConfirmData;
     string invalidBlockHeaders;
     string invalidL2Storage;
     uint256 private _REWARD_AMOUNT = 1 ether;
@@ -50,15 +49,13 @@ contract ArbitrumProverTest is Test, ERC7786Base {
         string memory rootPath = vm.projectRoot();
         string memory path = string.concat(rootPath, "/test/data/ArbitrumSepoliaProof.json");
         string memory invalidPath = string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidL1State.json");
-        string memory invalidConfirmDataPath =
-            string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidConfirmData.json");
         string memory invalidBlockHeadersPath =
             string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidBlockHeaders.json");
         string memory invalidL2StoragePath =
             string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidL2Storage.json");
+
         validProof = vm.readFile(path);
         invalidL1State = vm.readFile(invalidPath);
-        invalidConfirmData = vm.readFile(invalidConfirmDataPath);
         invalidBlockHeaders = vm.readFile(invalidBlockHeadersPath);
         invalidL2Storage = vm.readFile(invalidL2StoragePath);
     }
@@ -107,20 +104,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        vm.expectRevert(BlockHeaders.InvalidBlockFieldRLP.selector);
-        prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
-    }
-
-    function test_reverts_ifInvalidConfirmData() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
-
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidConfirmData);
-        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
-
-        vm.prank(FILLER);
-        vm.expectRevert(ArbitrumProver.InvalidConfirmData.selector);
+        vm.expectRevert(ArbitrumProver.InvalidBlockHeaders.selector);
         prover.validateProof2(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
@@ -150,6 +134,21 @@ contract ArbitrumProverTest is Test, ERC7786Base {
     }
 
     function _buildProof(string memory json) private returns (ArbitrumProver.RIP7755Proof memory) {
+        ArbitrumProver.GlobalState memory afterStateGlobalState = ArbitrumProver.GlobalState({
+            bytes32Vals: abi.decode(json.parseRaw(".afterState.globalState.bytes32Vals"), (bytes32[2])),
+            u64Vals: abi.decode(json.parseRaw(".afterState.globalState.u64Vals"), (uint64[2]))
+        });
+        afterStateGlobalState.bytes32Vals[0] = json.readBytes32(".afterState.globalState.bytes32Vals[0]");
+        afterStateGlobalState.bytes32Vals[1] = json.readBytes32(".afterState.globalState.bytes32Vals[1]");
+        afterStateGlobalState.u64Vals[0] = uint64(json.readUint(".afterState.globalState.u64Vals[0]"));
+        afterStateGlobalState.u64Vals[1] = uint64(json.readUint(".afterState.globalState.u64Vals[1]"));
+
+        ArbitrumProver.AssertionState memory afterState = ArbitrumProver.AssertionState({
+            globalState: afterStateGlobalState,
+            machineStatus: ArbitrumProver.MachineStatus(json.readUint(".afterState.machineStatus")),
+            endHistoryRoot: json.readBytes32(".afterState.endHistoryRoot")
+        });
+
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
@@ -172,12 +171,13 @@ contract ArbitrumProverTest is Test, ERC7786Base {
         mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
 
         return ArbitrumProver.RIP7755Proof({
-            sendRoot: json.readBytes(".sendRoot"),
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
+            afterState: afterState,
+            prevAssertionHash: json.readBytes32(".prevAssertionHash"),
+            sequencerBatchAcc: json.readBytes32(".sequencerBatchAcc"),
             stateProofParams: stateProofParams,
             dstL2StateRootProofParams: dstL2StateRootParams,
-            dstL2AccountProofParams: dstL2AccountProofParams,
-            nodeIndex: uint64(json.readUint(".nodeIndex"))
+            dstL2AccountProofParams: dstL2AccountProofParams
         });
     }
 
@@ -198,7 +198,7 @@ contract ArbitrumProverTest is Test, ERC7786Base {
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
         attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
         attributes[5] =
-            abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0xd80810638dbDF9081b72C1B33c65375e807281C8); // Arbitrum Rollup on Sepolia
+            abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4); // Arbitrum Rollup on Sepolia
 
         return (sender, receiver, payload, attributes);
     }
