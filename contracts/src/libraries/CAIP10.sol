@@ -42,6 +42,13 @@ library CAIP10 {
         return format("eip155", chainId.toString());
     }
 
+    function extractChainId(string memory caip2) internal pure returns (uint256) {
+        bytes memory buffer = bytes(caip2);
+        uint256 pos = _lastIndexOf(buffer, ":");
+        bytes memory slice = _slice(buffer, pos + 1, buffer.length);
+        return _bytesToUint(slice);
+    }
+
     /**
      * @dev Return the CAIP-10 identifier for a given caip2 chain and account.
      *
@@ -77,6 +84,45 @@ library CAIP10 {
         bytes memory result = new bytes(end - start);
         for (uint256 i = start; i < end; i++) {
             result[i - start] = buffer[i];
+        }
+        return result;
+    }
+
+    function stringToAddress(string memory str) internal pure returns (address) {
+        bytes memory strBytes = bytes(str);
+        require(strBytes.length == 42, "Invalid address length");
+        bytes memory addrBytes = new bytes(20);
+
+        for (uint256 i = 0; i < 20; i++) {
+            addrBytes[i] = bytes1(_hexCharToByte(strBytes[2 + i * 2]) * 16 + _hexCharToByte(strBytes[3 + i * 2]));
+        }
+
+        return address(uint160(bytes20(addrBytes)));
+    }
+
+    function _hexCharToByte(bytes1 char) private pure returns (uint8) {
+        uint8 byteValue = uint8(char);
+        if (byteValue >= uint8(bytes1("0")) && byteValue <= uint8(bytes1("9"))) {
+            return byteValue - uint8(bytes1("0"));
+        } else if (byteValue >= uint8(bytes1("a")) && byteValue <= uint8(bytes1("f"))) {
+            return 10 + byteValue - uint8(bytes1("a"));
+        } else if (byteValue >= uint8(bytes1("A")) && byteValue <= uint8(bytes1("F"))) {
+            return 10 + byteValue - uint8(bytes1("A"));
+        }
+        revert("Invalid hex character");
+    }
+
+    function _bytesToUint(bytes memory b) private pure returns (uint256) {
+        uint256 result = 0;
+        for (uint256 i = 0; i < b.length; i++) {
+            uint8 c = uint8(b[i]);
+
+            // '0' = 48 and '9' = 57 in ASCII
+            if (c < 48 || c > 57) {
+                revert("Non-numeric character found in string");
+            }
+
+            result = result * 10 + (c - 48);
         }
         return result;
     }

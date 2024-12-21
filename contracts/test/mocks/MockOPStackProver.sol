@@ -8,10 +8,10 @@ import {CrossChainRequest} from "../../src/RIP7755Structs.sol";
 contract MockOPStackProver is RIP7755OutboxToOPStack {
     function validateProof2(
         bytes memory storageKey,
-        address inboxContract,
+        string calldata receiver,
         bytes[] calldata attributes,
         bytes calldata proof
     ) external view {
-        _validateProof2(storageKey, inboxContract, attributes, proof);
+        _validateProof2(storageKey, receiver, attributes, proof);
     }
 }

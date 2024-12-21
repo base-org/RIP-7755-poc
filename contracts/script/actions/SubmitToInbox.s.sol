@@ -30,26 +30,27 @@ contract SubmitToInbox is Script, ERC7786Base {
     }
 
     // Using dummy values for local testing
-    function _initMessage() private view returns (string memory, string memory, bytes memory, bytes[] memory) {
+    function _initMessage() private pure returns (string memory, string memory, bytes memory, bytes[] memory) {
         Call[] memory calls = new Call[](0);
 
-        string memory sourceChain = CAIP10.formatCaip2(11155420);
-        string memory sender = 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.toChecksumHexString();
+        string memory sourceChain = CAIP10.formatCaip2(31337);
+        string memory sender = "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496";
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] = abi.encodeWithSelector(
-            _REWARD_ATTRIBUTE_SELECTOR, 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(), 1 ether
+            _REWARD_ATTRIBUTE_SELECTOR, 0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a, 1 ether
         );
-        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, block.timestamp + 2 weeks);
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1828828574);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(
-            _REQUESTER_ATTRIBUTE_SELECTOR, 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32()
+            _REQUESTER_ATTRIBUTE_SELECTOR, 0x000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac6
         );
         attributes[4] =
             abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, 0x23214A0864FC0014CAb6030267738F01AFfdd547);
-        attributes[5] =
-            abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
+        attributes[5] = abi.encodeWithSelector(
+            _SHOYU_BASHI_ATTRIBUTE_SELECTOR, 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f
+        );
 
         return (sourceChain, sender, payload, attributes);
     }

@@ -2,10 +2,9 @@
 pragma solidity 0.8.24;
 
 import {OPStackProver} from "../libraries/provers/OPStackProver.sol";
-import {GlobalTypes} from "../libraries/GlobalTypes.sol";
+import {CAIP10} from "../libraries/CAIP10.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
-import {CrossChainRequest} from "../RIP7755Structs.sol";
 
 /// @title RIP7755OutboxToOPStack
 ///
@@ -14,7 +13,6 @@ import {CrossChainRequest} from "../RIP7755Structs.sol";
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
 contract RIP7755OutboxToOPStack is RIP7755Outbox {
     using OPStackProver for bytes;
-    using GlobalTypes for bytes32;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
@@ -28,15 +26,17 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param inboxContract The inbox contract address
+    /// @param receiver The CAIP-10 account address of the receiver
     /// @param attributes The attributes of the request
     /// @param proof The proof to validate
     function _validateProof2(
         bytes memory inboxContractStorageKey,
-        address inboxContract,
+        string calldata receiver,
         bytes[] calldata attributes,
         bytes calldata proof
     ) internal view override {
+        (, string memory inboxString) = CAIP10.parse(receiver);
+        address inboxContract = CAIP10.stringToAddress(inboxString);
         bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
         address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
 
