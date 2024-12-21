@@ -5,6 +5,7 @@ import {Script} from "forge-std/Script.sol";
 
 import {CAIP10} from "../../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
+import {StringsHelper} from "../../src/libraries/StringsHelper.sol";
 import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 import {Call} from "../../src/RIP7755Structs.sol";
@@ -13,6 +14,7 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 contract SubmitRequest is Script, ERC7786Base {
     using GlobalTypes for address;
     using CAIP10 for address;
+    using StringsHelper for address;
 
     HelperConfig public helperConfig;
 
@@ -30,17 +32,18 @@ contract SubmitRequest is Script, ERC7786Base {
 
         RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
 
-        (string memory receiver, bytes memory payload, bytes[] memory attributes) = _initMessage(destinationChainId);
+        (string memory destinationChain, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(destinationChainId);
 
         vm.startBroadcast(config.deployerKey);
-        outbox.sendMessage("", receiver, payload, attributes);
+        outbox.sendMessage(destinationChain, receiver, payload, attributes);
         vm.stopBroadcast();
     }
 
     function _initMessage(uint256 destinationChainId)
         private
         view
-        returns (string memory, bytes memory, bytes[] memory)
+        returns (string memory, string memory, bytes memory, bytes[] memory)
     {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
 
@@ -48,7 +51,8 @@ contract SubmitRequest is Script, ERC7786Base {
         calls[0] =
             Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
-        string memory receiver = dstConfig.inbox.local();
+        string memory destinationChain = CAIP10.formatCaip2(31337);
+        string memory receiver = dstConfig.inbox.toChecksumHexString();
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](3);
 
@@ -56,6 +60,6 @@ contract SubmitRequest is Script, ERC7786Base {
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 1 weeks, block.timestamp + 2 weeks);
         attributes[2] = abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, dstConfig.l2Oracle);
 
-        return (receiver, payload, attributes);
+        return (destinationChain, receiver, payload, attributes);
     }
 }
