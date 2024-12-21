@@ -1,4 +1,5 @@
 import type { Address, Block, GetProofReturnType, Hex } from "viem";
+import type { Assertion } from "./chain";
 
 export type StateRootProofReturnType = { proof: Hex[]; leaf: Hex };
 
@@ -12,5 +13,7 @@ export type GetStorageProofsInput = {
   l1BlockNumber: bigint;
   l2Block: Block;
   l2Slot: Address;
-  nodeIndex?: bigint;
+  parentAssertionHash?: Hex;
+  afterInboxBatchAcc?: Hex;
+  assertion?: Assertion;
 };

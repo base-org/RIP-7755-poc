@@ -7,7 +7,13 @@ export type GetBeaconRootAndL2TimestampReturnType = {
   timestampForL2BeaconOracle: bigint;
 };
 
-export type DecodedNodeCreatedLog = { args: { assertion: any } };
+export type DecodedNodeCreatedLog = {
+  args: {
+    parentAssertionHash: Hex;
+    assertion: { afterState: Assertion };
+    afterInboxBatchAcc: Hex;
+  };
+};
 
 export type ChainConfig = {
   chainId: number;
@@ -46,3 +52,20 @@ export enum Provers {
   OPStack = "OPStack",
   Hashi = "Hashi",
 }
+
+enum MachineStatus {
+  RUNNING,
+  FINISHED,
+  ERRORED,
+}
+
+type GlobalState = {
+  bytes32Vals: [Hex, Hex];
+  u64Vals: [bigint, bigint];
+};
+
+export type Assertion = {
+  globalState: GlobalState;
+  machineStatus: MachineStatus;
+  endHistoryRoot: Hex;
+};

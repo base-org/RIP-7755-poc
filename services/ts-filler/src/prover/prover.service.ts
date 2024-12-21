@@ -6,6 +6,7 @@ import {
   toRlp,
   type Address,
   type Block,
+  type Hex,
 } from "viem";
 const { ssz } = await import("@lodestar/types");
 const { BeaconBlock } = ssz.deneb;
@@ -23,6 +24,7 @@ import type {
 import {
   SupportedChains,
   type ActiveChains,
+  type Assertion,
   type GetBeaconRootAndL2TimestampReturnType,
 } from "../common/types/chain";
 import type {
@@ -65,16 +67,17 @@ export default class ProverService {
       l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber);
     }
 
-    const { l2Block, sendRoot, nodeIndex } = await this.chainService.getL2Block(
-      l1BlockNumber
-    );
+    const { l2Block, parentAssertionHash, afterInboxBatchAcc, assertion } =
+      await this.chainService.getL2Block(l1BlockNumber);
     const l2Slot = this.deriveRIP7755VerifierStorageSlot(requestHash);
 
     const storageProofOpts = {
       l1BlockNumber,
       l2Block,
       l2Slot,
-      nodeIndex,
+      parentAssertionHash,
+      afterInboxBatchAcc,
+      assertion,
     };
     const storageProofs = await this.getStorageProofs(storageProofOpts);
 
@@ -83,8 +86,9 @@ export default class ProverService {
       l2Block,
       beaconData,
       stateRootInclusion,
-      sendRoot,
-      nodeIndex
+      assertion,
+      parentAssertionHash,
+      afterInboxBatchAcc
     );
   }
 
@@ -104,12 +108,24 @@ export default class ProverService {
 
   private async getStorageProofs(opts: GetStorageProofsInput): Promise<Proofs> {
     console.log("getStorageProofs");
-    const { l1BlockNumber, l2Block, l2Slot, nodeIndex } = opts;
+    const {
+      l1BlockNumber,
+      l2Block,
+      l2Slot,
+      parentAssertionHash,
+      afterInboxBatchAcc,
+      assertion,
+    } = opts;
     const dstConfig = this.activeChains.dst;
 
     const calls = [
       this.activeChains.l1.publicClient.getProof(
-        this.buildL1Proof(l1BlockNumber, nodeIndex)
+        this.buildL1Proof(
+          l1BlockNumber,
+          parentAssertionHash,
+          afterInboxBatchAcc,
+          assertion
+        )
       ),
       dstConfig.publicClient.getProof({
         address: dstConfig.contracts.inbox,
@@ -140,24 +156,82 @@ export default class ProverService {
 
   private buildL1Proof(
     l1BlockNumber: bigint,
-    nodeIndex?: bigint
+    parentAssertionHash?: Hex,
+    afterInboxBatchAcc?: Hex,
+    assertion?: Assertion
   ): { address: Address; storageKeys: Address[]; blockNumber: bigint } {
     const address = this.activeChains.dst.l2Oracle;
     let storageKeys = [constants.slots.anchorStateRegistrySlot];
 
     if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
-      if (!nodeIndex) {
-        throw new Error("Node index is required for Arbitrum proofs");
+      if (!parentAssertionHash) {
+        throw new Error(
+          "Parent assertion hash is required for Arbitrum proofs"
+        );
       }
-      const slot = 118n;
-      const offset = 2n; // confirmData is offset by 2 slots in Node struct
-      const derivedSlotStart = keccak256(
+      if (!assertion) {
+        throw new Error("Assertion is required for Arbitrum proofs");
+      }
+      if (!afterInboxBatchAcc) {
+        throw new Error(
+          "After inbox batch acc is required for Arbitrum proofs"
+        );
+      }
+
+      const afterStateHash = keccak256(
         encodeAbiParameters(
-          [{ type: "uint64" }, { type: "uint256" }],
-          [nodeIndex, slot]
+          [
+            {
+              components: [
+                {
+                  components: [
+                    {
+                      internalType: "bytes32[2]",
+                      name: "bytes32Vals",
+                      type: "bytes32[2]",
+                    },
+                    {
+                      internalType: "uint64[2]",
+                      name: "u64Vals",
+                      type: "uint64[2]",
+                    },
+                  ],
+                  internalType: "struct GlobalState",
+                  name: "globalState",
+                  type: "tuple",
+                },
+                {
+                  internalType: "enum MachineStatus",
+                  name: "machineStatus",
+                  type: "uint8",
+                },
+                {
+                  internalType: "bytes32",
+                  name: "endHistoryRoot",
+                  type: "bytes32",
+                },
+              ],
+              internalType: "struct AssertionState",
+              name: "beforeState",
+              type: "tuple",
+            },
+          ],
+          [assertion]
         )
       );
-      const derivedSlot = toHex(BigInt(derivedSlotStart) + offset);
+      const newAssertionHash = keccak256(
+        encodeAbiParameters(
+          [{ type: "bytes32" }, { type: "bytes32" }, { type: "bytes32" }],
+          [parentAssertionHash, afterStateHash, afterInboxBatchAcc]
+        )
+      );
+      const slot = 117n;
+      const derivedSlot = keccak256(
+        encodeAbiParameters(
+          [{ type: "bytes32" }, { type: "uint256" }],
+          [newAssertionHash, slot]
+        )
+      );
       storageKeys = [derivedSlot];
     }
 
@@ -179,8 +253,9 @@ export default class ProverService {
     l2Block: Block,
     beaconData: GetBeaconRootAndL2TimestampReturnType,
     stateRootInclusion: StateRootProofReturnType,
-    sendRoot?: Address,
-    nodeIndex?: bigint
+    assertion?: Assertion,
+    parentAssertionHash?: Hex,
+    afterInboxBatchAcc?: Hex
   ): ArbitrumProofType | OPStackProofType {
     console.log("storeProofObj");
 
@@ -202,13 +277,17 @@ export default class ProverService {
       },
       dstL2StateRootProofParams: {
         storageKey: proofs.storageProof.storageProof[0].key,
-        storageValue: toHex(proofs.storageProof.storageProof[0].value),
+        storageValue: this.convertToHex(
+          proofs.storageProof.storageProof[0].value
+        ),
         accountProof: proofs.storageProof.accountProof,
         storageProof: proofs.storageProof.storageProof[0].proof,
       },
       dstL2AccountProofParams: {
         storageKey: proofs.l2StorageProof.storageProof[0].key,
-        storageValue: toHex(proofs.l2StorageProof.storageProof[0].value),
+        storageValue: this.convertToHex(
+          proofs.l2StorageProof.storageProof[0].value
+        ),
         accountProof: proofs.l2StorageProof.accountProof,
         storageProof: proofs.l2StorageProof.storageProof[0].proof,
       },
@@ -220,14 +299,22 @@ export default class ProverService {
     }
 
     if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
-      if (!sendRoot) {
-        throw new Error("Send Root is required for Arbitrum proofs");
+      if (!assertion) {
+        throw new Error("Assertion is required for Arbitrum proofs");
       }
-      if (!nodeIndex) {
-        throw new Error("Node index is required for Arbitrum proofs");
+      if (!parentAssertionHash) {
+        throw new Error(
+          "Parent assertion hash is required for Arbitrum proofs"
+        );
       }
-      proofObj["sendRoot"] = sendRoot;
-      proofObj["nodeIndex"] = nodeIndex;
+      if (!afterInboxBatchAcc) {
+        throw new Error(
+          "After inbox batch acc is required for Arbitrum proofs"
+        );
+      }
+      proofObj["afterState"] = assertion;
+      proofObj["prevAssertionHash"] = parentAssertionHash;
+      proofObj["sequencerBatchAcc"] = afterInboxBatchAcc;
     }
 
     return proofObj;
@@ -284,5 +371,15 @@ export default class ProverService {
     }
 
     return blockArray;
+  }
+
+  private convertToHex(value: bigint): Hex {
+    const tmp = toHex(value);
+
+    if (tmp.length % 2 !== 0) {
+      return ("0x0" + tmp.slice(2)) as Hex;
+    }
+
+    return tmp;
   }
 }
