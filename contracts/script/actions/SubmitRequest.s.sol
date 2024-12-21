@@ -27,20 +27,21 @@ contract SubmitRequest is Script, ERC7786Base {
     function run() external {
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig(block.chainid);
 
-        address outboxAddr = config.hashiOutbox;
+        address outboxAddr = config.opStackOutbox;
         uint256 destinationChainId = helperConfig.BASE_SEPOLIA_CHAIN_ID();
+        uint256 duration = 1 weeks;
 
         RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
 
         (string memory destinationChain, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(destinationChainId);
+            _initMessage(destinationChainId, duration);
 
         vm.startBroadcast(config.deployerKey);
-        outbox.sendMessage(destinationChain, receiver, payload, attributes);
+        outbox.sendMessage{value: 0.0002 ether}(destinationChain, receiver, payload, attributes);
         vm.stopBroadcast();
     }
 
-    function _initMessage(uint256 destinationChainId)
+    function _initMessage(uint256 destinationChainId, uint256 duration)
         private
         view
         returns (string memory, string memory, bytes memory, bytes[] memory)
@@ -51,14 +52,15 @@ contract SubmitRequest is Script, ERC7786Base {
         calls[0] =
             Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
-        string memory destinationChain = CAIP10.formatCaip2(31337);
+        string memory destinationChain = CAIP10.formatCaip2(destinationChainId);
         string memory receiver = dstConfig.inbox.toChecksumHexString();
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](3);
 
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, 0.0002 ether);
-        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 1 weeks, block.timestamp + 2 weeks);
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, duration, block.timestamp + 2 weeks);
         attributes[2] = abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, dstConfig.l2Oracle);
+        // attributes[2] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, dstConfig.shoyuBashi);
 
         return (destinationChain, receiver, payload, attributes);
     }

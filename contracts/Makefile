@@ -16,10 +16,11 @@ CHAIN_A_URL=http://localhost:8546
 CHAIN_B_URL=http://localhost:8547
 
 ARBITRUM_RPC = $(ARBITRUM_SEPOLIA_RPC)
-OPTIMISM_RPC = $(CHAIN_B_URL)
-BASE_RPC = $(CHAIN_A_URL)
+OPTIMISM_RPC = $(OPTIMISM_SEPOLIA_RPC)
+BASE_RPC = $(BASE_SEPOLIA_RPC)
 
-SUBMIT_REQUEST_RPC = $(ARBITRUM_SEPOLIA_RPC)
+SUBMIT_REQUEST_RPC = $(OPTIMISM_RPC)
+OP_STACK_RPC = $(OPTIMISM_RPC)
 
 test:
 	forge fmt
@@ -32,47 +33,20 @@ coverage:
 deploy-mock:
 	forge create --rpc-url $(ARBITRUM_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
 
-deploy-mock-opt-sep:
-	forge create --rpc-url $(OPTIMISM_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
-
-deploy-mock-chiado:
-	forge create --rpc-url $(CHIADO_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
-
 read-mock:
 	cast call $(MOCK_VERIFIER_ADDRESS) "getFulfillmentInfo(bytes32)(uint96,address)" $(ARBITRUM_REQUEST_HASH) --rpc-url $(ARBITRUM_RPC)
 
 set-mock:
 	cast send $(MOCK_VERIFIER_ADDRESS) "storeFulfillmentInfo(bytes32,address)" $(ARBITRUM_REQUEST_HASH) $(FULFILLER_ADDRESS) --rpc-url $(ARBITRUM_RPC) --private-key $(PRIVATE_KEY)
 
-read-mock-op:
-	cast call $(MOCK_VERIFIER_ADDRESS) "getFulfillmentInfo(bytes32)(uint96,address)" $(OPTIMISM_REQUEST_HASH) --rpc-url $(OPTIMISM_RPC)
-
-set-mock-op:
-	cast send $(MOCK_VERIFIER_ADDRESS) "storeFulfillmentInfo(bytes32,address)" $(OPTIMISM_REQUEST_HASH) $(FULFILLER_ADDRESS) --rpc-url $(OPTIMISM_RPC) --private-key $(PRIVATE_KEY)
-
-read-mock-chiado:
-	cast call 0xdA7D9c8C3eBd2F0A790b1AbCFcdA3d309379B4d8 "getFulfillmentInfo(bytes32)(uint96,address)" 0x44d313e0c91083225689fc582c66e76e3653a588daa2b5cffbcd3b9158cb6078 --rpc-url $(CHIADO_RPC)
-
-set-mock-chiado:
-	cast send 0xdA7D9c8C3eBd2F0A790b1AbCFcdA3d309379B4d8 "storeFulfillmentInfo(bytes32,address)" 0x44d313e0c91083225689fc582c66e76e3653a588daa2b5cffbcd3b9158cb6078 0x23214a0864fc0014cab6030267738f01affdd547 --rpc-url $(CHIADO_RPC) --private-key $(PRIVATE_KEY)
-
 deploy-arbitrum-sepolia:
 	forge script script/chains/DeployArbitrum.s.sol:DeployArbitrum --rpc-url $(ARBITRUM_RPC) --broadcast -vvvv
 
-deploy-optimism-sepolia:
-	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv
-
-deploy-base-sepolia:
-	forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(BASE_RPC) --private-key $(PRIVATE_KEY) --broadcast -vvvv
-
-verify-arb-sepolia:
-	forge verify-contract 0xeE962eD1671F655a806cB22623eEA8A7cCc233bC src/RIP7755Inbox.sol:RIP7755Inbox --rpc-url $(ARBITRUM_RPC) --etherscan-api-key $(ARBISCAN_API_KEY)
-
-verify-base-sepolia:
-	forge verify-contract 0xB482b292878FDe64691d028A2237B34e91c7c7ea src/RIP7755Inbox.sol:RIP7755Inbox --rpc-url $(BASE_RPC) --etherscan-api-key $(BASESCAN_API_KEY)
+deploy-op-stack:
+	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(OP_STACK_RPC) --broadcast -vvvv
 
 submit-request:
-	forge script script/actions/SubmitRequest.s.sol:SubmitRequest --rpc-url $(SUBMIT_REQUEST_RPC) --broadcast -vvvv
+	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/actions/SubmitRequest.s.sol:SubmitRequest --rpc-url $(SUBMIT_REQUEST_RPC) --broadcast -vvvv
 
 fulfill-request:
 	PRIVATE_KEY=$(PRIVATE_KEY) forge script script/actions/SubmitToInbox.s.sol:SubmitToInbox --rpc-url $(OPTIMISM_RPC) --broadcast -vvvv

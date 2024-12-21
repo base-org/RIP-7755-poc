@@ -261,11 +261,11 @@ abstract contract RIP7755Outbox is ERC7786Base {
     }
 
     function _processAttributes(bytes[] calldata attributes) private returns (bytes[] memory) {
-        if (attributes.length != _EXPECTED_ATTRIBUTE_LENGTH) {
+        if (attributes.length < _EXPECTED_ATTRIBUTE_LENGTH) {
             revert InvalidAttributeLength(_EXPECTED_ATTRIBUTE_LENGTH, attributes.length);
         }
 
-        bytes[] memory adjustedAttributes = new bytes[](_EXPECTED_ATTRIBUTE_LENGTH + 2);
+        bytes[] memory adjustedAttributes = new bytes[](attributes.length + 2);
         bool[2] memory attributeProcessed = [false, false];
 
         for (uint256 i; i < attributes.length; i++) {
@@ -277,7 +277,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
             } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
                 _handleDelayAttribute(attributes[i]);
                 attributeProcessed[1] = true;
-            } else {
+            } else if (!_isOptionalAttribute(attributeSelector)) {
                 revert UnsupportedAttribute(attributeSelector);
             }
 
@@ -339,5 +339,10 @@ abstract contract RIP7755Outbox is ERC7786Base {
         if (status != expectedStatus) {
             revert InvalidStatus({expected: expectedStatus, actual: status});
         }
+    }
+
+    function _isOptionalAttribute(bytes4 selector) private pure returns (bool) {
+        return selector == _PRECHECK_ATTRIBUTE_SELECTOR || selector == _L2_ORACLE_ATTRIBUTE_SELECTOR
+            || selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR;
     }
 }
