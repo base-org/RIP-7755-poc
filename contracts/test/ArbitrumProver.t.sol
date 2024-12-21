@@ -5,13 +5,11 @@ import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
-import {BlockHeaders} from "../src/libraries/BlockHeaders.sol";
 import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755OutboxToArbitrum} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
 

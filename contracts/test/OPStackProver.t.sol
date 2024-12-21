@@ -10,7 +10,6 @@ import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
 
