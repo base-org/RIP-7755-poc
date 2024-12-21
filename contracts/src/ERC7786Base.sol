@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+/// @title ERC7786Base
+///
+/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+///
+/// @notice This contract contains the selectors for the RIP-7755-supported attributes of the ERC7786 standard
 contract ERC7786Base {
     /// @notice The selector for the precheck attribute
     bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xfa1e5831; // precheck(address)
@@ -30,6 +35,14 @@ contract ERC7786Base {
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);
 
+    /// @notice Locates an attribute in the attributes array
+    ///
+    /// @custom:reverts If the attribute is not found
+    ///
+    /// @param attributes The attributes array to search
+    /// @param selector The selector of the attribute to find
+    ///
+    /// @return attribute The attribute found
     function _locateAttribute(bytes[] calldata attributes, bytes4 selector) internal pure returns (bytes calldata) {
         (bool found, bytes calldata attribute) = _locateAttributeUnchecked(attributes, selector);
 
@@ -40,6 +53,13 @@ contract ERC7786Base {
         return attribute;
     }
 
+    /// @notice Locates an attribute in the attributes array without checking if the attribute is found
+    ///
+    /// @param attributes The attributes array to search
+    /// @param selector The selector of the attribute to find
+    ///
+    /// @return found Whether the attribute was found
+    /// @return attribute The attribute found
     function _locateAttributeUnchecked(bytes[] calldata attributes, bytes4 selector)
         internal
         pure
