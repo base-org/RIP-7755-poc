@@ -1,4 +1,4 @@
-import type { Address } from "viem";
+import { decodeAbiParameters, zeroAddress, type Hex } from "viem";
 
 import type { RequestType } from "../common/types/request";
 import type SignerService from "../signer/signer.service";
@@ -6,6 +6,8 @@ import type DBService from "../database/db.service";
 import { Provers, type ActiveChains } from "../common/types/chain";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
 import bytes32ToAddress from "../common/utils/bytes32ToAddress";
+import type CAIP10 from "../common/utils/caip10";
+import type Attributes from "../common/utils/attributes";
 
 export default class HandlerService {
   constructor(
@@ -15,8 +17,12 @@ export default class HandlerService {
   ) {}
 
   async handleRequest(
-    requestHash: Address,
-    request: RequestType
+    outboxId: Hex,
+    sender: CAIP10,
+    receiver: CAIP10,
+    payload: Hex,
+    value: bigint,
+    attributes: Attributes
   ): Promise<void> {
     // - Confirm outbox is associated with destination chain ID
     // Use Hashi if source chain doesn't expose L1 state OR dst chain doesn't share state with L1
@@ -31,7 +37,7 @@ export default class HandlerService {
 
     if (
       expectedProverAddr &&
-      bytes32ToAddress(request.origin) !== expectedProverAddr.toLowerCase()
+      sender.getAddress().toLowerCase() !== expectedProverAddr.toLowerCase()
     ) {
       throw new Error("Unknown Prover contract");
     }
@@ -39,32 +45,57 @@ export default class HandlerService {
     // - Make sure inboxContract matches the trusted inbox for dst chain Id
     if (
       this.activeChains.dst.contracts.inbox.toLowerCase() !==
-      bytes32ToAddress(request.inboxContract)
+      receiver.getAddress().toLowerCase()
     ) {
       throw new Error("Unknown Inbox contract on dst chain");
     }
 
     // - Confirm l2Oracle is valid for dst chain
+    const expectedOracle =
+      proverName === Provers.Hashi
+        ? zeroAddress
+        : this.activeChains.dst.l2Oracle;
     if (
-      bytes32ToAddress(request.l2Oracle) !==
-      this.activeChains.dst.l2Oracle.toLowerCase()
+      attributes.getL2Oracle().toLowerCase() !== expectedOracle.toLowerCase()
     ) {
       throw new Error("Unkown Oracle contract for dst chain");
     }
 
+    const [calls] = decodeAbiParameters(
+      [
+        {
+          name: "calls",
+          type: "tuple[]",
+          internalType: "struct Call[]",
+          components: [
+            { name: "to", type: "bytes32", internalType: "bytes32" },
+            { name: "data", type: "bytes", internalType: "bytes" },
+            { name: "value", type: "uint256", internalType: "uint256" },
+          ],
+        },
+      ],
+      payload
+    );
+
     // - Add up total value needed
     let valueNeeded = 0n;
 
-    for (let i = 0; i < request.calls.length; i++) {
-      valueNeeded += request.calls[i].value;
+    for (let i = 0; i < calls.length; i++) {
+      valueNeeded += calls[i].value;
     }
 
     // Gather transaction params
     const fulfillerAddr = this.signerService.getFulfillerAddress();
-    const address = bytes32ToAddress(request.inboxContract);
+    attributes.setFulfiller(fulfillerAddr);
+    const address = receiver.getAddress();
     const abi = RIP7755Inbox;
-    const functionName = "fulfill";
-    const args = [request, fulfillerAddr];
+    const functionName = "executeMessage";
+    const args = [
+      sender.getCaip2(),
+      sender.getAddress(),
+      payload,
+      attributes.getAttributes(),
+    ];
     const estimatedDestinationGas = await this.signerService.estimateGas(
       address,
       abi,
@@ -74,7 +105,7 @@ export default class HandlerService {
     );
 
     // - rewardAsset + rewardAmount should make sense given requested calls
-    if (!this.isValidReward(request, valueNeeded, estimatedDestinationGas)) {
+    if (!this.isValidReward(attributes, valueNeeded, estimatedDestinationGas)) {
       console.error("Undesirable reward");
       throw new Error("Undesirable reward");
     }
@@ -102,9 +133,13 @@ export default class HandlerService {
 
     // record db instance to be picked up later for reward collection
     const dbSuccess = await this.dbService.storeSuccessfulCall(
-      requestHash,
+      outboxId,
       txnHash,
-      request,
+      sender.format(),
+      receiver.format(),
+      payload,
+      value,
+      attributes,
       this.activeChains
     );
 
@@ -116,16 +151,16 @@ export default class HandlerService {
   }
 
   private isValidReward(
-    request: RequestType,
+    attributes: Attributes,
     valueNeeded: bigint,
     estimatedDestinationGas: bigint
   ): boolean {
     console.log("Validating reward");
+    const { asset, amount } = attributes.getReward();
     // This is a simplified case to just support ETH rewards. More sophisticated validation needed to support ERC20 rewards
     return (
-      bytes32ToAddress(request.rewardAsset) ===
-        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
-      request.rewardAmount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
+      asset === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
+      amount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
     );
   }
 }

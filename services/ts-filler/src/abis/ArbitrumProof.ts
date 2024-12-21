@@ -4,12 +4,54 @@ export default [
     type: "tuple",
     internalType: "struct ArbitrumProver.RIP7755Proof",
     components: [
-      { name: "sendRoot", type: "bytes", internalType: "bytes" },
-      { name: "nodeIndex", type: "uint64", internalType: "uint64" },
       {
         name: "encodedBlockArray",
         type: "bytes",
         internalType: "bytes",
+      },
+      {
+        name: "afterState",
+        type: "tuple",
+        internalType: "struct ArbitrumProver.AssertionState",
+        components: [
+          {
+            name: "globalState",
+            type: "tuple",
+            internalType: "struct ArbitrumProver.GlobalState",
+            components: [
+              {
+                name: "bytes32Vals",
+                type: "bytes32[2]",
+                internalType: "bytes32[2]",
+              },
+              {
+                name: "u64Vals",
+                type: "uint64[2]",
+                internalType: "uint64[2]",
+              },
+            ],
+          },
+          {
+            name: "machineStatus",
+            type: "ArbitrumProver.MachineStatus",
+            internalType: "enum ArbitrumProver.MachineStatus",
+          },
+          {
+            name: "endHistoryRoot",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+        ],
+      },
+      {
+        name: "prevAssertionHash",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "sequencerBatchAcc",
+        type: "bytes32",
+        internalType: "bytes32",
       },
       {
         name: "stateProofParams",
@@ -43,7 +85,11 @@ export default [
         type: "tuple",
         internalType: "struct StateValidator.AccountProofParameters",
         components: [
-          { name: "storageKey", type: "bytes", internalType: "bytes" },
+          {
+            name: "storageKey",
+            type: "bytes",
+            internalType: "bytes",
+          },
           {
             name: "storageValue",
             type: "bytes",
@@ -66,7 +112,11 @@ export default [
         type: "tuple",
         internalType: "struct StateValidator.AccountProofParameters",
         components: [
-          { name: "storageKey", type: "bytes", internalType: "bytes" },
+          {
+            name: "storageKey",
+            type: "bytes",
+            internalType: "bytes",
+          },
           {
             name: "storageValue",
             type: "bytes",

@@ -4,19 +4,26 @@ export default [
     type: "tuple",
     internalType: "struct OPStackProver.RIP7755Proof",
     components: [
-      { name: "l2StateRoot", type: "bytes32", internalType: "bytes32" },
       {
         name: "l2MessagePasserStorageRoot",
         type: "bytes32",
         internalType: "bytes32",
       },
-      { name: "l2BlockHash", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "encodedBlockArray",
+        type: "bytes",
+        internalType: "bytes",
+      },
       {
         name: "stateProofParams",
         type: "tuple",
         internalType: "struct StateValidator.StateProofParameters",
         components: [
-          { name: "beaconRoot", type: "bytes32", internalType: "bytes32" },
+          {
+            name: "beaconRoot",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
           {
             name: "beaconOracleTimestamp",
             type: "uint256",
@@ -39,8 +46,16 @@ export default [
         type: "tuple",
         internalType: "struct StateValidator.AccountProofParameters",
         components: [
-          { name: "storageKey", type: "bytes", internalType: "bytes" },
-          { name: "storageValue", type: "bytes", internalType: "bytes" },
+          {
+            name: "storageKey",
+            type: "bytes",
+            internalType: "bytes",
+          },
+          {
+            name: "storageValue",
+            type: "bytes",
+            internalType: "bytes",
+          },
           {
             name: "accountProof",
             type: "bytes[]",
@@ -58,8 +73,16 @@ export default [
         type: "tuple",
         internalType: "struct StateValidator.AccountProofParameters",
         components: [
-          { name: "storageKey", type: "bytes", internalType: "bytes" },
-          { name: "storageValue", type: "bytes", internalType: "bytes" },
+          {
+            name: "storageKey",
+            type: "bytes",
+            internalType: "bytes",
+          },
+          {
+            name: "storageValue",
+            type: "bytes",
+            internalType: "bytes",
+          },
           {
             name: "accountProof",
             type: "bytes[]",
