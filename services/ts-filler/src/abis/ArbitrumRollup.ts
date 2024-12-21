@@ -22,13 +22,13 @@ export default [
     anonymous: false,
     inputs: [
       {
-        indexed: true,
+        indexed: false,
         internalType: "address",
-        name: "beacon",
+        name: "anyTrustFastConfirmer",
         type: "address",
       },
     ],
-    name: "BeaconUpgraded",
+    name: "AnyTrustFastConfirmerSet",
     type: "event",
   },
   {
@@ -36,9 +36,9 @@ export default [
     inputs: [
       {
         indexed: true,
-        internalType: "uint64",
-        name: "nodeNum",
-        type: "uint64",
+        internalType: "bytes32",
+        name: "assertionHash",
+        type: "bytes32",
       },
       {
         indexed: false,
@@ -53,7 +53,7 @@ export default [
         type: "bytes32",
       },
     ],
-    name: "NodeConfirmed",
+    name: "AssertionConfirmed",
     type: "event",
   },
   {
@@ -61,30 +61,67 @@ export default [
     inputs: [
       {
         indexed: true,
-        internalType: "uint64",
-        name: "nodeNum",
-        type: "uint64",
-      },
-      {
-        indexed: true,
         internalType: "bytes32",
-        name: "parentNodeHash",
+        name: "assertionHash",
         type: "bytes32",
       },
       {
         indexed: true,
         internalType: "bytes32",
-        name: "nodeHash",
-        type: "bytes32",
-      },
-      {
-        indexed: false,
-        internalType: "bytes32",
-        name: "executionHash",
+        name: "parentAssertionHash",
         type: "bytes32",
       },
       {
         components: [
+          {
+            components: [
+              {
+                internalType: "bytes32",
+                name: "prevPrevAssertionHash",
+                type: "bytes32",
+              },
+              {
+                internalType: "bytes32",
+                name: "sequencerBatchAcc",
+                type: "bytes32",
+              },
+              {
+                components: [
+                  {
+                    internalType: "bytes32",
+                    name: "wasmModuleRoot",
+                    type: "bytes32",
+                  },
+                  {
+                    internalType: "uint256",
+                    name: "requiredStake",
+                    type: "uint256",
+                  },
+                  {
+                    internalType: "address",
+                    name: "challengeManager",
+                    type: "address",
+                  },
+                  {
+                    internalType: "uint64",
+                    name: "confirmPeriodBlocks",
+                    type: "uint64",
+                  },
+                  {
+                    internalType: "uint64",
+                    name: "nextInboxPosition",
+                    type: "uint64",
+                  },
+                ],
+                internalType: "struct ConfigData",
+                name: "configData",
+                type: "tuple",
+              },
+            ],
+            internalType: "struct BeforeStateData",
+            name: "beforeStateData",
+            type: "tuple",
+          },
           {
             components: [
               {
@@ -109,8 +146,13 @@ export default [
                 name: "machineStatus",
                 type: "uint8",
               },
+              {
+                internalType: "bytes32",
+                name: "endHistoryRoot",
+                type: "bytes32",
+              },
             ],
-            internalType: "struct ExecutionState",
+            internalType: "struct AssertionState",
             name: "beforeState",
             type: "tuple",
           },
@@ -138,15 +180,19 @@ export default [
                 name: "machineStatus",
                 type: "uint8",
               },
+              {
+                internalType: "bytes32",
+                name: "endHistoryRoot",
+                type: "bytes32",
+              },
             ],
-            internalType: "struct ExecutionState",
+            internalType: "struct AssertionState",
             name: "afterState",
             type: "tuple",
           },
-          { internalType: "uint64", name: "numBlocks", type: "uint64" },
         ],
         indexed: false,
-        internalType: "struct Assertion",
+        internalType: "struct AssertionInputs",
         name: "assertion",
         type: "tuple",
       },
@@ -158,6 +204,12 @@ export default [
       },
       {
         indexed: false,
+        internalType: "uint256",
+        name: "inboxMaxCount",
+        type: "uint256",
+      },
+      {
+        indexed: false,
         internalType: "bytes32",
         name: "wasmModuleRoot",
         type: "bytes32",
@@ -165,24 +217,23 @@ export default [
       {
         indexed: false,
         internalType: "uint256",
-        name: "inboxMaxCount",
+        name: "requiredStake",
         type: "uint256",
       },
-    ],
-    name: "NodeCreated",
-    type: "event",
-  },
-  {
-    anonymous: false,
-    inputs: [
       {
-        indexed: true,
+        indexed: false,
+        internalType: "address",
+        name: "challengeManager",
+        type: "address",
+      },
+      {
+        indexed: false,
         internalType: "uint64",
-        name: "nodeNum",
+        name: "confirmPeriodBlocks",
         type: "uint64",
       },
     ],
-    name: "NodeRejected",
+    name: "AssertionCreated",
     type: "event",
   },
   {
@@ -190,12 +241,164 @@ export default [
     inputs: [
       {
         indexed: true,
+        internalType: "bytes32",
+        name: "assertionHash",
+        type: "bytes32",
+      },
+    ],
+    name: "AssertionForceConfirmed",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "bytes32",
+        name: "assertionHash",
+        type: "bytes32",
+      },
+    ],
+    name: "AssertionForceCreated",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
         internalType: "uint256",
-        name: "id",
+        name: "newBaseStake",
         type: "uint256",
       },
     ],
-    name: "OwnerFunctionCalled",
+    name: "BaseStakeSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "beacon",
+        type: "address",
+      },
+    ],
+    name: "BeaconUpgraded",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "challengeManager",
+        type: "address",
+      },
+    ],
+    name: "ChallengeManagerSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint64",
+        name: "newConfirmPeriod",
+        type: "uint64",
+      },
+    ],
+    name: "ConfirmPeriodBlocksSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "inbox",
+        type: "address",
+      },
+      { indexed: false, internalType: "bool", name: "enabled", type: "bool" },
+    ],
+    name: "DelayedInboxSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "inbox",
+        type: "address",
+      },
+    ],
+    name: "InboxSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, internalType: "uint8", name: "version", type: "uint8" },
+    ],
+    name: "Initialized",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "newLoserStakerEscrow",
+        type: "address",
+      },
+    ],
+    name: "LoserStakeEscrowSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "newPeriod",
+        type: "uint256",
+      },
+    ],
+    name: "MinimumAssertionPeriodSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "outbox",
+        type: "address",
+      },
+    ],
+    name: "OldOutboxRemoved",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "outbox",
+        type: "address",
+      },
+    ],
+    name: "OutboxSet",
     type: "event",
   },
   {
@@ -235,7 +438,7 @@ export default [
       {
         indexed: false,
         internalType: "uint64",
-        name: "challengedNode",
+        name: "challengedAssertion",
         type: "uint64",
       },
     ],
@@ -259,6 +462,32 @@ export default [
       },
     ],
     name: "RollupInitialized",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address",
+        name: "newSequencerInbox",
+        type: "address",
+      },
+    ],
+    name: "SequencerInboxSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address[]",
+        name: "staker",
+        type: "address[]",
+      },
+    ],
+    name: "StakersForceRefunded",
     type: "event",
   },
   {
@@ -303,10 +532,11 @@ export default [
   {
     anonymous: false,
     inputs: [
+      { indexed: true, internalType: "address", name: "user", type: "address" },
       {
         indexed: true,
         internalType: "address",
-        name: "user",
+        name: "withdrawalAddress",
         type: "address",
       },
       {
@@ -328,12 +558,7 @@ export default [
   {
     anonymous: false,
     inputs: [
-      {
-        indexed: true,
-        internalType: "address",
-        name: "user",
-        type: "address",
-      },
+      { indexed: true, internalType: "address", name: "user", type: "address" },
       {
         indexed: false,
         internalType: "uint256",
@@ -351,22 +576,76 @@ export default [
     type: "event",
   },
   {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "newPeriod",
+        type: "uint256",
+      },
+    ],
+    name: "ValidatorAfkBlocksSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bool",
+        name: "_validatorWhitelistDisabled",
+        type: "bool",
+      },
+    ],
+    name: "ValidatorWhitelistDisabledSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "address[]",
+        name: "validators",
+        type: "address[]",
+      },
+      {
+        indexed: false,
+        internalType: "bool[]",
+        name: "enabled",
+        type: "bool[]",
+      },
+    ],
+    name: "ValidatorsSet",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: false,
+        internalType: "bytes32",
+        name: "newWasmModuleRoot",
+        type: "bytes32",
+      },
+    ],
+    name: "WasmModuleRootSet",
+    type: "event",
+  },
+  {
     inputs: [{ internalType: "address", name: "", type: "address" }],
     name: "_stakerMap",
     outputs: [
       { internalType: "uint256", name: "amountStaked", type: "uint256" },
+      {
+        internalType: "bytes32",
+        name: "latestStakedAssertion",
+        type: "bytes32",
+      },
       { internalType: "uint64", name: "index", type: "uint64" },
-      {
-        internalType: "uint64",
-        name: "latestStakedNode",
-        type: "uint64",
-      },
-      {
-        internalType: "uint64",
-        name: "currentChallenge",
-        type: "uint64",
-      },
       { internalType: "bool", name: "isStaked", type: "bool" },
+      { internalType: "address", name: "withdrawalAddress", type: "address" },
     ],
     stateMutability: "view",
     type: "function",
@@ -375,6 +654,13 @@ export default [
     inputs: [{ internalType: "address", name: "staker", type: "address" }],
     name: "amountStaked",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "anyTrustFastConfirmer",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
     stateMutability: "view",
     type: "function",
   },
@@ -401,10 +687,17 @@ export default [
   },
   {
     inputs: [],
+    name: "challengeGracePeriodBlocks",
+    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "challengeManager",
     outputs: [
       {
-        internalType: "contract IChallengeManager",
+        internalType: "contract IEdgeChallengeManager",
         name: "",
         type: "address",
       },
@@ -421,120 +714,95 @@ export default [
   },
   {
     inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+      { internalType: "bytes32", name: "parentAssertionHash", type: "bytes32" },
       {
         components: [
           {
             components: [
               {
-                components: [
-                  {
-                    internalType: "bytes32[2]",
-                    name: "bytes32Vals",
-                    type: "bytes32[2]",
-                  },
-                  {
-                    internalType: "uint64[2]",
-                    name: "u64Vals",
-                    type: "uint64[2]",
-                  },
-                ],
-                internalType: "struct GlobalState",
-                name: "globalState",
-                type: "tuple",
+                internalType: "bytes32[2]",
+                name: "bytes32Vals",
+                type: "bytes32[2]",
               },
-              {
-                internalType: "enum MachineStatus",
-                name: "machineStatus",
-                type: "uint8",
-              },
+              { internalType: "uint64[2]", name: "u64Vals", type: "uint64[2]" },
             ],
-            internalType: "struct ExecutionState",
-            name: "beforeState",
+            internalType: "struct GlobalState",
+            name: "globalState",
             type: "tuple",
           },
           {
-            components: [
-              {
-                components: [
-                  {
-                    internalType: "bytes32[2]",
-                    name: "bytes32Vals",
-                    type: "bytes32[2]",
-                  },
-                  {
-                    internalType: "uint64[2]",
-                    name: "u64Vals",
-                    type: "uint64[2]",
-                  },
-                ],
-                internalType: "struct GlobalState",
-                name: "globalState",
-                type: "tuple",
-              },
-              {
-                internalType: "enum MachineStatus",
-                name: "machineStatus",
-                type: "uint8",
-              },
-            ],
-            internalType: "struct ExecutionState",
-            name: "afterState",
-            type: "tuple",
+            internalType: "enum MachineStatus",
+            name: "machineStatus",
+            type: "uint8",
           },
-          { internalType: "uint64", name: "numBlocks", type: "uint64" },
+          { internalType: "bytes32", name: "endHistoryRoot", type: "bytes32" },
         ],
-        internalType: "struct Assertion",
-        name: "assertion",
+        internalType: "struct AssertionState",
+        name: "confirmState",
         type: "tuple",
       },
+      { internalType: "bytes32", name: "inboxAcc", type: "bytes32" },
     ],
-    name: "createNitroMigrationGenesis",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "staker", type: "address" }],
-    name: "currentChallenge",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "extraChallengeTimeBlocks",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "firstUnresolvedNode",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint64", name: "nodeNum", type: "uint64" },
-      { internalType: "bytes32", name: "blockHash", type: "bytes32" },
-      { internalType: "bytes32", name: "sendRoot", type: "bytes32" },
-    ],
-    name: "forceConfirmNode",
+    name: "forceConfirmAssertion",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
   {
     inputs: [
-      { internalType: "uint64", name: "prevNode", type: "uint64" },
-      {
-        internalType: "uint256",
-        name: "prevNodeInboxMaxCount",
-        type: "uint256",
-      },
+      { internalType: "bytes32", name: "prevAssertionHash", type: "bytes32" },
       {
         components: [
+          {
+            components: [
+              {
+                internalType: "bytes32",
+                name: "prevPrevAssertionHash",
+                type: "bytes32",
+              },
+              {
+                internalType: "bytes32",
+                name: "sequencerBatchAcc",
+                type: "bytes32",
+              },
+              {
+                components: [
+                  {
+                    internalType: "bytes32",
+                    name: "wasmModuleRoot",
+                    type: "bytes32",
+                  },
+                  {
+                    internalType: "uint256",
+                    name: "requiredStake",
+                    type: "uint256",
+                  },
+                  {
+                    internalType: "address",
+                    name: "challengeManager",
+                    type: "address",
+                  },
+                  {
+                    internalType: "uint64",
+                    name: "confirmPeriodBlocks",
+                    type: "uint64",
+                  },
+                  {
+                    internalType: "uint64",
+                    name: "nextInboxPosition",
+                    type: "uint64",
+                  },
+                ],
+                internalType: "struct ConfigData",
+                name: "configData",
+                type: "tuple",
+              },
+            ],
+            internalType: "struct BeforeStateData",
+            name: "beforeStateData",
+            type: "tuple",
+          },
           {
             components: [
               {
@@ -559,8 +827,13 @@ export default [
                 name: "machineStatus",
                 type: "uint8",
               },
+              {
+                internalType: "bytes32",
+                name: "endHistoryRoot",
+                type: "bytes32",
+              },
             ],
-            internalType: "struct ExecutionState",
+            internalType: "struct AssertionState",
             name: "beforeState",
             type: "tuple",
           },
@@ -588,24 +861,28 @@ export default [
                 name: "machineStatus",
                 type: "uint8",
               },
+              {
+                internalType: "bytes32",
+                name: "endHistoryRoot",
+                type: "bytes32",
+              },
             ],
-            internalType: "struct ExecutionState",
+            internalType: "struct AssertionState",
             name: "afterState",
             type: "tuple",
           },
-          { internalType: "uint64", name: "numBlocks", type: "uint64" },
         ],
-        internalType: "struct Assertion",
+        internalType: "struct AssertionInputs",
         name: "assertion",
         type: "tuple",
       },
       {
         internalType: "bytes32",
-        name: "expectedNodeHash",
+        name: "expectedAssertionHash",
         type: "bytes32",
       },
     ],
-    name: "forceCreateNode",
+    name: "forceCreateAssertion",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -618,67 +895,32 @@ export default [
     type: "function",
   },
   {
-    inputs: [
-      { internalType: "address[]", name: "stakerA", type: "address[]" },
-      { internalType: "address[]", name: "stakerB", type: "address[]" },
-    ],
-    name: "forceResolveChallenge",
-    outputs: [],
-    stateMutability: "nonpayable",
+    inputs: [],
+    name: "genesisAssertionHash",
+    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    stateMutability: "pure",
     type: "function",
   },
   {
-    inputs: [{ internalType: "uint64", name: "nodeNum", type: "uint64" }],
-    name: "getNode",
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+    ],
+    name: "getAssertion",
     outputs: [
       {
         components: [
-          { internalType: "bytes32", name: "stateHash", type: "bytes32" },
+          { internalType: "uint64", name: "firstChildBlock", type: "uint64" },
+          { internalType: "uint64", name: "secondChildBlock", type: "uint64" },
+          { internalType: "uint64", name: "createdAtBlock", type: "uint64" },
+          { internalType: "bool", name: "isFirstChild", type: "bool" },
           {
-            internalType: "bytes32",
-            name: "challengeHash",
-            type: "bytes32",
+            internalType: "enum AssertionStatus",
+            name: "status",
+            type: "uint8",
           },
-          {
-            internalType: "bytes32",
-            name: "confirmData",
-            type: "bytes32",
-          },
-          { internalType: "uint64", name: "prevNum", type: "uint64" },
-          {
-            internalType: "uint64",
-            name: "deadlineBlock",
-            type: "uint64",
-          },
-          {
-            internalType: "uint64",
-            name: "noChildConfirmedBeforeBlock",
-            type: "uint64",
-          },
-          { internalType: "uint64", name: "stakerCount", type: "uint64" },
-          {
-            internalType: "uint64",
-            name: "childStakerCount",
-            type: "uint64",
-          },
-          {
-            internalType: "uint64",
-            name: "firstChildBlock",
-            type: "uint64",
-          },
-          {
-            internalType: "uint64",
-            name: "latestChildNumber",
-            type: "uint64",
-          },
-          {
-            internalType: "uint64",
-            name: "createdAtBlock",
-            type: "uint64",
-          },
-          { internalType: "bytes32", name: "nodeHash", type: "bytes32" },
+          { internalType: "bytes32", name: "configHash", type: "bytes32" },
         ],
-        internalType: "struct Node",
+        internalType: "struct AssertionNode",
         name: "",
         type: "tuple",
       },
@@ -687,9 +929,29 @@ export default [
     type: "function",
   },
   {
-    inputs: [{ internalType: "uint64", name: "nodeNum", type: "uint64" }],
-    name: "getNodeCreationBlockForLogLookup",
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+    ],
+    name: "getAssertionCreationBlockForLogLookup",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+    ],
+    name: "getFirstChildCreationBlock",
+    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+    ],
+    name: "getSecondChildCreationBlock",
+    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
     stateMutability: "view",
     type: "function",
   },
@@ -699,23 +961,19 @@ export default [
     outputs: [
       {
         components: [
+          { internalType: "uint256", name: "amountStaked", type: "uint256" },
           {
-            internalType: "uint256",
-            name: "amountStaked",
-            type: "uint256",
+            internalType: "bytes32",
+            name: "latestStakedAssertion",
+            type: "bytes32",
           },
           { internalType: "uint64", name: "index", type: "uint64" },
-          {
-            internalType: "uint64",
-            name: "latestStakedNode",
-            type: "uint64",
-          },
-          {
-            internalType: "uint64",
-            name: "currentChallenge",
-            type: "uint64",
-          },
           { internalType: "bool", name: "isStaked", type: "bool" },
+          {
+            internalType: "address",
+            name: "withdrawalAddress",
+            type: "address",
+          },
         ],
         internalType: "struct IRollupCore.Staker",
         name: "",
@@ -734,8 +992,17 @@ export default [
   },
   {
     inputs: [],
+    name: "getValidators",
+    outputs: [{ internalType: "address[]", name: "", type: "address[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
     name: "inbox",
-    outputs: [{ internalType: "contract IInbox", name: "", type: "address" }],
+    outputs: [
+      { internalType: "contract IInboxBase", name: "", type: "address" },
+    ],
     stateMutability: "view",
     type: "function",
   },
@@ -748,22 +1015,9 @@ export default [
             name: "confirmPeriodBlocks",
             type: "uint64",
           },
-          {
-            internalType: "uint64",
-            name: "extraChallengeTimeBlocks",
-            type: "uint64",
-          },
-          {
-            internalType: "address",
-            name: "stakeToken",
-            type: "address",
-          },
+          { internalType: "address", name: "stakeToken", type: "address" },
           { internalType: "uint256", name: "baseStake", type: "uint256" },
-          {
-            internalType: "bytes32",
-            name: "wasmModuleRoot",
-            type: "bytes32",
-          },
+          { internalType: "bytes32", name: "wasmModuleRoot", type: "bytes32" },
           { internalType: "address", name: "owner", type: "address" },
           {
             internalType: "address",
@@ -773,17 +1027,23 @@ export default [
           { internalType: "uint256", name: "chainId", type: "uint256" },
           { internalType: "string", name: "chainConfig", type: "string" },
           {
+            internalType: "uint256",
+            name: "minimumAssertionPeriod",
+            type: "uint256",
+          },
+          {
             internalType: "uint64",
-            name: "genesisBlockNum",
+            name: "validatorAfkBlocks",
             type: "uint64",
           },
           {
+            internalType: "uint256[]",
+            name: "miniStakeValues",
+            type: "uint256[]",
+          },
+          {
             components: [
-              {
-                internalType: "uint256",
-                name: "delayBlocks",
-                type: "uint256",
-              },
+              { internalType: "uint256", name: "delayBlocks", type: "uint256" },
               {
                 internalType: "uint256",
                 name: "futureBlocks",
@@ -804,6 +1064,85 @@ export default [
             name: "sequencerInboxMaxTimeVariation",
             type: "tuple",
           },
+          {
+            internalType: "uint256",
+            name: "layerZeroBlockEdgeHeight",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "layerZeroBigStepEdgeHeight",
+            type: "uint256",
+          },
+          {
+            internalType: "uint256",
+            name: "layerZeroSmallStepEdgeHeight",
+            type: "uint256",
+          },
+          {
+            components: [
+              {
+                components: [
+                  {
+                    internalType: "bytes32[2]",
+                    name: "bytes32Vals",
+                    type: "bytes32[2]",
+                  },
+                  {
+                    internalType: "uint64[2]",
+                    name: "u64Vals",
+                    type: "uint64[2]",
+                  },
+                ],
+                internalType: "struct GlobalState",
+                name: "globalState",
+                type: "tuple",
+              },
+              {
+                internalType: "enum MachineStatus",
+                name: "machineStatus",
+                type: "uint8",
+              },
+              {
+                internalType: "bytes32",
+                name: "endHistoryRoot",
+                type: "bytes32",
+              },
+            ],
+            internalType: "struct AssertionState",
+            name: "genesisAssertionState",
+            type: "tuple",
+          },
+          {
+            internalType: "uint256",
+            name: "genesisInboxCount",
+            type: "uint256",
+          },
+          {
+            internalType: "address",
+            name: "anyTrustFastConfirmer",
+            type: "address",
+          },
+          { internalType: "uint8", name: "numBigStepLevel", type: "uint8" },
+          {
+            internalType: "uint64",
+            name: "challengeGracePeriodBlocks",
+            type: "uint64",
+          },
+          {
+            components: [
+              { internalType: "uint64", name: "threshold", type: "uint64" },
+              { internalType: "uint64", name: "max", type: "uint64" },
+              {
+                internalType: "uint64",
+                name: "replenishRateInBasis",
+                type: "uint64",
+              },
+            ],
+            internalType: "struct BufferConfig",
+            name: "bufferConfig",
+            type: "tuple",
+          },
         ],
         internalType: "struct Config",
         name: "config",
@@ -811,33 +1150,25 @@ export default [
       },
       {
         components: [
-          {
-            internalType: "contract IBridge",
-            name: "bridge",
-            type: "address",
-          },
+          { internalType: "contract IBridge", name: "bridge", type: "address" },
           {
             internalType: "contract ISequencerInbox",
             name: "sequencerInbox",
             type: "address",
           },
           {
-            internalType: "contract IInbox",
+            internalType: "contract IInboxBase",
             name: "inbox",
             type: "address",
           },
-          {
-            internalType: "contract IOutbox",
-            name: "outbox",
-            type: "address",
-          },
+          { internalType: "contract IOutbox", name: "outbox", type: "address" },
           {
             internalType: "contract IRollupEventInbox",
             name: "rollupEventInbox",
             type: "address",
           },
           {
-            internalType: "contract IChallengeManager",
+            internalType: "contract IEdgeChallengeManager",
             name: "challengeManager",
             type: "address",
           },
@@ -849,11 +1180,6 @@ export default [
           {
             internalType: "contract IRollupUser",
             name: "rollupUserLogic",
-            type: "address",
-          },
-          {
-            internalType: "address",
-            name: "validatorUtils",
             type: "address",
           },
           {
@@ -873,6 +1199,24 @@ export default [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+    ],
+    name: "isFirstChild",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+    ],
+    name: "isPending",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [{ internalType: "address", name: "staker", type: "address" }],
     name: "isStaked",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
@@ -880,51 +1224,23 @@ export default [
     type: "function",
   },
   {
-    inputs: [{ internalType: "address", name: "staker", type: "address" }],
-    name: "isStakedOnLatestConfirmed",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "address", name: "", type: "address" }],
+    inputs: [{ internalType: "address", name: "validator", type: "address" }],
     name: "isValidator",
     outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",
     type: "function",
   },
   {
-    inputs: [{ internalType: "address", name: "staker", type: "address" }],
-    name: "isZombie",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "lastStakeBlock",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
     inputs: [],
     name: "latestConfirmed",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "latestNodeCreated",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
+    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
     stateMutability: "view",
     type: "function",
   },
   {
     inputs: [{ internalType: "address", name: "staker", type: "address" }],
-    name: "latestStakedNode",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
+    name: "latestStakedAssertion",
+    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
     stateMutability: "view",
     type: "function",
   },
@@ -939,16 +1255,6 @@ export default [
     inputs: [],
     name: "minimumAssertionPeriod",
     outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [
-      { internalType: "uint64", name: "nodeNum", type: "uint64" },
-      { internalType: "address", name: "staker", type: "address" },
-    ],
-    name: "nodeHasStaker",
-    outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "view",
     type: "function",
   },
@@ -1005,11 +1311,7 @@ export default [
     inputs: [],
     name: "rollupEventInbox",
     outputs: [
-      {
-        internalType: "contract IRollupEventInbox",
-        name: "",
-        type: "address",
-      },
+      { internalType: "contract IRollupEventInbox", name: "", type: "address" },
     ],
     stateMutability: "view",
     type: "function",
@@ -1018,13 +1320,22 @@ export default [
     inputs: [],
     name: "sequencerInbox",
     outputs: [
+      { internalType: "contract ISequencerInbox", name: "", type: "address" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
       {
-        internalType: "contract ISequencerInbox",
-        name: "",
+        internalType: "address",
+        name: "_anyTrustFastConfirmer",
         type: "address",
       },
     ],
-    stateMutability: "view",
+    name: "setAnyTrustFastConfirmer",
+    outputs: [],
+    stateMutability: "nonpayable",
     type: "function",
   },
   {
@@ -1032,6 +1343,15 @@ export default [
       { internalType: "uint256", name: "newBaseStake", type: "uint256" },
     ],
     name: "setBaseStake",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "_challengeManager", type: "address" },
+    ],
+    name: "setChallengeManager",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -1058,20 +1378,7 @@ export default [
   {
     inputs: [
       {
-        internalType: "uint64",
-        name: "newExtraTimeBlocks",
-        type: "uint64",
-      },
-    ],
-    name: "setExtraChallengeTimeBlocks",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "contract IInbox",
+        internalType: "contract IInboxBase",
         name: "newInbox",
         type: "address",
       },
@@ -1103,11 +1410,7 @@ export default [
   },
   {
     inputs: [
-      {
-        internalType: "contract IOutbox",
-        name: "_outbox",
-        type: "address",
-      },
+      { internalType: "contract IOutbox", name: "_outbox", type: "address" },
     ],
     name: "setOutbox",
     outputs: [],
@@ -1123,11 +1426,7 @@ export default [
   },
   {
     inputs: [
-      {
-        internalType: "address",
-        name: "_sequencerInbox",
-        type: "address",
-      },
+      { internalType: "address", name: "_sequencerInbox", type: "address" },
     ],
     name: "setSequencerInbox",
     outputs: [],
@@ -1136,23 +1435,17 @@ export default [
   },
   {
     inputs: [
-      { internalType: "address", name: "newStakeToken", type: "address" },
+      { internalType: "address[]", name: "_validator", type: "address[]" },
+      { internalType: "bool[]", name: "_val", type: "bool[]" },
     ],
-    name: "setStakeToken",
+    name: "setValidator",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
   },
   {
-    inputs: [
-      {
-        internalType: "address[]",
-        name: "_validator",
-        type: "address[]",
-      },
-      { internalType: "bool[]", name: "_val", type: "bool[]" },
-    ],
-    name: "setValidator",
+    inputs: [{ internalType: "uint64", name: "newAfkBlocks", type: "uint64" }],
+    name: "setValidatorAfkBlocks",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
@@ -1172,11 +1465,7 @@ export default [
   },
   {
     inputs: [
-      {
-        internalType: "bytes32",
-        name: "newWasmModuleRoot",
-        type: "bytes32",
-      },
+      { internalType: "bytes32", name: "newWasmModuleRoot", type: "bytes32" },
     ],
     name: "setWasmModuleRoot",
     outputs: [],
@@ -1206,25 +1495,7 @@ export default [
   },
   {
     inputs: [
-      { internalType: "address", name: "beacon", type: "address" },
-      {
-        internalType: "address",
-        name: "newImplementation",
-        type: "address",
-      },
-    ],
-    name: "upgradeBeacon",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "newImplementation",
-        type: "address",
-      },
+      { internalType: "address", name: "newImplementation", type: "address" },
     ],
     name: "upgradeSecondaryTo",
     outputs: [],
@@ -1233,11 +1504,7 @@ export default [
   },
   {
     inputs: [
-      {
-        internalType: "address",
-        name: "newImplementation",
-        type: "address",
-      },
+      { internalType: "address", name: "newImplementation", type: "address" },
       { internalType: "bytes", name: "data", type: "bytes" },
     ],
     name: "upgradeSecondaryToAndCall",
@@ -1247,11 +1514,7 @@ export default [
   },
   {
     inputs: [
-      {
-        internalType: "address",
-        name: "newImplementation",
-        type: "address",
-      },
+      { internalType: "address", name: "newImplementation", type: "address" },
     ],
     name: "upgradeTo",
     outputs: [],
@@ -1260,11 +1523,7 @@ export default [
   },
   {
     inputs: [
-      {
-        internalType: "address",
-        name: "newImplementation",
-        type: "address",
-      },
+      { internalType: "address", name: "newImplementation", type: "address" },
       { internalType: "bytes", name: "data", type: "bytes" },
     ],
     name: "upgradeToAndCall",
@@ -1273,9 +1532,75 @@ export default [
     type: "function",
   },
   {
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+      {
+        components: [
+          {
+            components: [
+              {
+                internalType: "bytes32[2]",
+                name: "bytes32Vals",
+                type: "bytes32[2]",
+              },
+              { internalType: "uint64[2]", name: "u64Vals", type: "uint64[2]" },
+            ],
+            internalType: "struct GlobalState",
+            name: "globalState",
+            type: "tuple",
+          },
+          {
+            internalType: "enum MachineStatus",
+            name: "machineStatus",
+            type: "uint8",
+          },
+          { internalType: "bytes32", name: "endHistoryRoot", type: "bytes32" },
+        ],
+        internalType: "struct AssertionState",
+        name: "state",
+        type: "tuple",
+      },
+      { internalType: "bytes32", name: "prevAssertionHash", type: "bytes32" },
+      { internalType: "bytes32", name: "inboxAcc", type: "bytes32" },
+    ],
+    name: "validateAssertionHash",
+    outputs: [],
+    stateMutability: "pure",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "bytes32", name: "assertionHash", type: "bytes32" },
+      {
+        components: [
+          { internalType: "bytes32", name: "wasmModuleRoot", type: "bytes32" },
+          { internalType: "uint256", name: "requiredStake", type: "uint256" },
+          {
+            internalType: "address",
+            name: "challengeManager",
+            type: "address",
+          },
+          {
+            internalType: "uint64",
+            name: "confirmPeriodBlocks",
+            type: "uint64",
+          },
+          { internalType: "uint64", name: "nextInboxPosition", type: "uint64" },
+        ],
+        internalType: "struct ConfigData",
+        name: "configData",
+        type: "tuple",
+      },
+    ],
+    name: "validateConfig",
+    outputs: [],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [],
-    name: "validatorUtils",
-    outputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "validatorAfkBlocks",
+    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
     stateMutability: "view",
     type: "function",
   },
@@ -1308,23 +1633,9 @@ export default [
     type: "function",
   },
   {
-    inputs: [{ internalType: "uint256", name: "zombieNum", type: "uint256" }],
-    name: "zombieAddress",
+    inputs: [{ internalType: "address", name: "staker", type: "address" }],
+    name: "withdrawalAddress",
     outputs: [{ internalType: "address", name: "", type: "address" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "zombieCount",
-    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [{ internalType: "uint256", name: "zombieNum", type: "uint256" }],
-    name: "zombieLatestStakedNode",
-    outputs: [{ internalType: "uint64", name: "", type: "uint64" }],
     stateMutability: "view",
     type: "function",
   },

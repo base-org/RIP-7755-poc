@@ -3,6 +3,7 @@ import {
   toHex,
   type Address,
   type Block,
+  type Hex,
   type Log,
 } from "viem";
 const { ssz } = await import("@lodestar/types");
@@ -13,6 +14,7 @@ import AnchorStateRegistry from "../abis/AnchorStateRegistry";
 import {
   SupportedChains,
   type ActiveChains,
+  type Assertion,
   type DecodedNodeCreatedLog,
   type GetBeaconRootAndL2TimestampReturnType,
   type L2Block,
@@ -73,48 +75,45 @@ export default class ChainService {
     return await this.activeChains.l1.publicClient.getBlock();
   }
 
-  async getL2Block(blockNumber?: bigint): Promise<{
+  async getL2Block(blockNumber: bigint): Promise<{
     l2Block: Block;
-    sendRoot?: Address;
-    nodeIndex?: bigint;
+    parentAssertionHash?: Hex;
+    afterInboxBatchAcc?: Hex;
+    assertion?: Assertion;
   }> {
     console.log("getL2Block");
 
     switch (this.activeChains.dst.chainId) {
       case SupportedChains.ArbitrumSepolia:
-        return await this.getArbitrumSepoliaBlock();
+        return await this.getArbitrumSepoliaBlock(blockNumber);
       case SupportedChains.OptimismSepolia:
       case SupportedChains.MockOptimism:
-        if (!blockNumber) {
-          throw new Error(
-            "Block number is required for Optimism Sepolia Block retrieval"
-          );
-        }
-
         return await this.getOptimismSepoliaBlock(blockNumber);
       default:
         throw new Error("Received unknown chain in getL2Block");
     }
   }
 
-  private async getArbitrumSepoliaBlock(): Promise<{
+  private async getArbitrumSepoliaBlock(l1BlockNumber: bigint): Promise<{
     l2Block: Block;
-    sendRoot: Address;
-    nodeIndex: bigint;
+    parentAssertionHash: Hex;
+    afterInboxBatchAcc: Hex;
+    assertion: Assertion;
   }> {
     console.log("getArbitrumSepoliaBlock");
     // Need to get blockHash instead
     // 1. Get latest node from Rollup contract
-    const nodeIndex: bigint = await exponentialBackoff(async () => {
+    const assertionHash: Hex = await exponentialBackoff(async () => {
       return await this.activeChains.l1.publicClient.readContract({
         address: this.activeChains.dst.l2Oracle,
         abi: ArbitrumRollup,
         functionName: "latestConfirmed",
+        blockNumber: l1BlockNumber,
       });
     });
 
     // 2. Query event from latest node creation
-    const logs = await this.getLogs(nodeIndex);
+    const logs = await this.getLogs(assertionHash);
     if (logs.length === 0) {
       throw new Error("Error finding Arb Rollup Log");
     }
@@ -132,17 +131,21 @@ export default class ChainService {
     }
 
     // 3. Grab assertion from Node event
-    const assertion = topics.args.assertion;
+    const { parentAssertionHash, assertion, afterInboxBatchAcc } = topics.args;
 
     // 4. Parse blockHash from assertion
     const blockHash = assertion.afterState.globalState.bytes32Vals[0];
-    const sendRoot = assertion.afterState.globalState.bytes32Vals[1];
     const l2Block = await exponentialBackoff(async () => {
       return await this.activeChains.dst.publicClient.getBlock({
         blockHash,
       });
     });
-    return { l2Block, sendRoot, nodeIndex };
+    return {
+      l2Block,
+      parentAssertionHash,
+      afterInboxBatchAcc,
+      assertion: assertion.afterState,
+    };
   }
 
   private async getOptimismSepoliaBlock(
@@ -157,14 +160,9 @@ export default class ChainService {
     return { l2Block };
   }
 
-  private async getLogs(index: bigint): Promise<Log[]> {
+  private async getLogs(assertionHash: Address): Promise<Log[]> {
     const etherscanApiKey = this.configService.getOrThrow("ETHERSCAN_API_KEY");
-    const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${
-      this.activeChains.dst.l2Oracle
-    }&topic0=0x4f4caa9e67fb994e349dd35d1ad0ce23053d4323f83ce11dc817b5435031d096&topic0_1_opr=and&topic1=${toHex(
-      index,
-      { size: 32 }
-    )}&page=1&apikey=${etherscanApiKey}`;
+    const url = `https://api-sepolia.etherscan.io/api?module=logs&action=getLogs&address=${this.activeChains.dst.l2Oracle}&topic0=0x901c3aee23cf4478825462caaab375c606ab83516060388344f0650340753630&topic0_1_opr=and&topic1=${assertionHash}&page=1&apikey=${etherscanApiKey}`;
 
     return await this.request(url);
   }

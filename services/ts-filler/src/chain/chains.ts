@@ -22,7 +22,7 @@ export default {
     rpcUrl:
       process.env.ARBITRUM_SEPOLIA_RPC ||
       arbitrumSepolia.rpcUrls.default.http[0],
-    l2Oracle: "0xd80810638dbDF9081b72C1B33c65375e807281C8",
+    l2Oracle: "0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4",
     l2OracleStorageKey:
       "0x0000000000000000000000000000000000000000000000000000000000000076",
     contracts: {
