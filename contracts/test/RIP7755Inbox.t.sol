@@ -4,15 +4,30 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 
 import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
+import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
+import {StringsHelper} from "../src/libraries/StringsHelper.sol";
+import {ERC7786Base} from "../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
-import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
+import {Call} from "../src/RIP7755Structs.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
 import {MockTarget} from "./mocks/MockTarget.sol";
 
-contract RIP7755InboxTest is Test {
+contract RIP7755InboxTest is Test, ERC7786Base {
     using GlobalTypes for address;
+    using CAIP10 for address;
+    using StringsHelper for address;
+
+    struct Message {
+        bytes32 messageId;
+        string sourceChain;
+        string sender;
+        string combinedSender;
+        string receiver;
+        bytes payload;
+        bytes[] attributes;
+    }
 
     RIP7755Inbox inbox;
     MockPrecheck precheck;
@@ -31,75 +46,39 @@ contract RIP7755InboxTest is Test {
         target = new MockTarget();
     }
 
-    function test_fulfill_reverts_invalidChainId() external {
-        CrossChainRequest memory request = _initRequest();
-
-        request.destinationChainId = 0;
+    function test_executeMessage_storesFulfillment_withSuccessfulPrecheck() external {
+        Message memory m = _initMessage(0, true);
 
         vm.prank(FULFILLER);
-        vm.expectRevert(RIP7755Inbox.InvalidChainId.selector);
-        inbox.fulfill(request, FULFILLER);
-    }
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
 
-    function test_fulfill_reverts_invalidDestinationAddress() external {
-        CrossChainRequest memory request = _initRequest();
-
-        request.inboxContract = address(0).addressToBytes32();
-
-        vm.prank(FULFILLER);
-        vm.expectRevert(RIP7755Inbox.InvalidInboxContract.selector);
-        inbox.fulfill(request, FULFILLER);
-    }
-
-    function test_fulfill_storesFulfillment_withSuccessfulPrecheck() external {
-        CrossChainRequest memory request = _initRequest();
-
-        request.extraData = new bytes[](1);
-        request.extraData[0] = abi.encodePacked(address(precheck), FULFILLER);
-
-        vm.prank(FULFILLER);
-        inbox.fulfill(request, FULFILLER);
-
-        bytes32 requestHash = inbox.hashRequest(request);
-        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
+        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
 
         assertEq(info.fulfiller, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
-    function test_fulfill_reverts_invalidPrecheckData() external {
-        CrossChainRequest memory request = _initRequest();
-        request.extraData = new bytes[](1);
-        request.extraData[0] = abi.encodePacked("1");
+    function test_executeMessage_reverts_failedPrecheck() external {
+        Message memory m = _initMessage(0, true);
 
-        vm.prank(FULFILLER);
-        vm.expectRevert(RIP7755Inbox.InvalidPrecheckData.selector);
-        inbox.fulfill(request, FULFILLER);
-    }
-
-    function test_fulfill_reverts_failedPrecheck() external {
-        CrossChainRequest memory request = _initRequest();
-        request.extraData = new bytes[](1);
-        request.extraData[0] = abi.encode(address(precheck), address(0));
-
-        vm.prank(FULFILLER);
         vm.expectRevert();
-        inbox.fulfill(request, FULFILLER);
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
-    function test_reverts_callAlreadyFulfilled() external {
-        CrossChainRequest memory request = _initRequest();
+    function test_executeMessage_reverts_callAlreadyFulfilled() external {
+        Message memory m = _initMessage(0, false);
 
         vm.prank(FULFILLER);
-        inbox.fulfill(request, FULFILLER);
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
 
         vm.prank(FULFILLER);
         vm.expectRevert(RIP7755Inbox.CallAlreadyFulfilled.selector);
-        inbox.fulfill(request, FULFILLER);
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
-    function test_fulfill_callsTargetContract(uint256 inputNum) external {
-        CrossChainRequest memory request = _initRequest();
+    function test_executeMessage_callsTargetContract(uint256 inputNum) external {
+        Message memory m = _initMessage(0, false);
+
         calls.push(
             Call({
                 to: address(target).addressToBytes32(),
@@ -107,28 +86,30 @@ contract RIP7755InboxTest is Test {
                 value: 0
             })
         );
-        request.calls = calls;
+        m.payload = abi.encode(calls);
 
         vm.prank(FULFILLER);
-        inbox.fulfill(request, FULFILLER);
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
 
         assertEq(target.number(), inputNum);
     }
 
-    function test_fulfill_sendsEth(uint256 amount) external {
-        CrossChainRequest memory request = _initRequest();
+    function test_executeMessage_sendsEth(uint256 amount) external {
+        Message memory m = _initMessage(0, false);
+
         calls.push(Call({to: ALICE.addressToBytes32(), data: "", value: amount}));
-        request.calls = calls;
+        m.payload = abi.encode(calls);
 
         vm.deal(FULFILLER, amount);
         vm.prank(FULFILLER);
-        inbox.fulfill{value: amount}(request, FULFILLER);
+        inbox.executeMessage{value: amount}(m.sourceChain, m.sender, m.payload, m.attributes);
 
         assertEq(ALICE.balance, amount);
     }
 
-    function test_fulfill_reverts_ifTargetContractReverts() external {
-        CrossChainRequest memory request = _initRequest();
+    function test_executeMessage_reverts_ifTargetContractReverts() external {
+        Message memory m = _initMessage(0, false);
+
         calls.push(
             Call({
                 to: address(target).addressToBytes32(),
@@ -136,75 +117,69 @@ contract RIP7755InboxTest is Test {
                 value: 0
             })
         );
-        request.calls = calls;
+        m.payload = abi.encode(calls);
 
         vm.prank(FULFILLER);
         vm.expectRevert(MockTarget.MockError.selector);
-        inbox.fulfill(request, FULFILLER);
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
-    function test_fulfill_storesFulfillment() external {
-        CrossChainRequest memory request = _initRequest();
+    function test_executeMessage_storesFulfillment() external {
+        Message memory m = _initMessage(0, false);
 
         vm.prank(FULFILLER);
-        inbox.fulfill(request, FULFILLER);
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
 
-        bytes32 requestHash = inbox.hashRequest(request);
-        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
+        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
 
         assertEq(info.fulfiller, FULFILLER);
         assertEq(info.timestamp, block.timestamp);
     }
 
-    function test_fulfill_storesFulfillmentAfterSkippedPrecheck() external {
-        CrossChainRequest memory request = _initRequest();
-        request.extraData = new bytes[](1);
-        request.extraData[0] = abi.encodePacked(address(0));
-
-        vm.prank(FULFILLER);
-        inbox.fulfill(request, FULFILLER);
-
-        bytes32 requestHash = inbox.hashRequest(request);
-        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(requestHash);
-
-        assertEq(info.fulfiller, FULFILLER);
-        assertEq(info.timestamp, block.timestamp);
-    }
-
-    function test_fulfill_reverts_ifMsgValueTooHigh() external {
-        CrossChainRequest memory request = _initRequest();
+    function test_executeMessage_reverts_ifMsgValueTooHigh() external {
+        Message memory m = _initMessage(0, false);
 
         vm.deal(FULFILLER, 1);
         vm.prank(FULFILLER);
         vm.expectRevert(abi.encodeWithSelector(RIP7755Inbox.InvalidValue.selector, 0, 1));
-        inbox.fulfill{value: 1}(request, FULFILLER);
+        inbox.executeMessage{value: 1}(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
-    function test_fulfill_emitsEvent() external {
-        CrossChainRequest memory request = _initRequest();
-        bytes32 requestHash = inbox.hashRequest(request);
+    function test_executeMessage_emitsEvent() external {
+        Message memory m = _initMessage(0, false);
 
         vm.prank(FULFILLER);
         vm.expectEmit(true, true, false, false);
-        emit CallFulfilled({requestHash: requestHash, fulfilledBy: FULFILLER});
-        inbox.fulfill(request, FULFILLER);
+        emit CallFulfilled({requestHash: m.messageId, fulfilledBy: FULFILLER});
+        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
-    function _initRequest() private view returns (CrossChainRequest memory) {
-        return CrossChainRequest({
-            requester: ALICE.addressToBytes32(),
-            calls: calls,
-            sourceChainId: block.chainid,
-            origin: address(this).addressToBytes32(),
-            destinationChainId: block.chainid,
-            inboxContract: address(inbox).addressToBytes32(),
-            l2Oracle: address(0).addressToBytes32(),
-            rewardAsset: address(0).addressToBytes32(),
-            rewardAmount: 0,
-            finalityDelaySeconds: 0,
-            nonce: 0,
-            expiry: 0,
-            extraData: new bytes[](0)
+    function _initMessage(uint256 rewardAmount, bool isPrecheck) private view returns (Message memory) {
+        string memory sourceChain = CAIP10.formatCaip2(block.chainid);
+        string memory sender = address(this).toChecksumHexString();
+        string memory receiver = address(inbox).local();
+        string memory combinedSender = CAIP10.format(sourceChain, sender);
+        bytes memory payload = abi.encode(calls);
+        bytes[] memory attributes = new bytes[](isPrecheck ? 6 : 5);
+
+        attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, bytes32(0), rewardAmount);
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, block.timestamp + 11);
+        attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
+        attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
+        attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FULFILLER);
+
+        if (isPrecheck) {
+            attributes[5] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR, address(precheck));
+        }
+
+        return Message({
+            messageId: keccak256(abi.encode(combinedSender, receiver, payload, attributes)),
+            sourceChain: sourceChain,
+            sender: sender,
+            combinedSender: combinedSender,
+            receiver: receiver,
+            payload: payload,
+            attributes: attributes
         });
     }
 }

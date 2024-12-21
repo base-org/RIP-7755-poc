@@ -3,13 +3,18 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
+import {CAIP10} from "../../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
+import {StringsHelper} from "../../src/libraries/StringsHelper.sol";
+import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
-import {CrossChainRequest, Call} from "../../src/RIP7755Structs.sol";
+import {Call} from "../../src/RIP7755Structs.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
-contract SubmitRequest is Script {
+contract SubmitRequest is Script, ERC7786Base {
     using GlobalTypes for address;
+    using CAIP10 for address;
+    using StringsHelper for address;
 
     HelperConfig public helperConfig;
 
@@ -27,34 +32,34 @@ contract SubmitRequest is Script {
 
         RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
 
-        CrossChainRequest memory request = _getRequest(destinationChainId);
+        (string memory destinationChain, string memory receiver, bytes memory payload, bytes[] memory attributes) =
+            _initMessage(destinationChainId);
 
         vm.startBroadcast(config.deployerKey);
-        outbox.requestCrossChainCall{value: request.rewardAmount}(request);
+        outbox.sendMessage(destinationChain, receiver, payload, attributes);
         vm.stopBroadcast();
     }
 
-    function _getRequest(uint256 destinationChainId) private view returns (CrossChainRequest memory) {
+    function _initMessage(uint256 destinationChainId)
+        private
+        view
+        returns (string memory, string memory, bytes memory, bytes[] memory)
+    {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
 
         Call[] memory calls = new Call[](1);
         calls[0] =
             Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
-        return CrossChainRequest({
-            requester: bytes32(0),
-            calls: calls,
-            sourceChainId: 0,
-            origin: bytes32(0),
-            destinationChainId: dstConfig.chainId,
-            inboxContract: dstConfig.inbox.addressToBytes32(),
-            l2Oracle: dstConfig.l2Oracle.addressToBytes32(),
-            rewardAsset: _NATIVE_ASSET,
-            rewardAmount: 0.0002 ether,
-            finalityDelaySeconds: 1 weeks,
-            nonce: 0,
-            expiry: block.timestamp + 2 weeks,
-            extraData: new bytes[](0)
-        });
+        string memory destinationChain = CAIP10.formatCaip2(31337);
+        string memory receiver = dstConfig.inbox.toChecksumHexString();
+        bytes memory payload = abi.encode(calls);
+        bytes[] memory attributes = new bytes[](3);
+
+        attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, 0.0002 ether);
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 1 weeks, block.timestamp + 2 weeks);
+        attributes[2] = abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, dstConfig.l2Oracle);
+
+        return (destinationChain, receiver, payload, attributes);
     }
 }

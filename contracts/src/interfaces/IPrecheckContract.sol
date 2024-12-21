@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {CrossChainRequest} from "../RIP7755Structs.sol";
-
 /// @title IPrecheckContract
 ///
 /// @author Coinbase (https://github.com/base-org/7755-poc)
@@ -15,7 +13,16 @@ import {CrossChainRequest} from "../RIP7755Structs.sol";
 interface IPrecheckContract {
     /// @notice A precheck function declaration.
     ///
-    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
+    /// @param sourceChain The CAIP-2 chain identifier of the source chain.
+    /// @param sender The CAIP-10 account address of the sender.
+    /// @param payload The encoded calls array.
+    /// @param attributes The attributes array.
     /// @param caller The address of the filler account that submitted the transaction to RIP7755Inbox.
-    function precheckCall(CrossChainRequest calldata request, address caller) external;
+    function precheckCall(
+        string calldata sourceChain,
+        string calldata sender,
+        bytes calldata payload,
+        bytes[] calldata attributes,
+        address caller
+    ) external view;
 }

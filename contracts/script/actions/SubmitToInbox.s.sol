@@ -3,44 +3,49 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
+import {CAIP10} from "../../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
+import {StringsHelper} from "../../src/libraries/StringsHelper.sol";
+import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
-import {CrossChainRequest, Call} from "../../src/RIP7755Structs.sol";
+import {Call} from "../../src/RIP7755Structs.sol";
 
-contract SubmitToInbox is Script {
-    using GlobalTypes for address;
-
+contract SubmitToInbox is Script, ERC7786Base {
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         RIP7755Inbox inbox = RIP7755Inbox(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
 
-        CrossChainRequest memory request = _getRequest();
+        (string memory sourceChain, string memory sender, bytes memory payload, bytes[] memory attributes) =
+            _initMessage();
 
         vm.startBroadcast(pk);
-        inbox.fulfill(request, 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
+        inbox.executeMessage(sourceChain, sender, payload, attributes);
         vm.stopBroadcast();
     }
 
     // Using dummy values for local testing
-    function _getRequest() private pure returns (CrossChainRequest memory) {
-        bytes[] memory extraData = new bytes[](2);
-        extraData[0] = abi.encode(address(0));
-        extraData[1] = abi.encode(0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f);
+    function _initMessage() private pure returns (string memory, string memory, bytes memory, bytes[] memory) {
+        Call[] memory calls = new Call[](0);
 
-        return CrossChainRequest({
-            requester: 0x000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac6,
-            calls: new Call[](0),
-            sourceChainId: 31337,
-            origin: 0x0000000000000000000000007fa9385be102ac3eac297483dd6233d62b3e1496,
-            destinationChainId: 111112,
-            inboxContract: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512.addressToBytes32(),
-            l2Oracle: bytes32(0),
-            rewardAsset: 0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a,
-            rewardAmount: 1 ether,
-            finalityDelaySeconds: 10,
-            nonce: 1,
-            expiry: 1828828574,
-            extraData: extraData
-        });
+        string memory sourceChain = CAIP10.formatCaip2(31337);
+        string memory sender = "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496";
+        bytes memory payload = abi.encode(calls);
+        bytes[] memory attributes = new bytes[](6);
+
+        attributes[0] = abi.encodeWithSelector(
+            _REWARD_ATTRIBUTE_SELECTOR, 0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a, 1 ether
+        );
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1828828574);
+        attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
+        attributes[3] = abi.encodeWithSelector(
+            _REQUESTER_ATTRIBUTE_SELECTOR, 0x000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac6
+        );
+        attributes[4] =
+            abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, 0x23214A0864FC0014CAb6030267738F01AFfdd547);
+        attributes[5] = abi.encodeWithSelector(
+            _SHOYU_BASHI_ATTRIBUTE_SELECTOR, 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f
+        );
+
+        return (sourceChain, sender, payload, attributes);
     }
 }

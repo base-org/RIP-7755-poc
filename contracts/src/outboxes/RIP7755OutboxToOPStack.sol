@@ -2,10 +2,9 @@
 pragma solidity 0.8.24;
 
 import {OPStackProver} from "../libraries/provers/OPStackProver.sol";
-import {GlobalTypes} from "../libraries/GlobalTypes.sol";
+import {CAIP10} from "../libraries/CAIP10.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
-import {CrossChainRequest} from "../RIP7755Structs.sol";
 
 /// @title RIP7755OutboxToOPStack
 ///
@@ -14,7 +13,6 @@ import {CrossChainRequest} from "../RIP7755Structs.sol";
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
 contract RIP7755OutboxToOPStack is RIP7755Outbox {
     using OPStackProver for bytes;
-    using GlobalTypes for bytes32;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
@@ -28,24 +26,31 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param request The original cross chain request submitted to this contract
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param attributes The attributes of the request
     /// @param proof The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
-        CrossChainRequest calldata request,
+        string calldata receiver,
+        bytes[] calldata attributes,
         bytes calldata proof
     ) internal view override {
-        OPStackProver.Target memory target = OPStackProver.Target({
-            l1Address: request.l2Oracle.bytes32ToAddress(),
-            l2Address: request.inboxContract.bytes32ToAddress(),
-            l2StorageKey: inboxContractStorageKey
-        });
+        (, string memory inboxString) = CAIP10.parse(receiver);
+        address inboxContract = CAIP10.stringToAddress(inboxString);
+        bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
+        address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
+
+        OPStackProver.Target memory target =
+            OPStackProver.Target({l1Address: l2Oracle, l2Address: inboxContract, l2StorageKey: inboxContractStorageKey});
         (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
 
         RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
 
+        bytes calldata delayAttribute = _locateAttribute(attributes, _DELAY_ATTRIBUTE_SELECTOR);
+        (uint256 delaySeconds,) = abi.decode(delayAttribute[4:], (uint256, uint256));
+
         // Ensure that the fulfillment timestamp is not within the finality delay
-        if (fulfillmentInfo.timestamp + request.finalityDelaySeconds > l2Timestamp) {
+        if (fulfillmentInfo.timestamp + delaySeconds > l2Timestamp) {
             revert FinalityDelaySecondsInProgress();
         }
     }

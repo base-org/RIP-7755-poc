@@ -4,8 +4,10 @@ pragma solidity 0.8.24;
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
+import {CAIP10} from "./libraries/CAIP10.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
-import {CrossChainRequest} from "./RIP7755Structs.sol";
+import {ERC7786Base} from "./ERC7786Base.sol";
+import {Call} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Inbox
 ///
@@ -13,10 +15,10 @@ import {CrossChainRequest} from "./RIP7755Structs.sol";
 ///
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 /// destination chains and store record of their fulfillment.
-contract RIP7755Inbox {
-    using Address for address;
+contract RIP7755Inbox is ERC7786Base {
     using Address for address payable;
     using GlobalTypes for bytes32;
+    using CAIP10 for address;
 
     struct MainStorage {
         /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
@@ -39,12 +41,6 @@ contract RIP7755Inbox {
     /// @param fulfilledBy The account that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
-    /// @notice This error is thrown when an account submits a cross chain call with a `destinationChainId` different than the blockchain chain ID that this is deployed to
-    error InvalidChainId();
-
-    /// @notice This error is thrown when an account submits a cross chain call with an `inboxContract` different than this contract's address
-    error InvalidInboxContract();
-
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
 
@@ -53,8 +49,40 @@ contract RIP7755Inbox {
     /// @param actual The received `msg.value`
     error InvalidValue(uint256 expected, uint256 actual);
 
-    /// @notice This error is thrown when the first element in the `extraData` array is less than 20 bytes
-    error InvalidPrecheckData();
+    /// @notice Delivery of a message sent from another chain.
+    ///
+    /// @param sourceChain The CAIP-2 source chain identifier
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param payload The encoded calls array
+    /// @param attributes The attributes of the message
+    ///
+    /// @return selector The selector of the function
+    function executeMessage(
+        string calldata sourceChain,
+        string calldata sender,
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) external payable returns (bytes4) {
+        string memory receiver = address(this).local();
+        string memory combinedSender = CAIP10.format(sourceChain, sender);
+        bytes32 messageId = keccak256(abi.encode(combinedSender, receiver, payload, attributes));
+
+        _runPrecheck(sourceChain, sender, payload, attributes);
+
+        if (_getFulfillmentInfo(messageId).timestamp != 0) {
+            revert CallAlreadyFulfilled();
+        }
+
+        address fulfiller = _getFulfiller(attributes);
+
+        _setFulfillmentInfo(messageId, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
+
+        _sendCallsAndValidateMsgValue(payload);
+
+        emit CallFulfilled({requestHash: messageId, fulfilledBy: fulfiller});
+
+        return 0x675b049b; // this function's sig
+    }
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
@@ -65,74 +93,16 @@ contract RIP7755Inbox {
         return _getFulfillmentInfo(requestHash);
     }
 
-    /// @notice A fulfillment entrypoint for RIP7755 cross chain calls.
-    ///
-    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
-    /// @param fulfiller The address that the fulfiller expects to use to claim their reward on the source chain.
-    function fulfill(CrossChainRequest calldata request, address fulfiller) external payable {
-        if (block.chainid != request.destinationChainId) {
-            revert InvalidChainId();
-        }
-
-        if (address(this) != request.inboxContract.bytes32ToAddress()) {
-            revert InvalidInboxContract();
-        }
-
-        // Run precheck - call expected to revert if precheck condition(s) not met.
-        _runPrecheck(request);
-
-        bytes32 requestHash = hashRequest(request);
-
-        if (_getFulfillmentInfo(requestHash).timestamp != 0) {
-            revert CallAlreadyFulfilled();
-        }
-
-        _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
-
-        _sendCallsAndValidateMsgValue(request);
-
-        emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
-    }
-
-    /// @notice Hashes a cross chain call request.
-    ///
-    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
-    ///
-    /// @return _ A keccak256 hash of the cross chain call request.
-    function hashRequest(CrossChainRequest calldata request) public pure returns (bytes32) {
-        return keccak256(abi.encode(request));
-    }
-
-    /// @notice Runs the precheck for a cross chain call.
-    ///
-    /// @dev The first element in the `extraData` array is reserved for precheck validation.
-    /// @dev The precheck step is optional. It will be skipped if the `extraData` array is empty or if the first 20 bytes of the first element are the zero address.
-    ///
-    /// @param request A cross chain call request formatted following the RIP-7755 spec. See {RIP7755Structs-CrossChainRequest}.
-    function _runPrecheck(CrossChainRequest calldata request) private {
-        if (request.extraData.length == 0) return;
-
-        bytes calldata precheckData = request.extraData[0];
-
-        if (precheckData.length < 20) {
-            revert InvalidPrecheckData();
-        }
-
-        address precheckContract = address(bytes20(precheckData[0:20]));
-
-        if (precheckContract != address(0)) {
-            IPrecheckContract(precheckContract).precheckCall(request, msg.sender);
-        }
-    }
-
-    function _sendCallsAndValidateMsgValue(CrossChainRequest calldata request) private {
+    function _sendCallsAndValidateMsgValue(bytes calldata payload) private {
         uint256 valueSent;
 
-        for (uint256 i; i < request.calls.length; i++) {
-            _call(payable(request.calls[i].to.bytes32ToAddress()), request.calls[i].data, request.calls[i].value);
+        Call[] memory calls = abi.decode(payload, (Call[]));
+
+        for (uint256 i; i < calls.length; i++) {
+            _call(payable(calls[i].to.bytes32ToAddress()), calls[i].data, calls[i].value);
 
             unchecked {
-                valueSent += request.calls[i].value;
+                valueSent += calls[i].value;
             }
         }
 
@@ -141,7 +111,7 @@ contract RIP7755Inbox {
         }
     }
 
-    function _call(address payable to, bytes calldata data, uint256 value) private {
+    function _call(address payable to, bytes memory data, uint256 value) private {
         if (data.length == 0) {
             to.sendValue(value);
         } else {
@@ -149,10 +119,26 @@ contract RIP7755Inbox {
         }
     }
 
-    function _getMainStorage() private pure returns (MainStorage storage $) {
-        assembly {
-            $.slot := _MAIN_STORAGE_LOCATION
+    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
+        MainStorage storage $ = _getMainStorage();
+        $.fulfillmentInfo[requestHash] = fulfillmentInfo;
+    }
+
+    function _runPrecheck(
+        string calldata sourceChain, // [CAIP-2] chain identifier
+        string calldata sender, // [CAIP-10] account address
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) private view {
+        (bool found, bytes calldata precheckAttribute) =
+            _locateAttributeUnchecked(attributes, _PRECHECK_ATTRIBUTE_SELECTOR);
+
+        if (!found) {
+            return;
         }
+
+        address precheckContract = abi.decode(precheckAttribute[4:], (address));
+        IPrecheckContract(precheckContract).precheckCall(sourceChain, sender, payload, attributes, msg.sender);
     }
 
     function _getFulfillmentInfo(bytes32 requestHash) private view returns (FulfillmentInfo memory) {
@@ -160,8 +146,14 @@ contract RIP7755Inbox {
         return $.fulfillmentInfo[requestHash];
     }
 
-    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
-        MainStorage storage $ = _getMainStorage();
-        $.fulfillmentInfo[requestHash] = fulfillmentInfo;
+    function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
+        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+        return abi.decode(fulfillerAttribute[4:], (address));
+    }
+
+    function _getMainStorage() private pure returns (MainStorage storage $) {
+        assembly {
+            $.slot := _MAIN_STORAGE_LOCATION
+        }
     }
 }
