@@ -146,8 +146,14 @@ contract RIP7755Inbox is ERC7786Base {
         return $.fulfillmentInfo[requestHash];
     }
 
-    function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
-        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+    function _getFulfiller(bytes[] calldata attributes) private view returns (address) {
+        (bool found, bytes calldata fulfillerAttribute) =
+            _locateAttributeUnchecked(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+
+        if (!found) {
+            return msg.sender;
+        }
+
         return abi.decode(fulfillerAttribute[4:], (address));
     }
 
