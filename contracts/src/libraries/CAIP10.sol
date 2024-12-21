@@ -8,6 +8,8 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {StringsHelper} from "./StringsHelper.sol";
 
 /**
+ * @notice Cloned from OpenZeppelin's CAIP10 library with slight modifications for now while it's in a draft state
+ *
  * @dev Helper library to format and parse CAIP-10 identifiers
  *
  * https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-10.md[CAIP-10] defines account identifiers as:
@@ -30,12 +32,12 @@ library CAIP10 {
         return format(localCaip2(), account.toChecksumHexString());
     }
 
-    function remote(address account, uint256 chainId) internal pure returns (string memory) {
-        return format(formatCaip2(chainId), account.toChecksumHexString());
-    }
-
     function localCaip2() internal view returns (string memory) {
         return formatCaip2(block.chainid);
+    }
+
+    function remote(address account, uint256 chainId) internal pure returns (string memory) {
+        return format(formatCaip2(chainId), account.toChecksumHexString());
     }
 
     function formatCaip2(uint256 chainId) internal pure returns (string memory) {
@@ -71,6 +73,18 @@ library CAIP10 {
         return (string(_slice(buffer, 0, pos)), string(_slice(buffer, pos + 1, buffer.length)));
     }
 
+    function stringToAddress(string memory str) internal pure returns (address) {
+        bytes memory strBytes = bytes(str);
+        require(strBytes.length == 42, "Invalid address length");
+        bytes memory addrBytes = new bytes(20);
+
+        for (uint256 i = 0; i < 20; i++) {
+            addrBytes[i] = bytes1(_hexCharToByte(strBytes[2 + i * 2]) * 16 + _hexCharToByte(strBytes[3 + i * 2]));
+        }
+
+        return address(uint160(bytes20(addrBytes)));
+    }
+
     function _lastIndexOf(bytes memory buffer, bytes1 value) private pure returns (uint256) {
         for (uint256 i = buffer.length - 1; i >= 0; i--) {
             if (buffer[i] == value) {
@@ -86,18 +100,6 @@ library CAIP10 {
             result[i - start] = buffer[i];
         }
         return result;
-    }
-
-    function stringToAddress(string memory str) internal pure returns (address) {
-        bytes memory strBytes = bytes(str);
-        require(strBytes.length == 42, "Invalid address length");
-        bytes memory addrBytes = new bytes(20);
-
-        for (uint256 i = 0; i < 20; i++) {
-            addrBytes[i] = bytes1(_hexCharToByte(strBytes[2 + i * 2]) * 16 + _hexCharToByte(strBytes[3 + i * 2]));
-        }
-
-        return address(uint160(bytes20(addrBytes)));
     }
 
     function _hexCharToByte(bytes1 char) private pure returns (uint8) {

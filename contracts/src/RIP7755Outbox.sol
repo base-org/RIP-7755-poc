@@ -155,7 +155,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validateProof2(storageKey, receiver, expandedAttributes, proof);
+        _validateProof(storageKey, receiver, expandedAttributes, proof);
 
         _messageStatus[messageId] = CrossChainCallStatus.Completed;
 
@@ -237,7 +237,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @param receiver The CAIP-10 account address of the receiver
     /// @param attributes The attributes to be included in the message
     /// @param proofData The proof to validate
-    function _validateProof2(
+    function _validateProof(
         bytes memory inboxContractStorageKey,
         string calldata receiver,
         bytes[] calldata attributes,

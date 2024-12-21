@@ -29,7 +29,7 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     /// @param receiver The CAIP-10 account address of the receiver
     /// @param attributes The attributes of the request
     /// @param proof The proof to validate
-    function _validateProof2(
+    function _validateProof(
         bytes memory inboxContractStorageKey,
         string calldata receiver,
         bytes[] calldata attributes,

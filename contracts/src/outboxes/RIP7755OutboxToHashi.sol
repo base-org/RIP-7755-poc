@@ -17,32 +17,23 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
     using GlobalTypes for bytes32;
 
-    /// @notice The expected length of the request.extraData field as a constant
-    uint256 private constant EXPECTED_EXTRA_DATA_LENGTH = 2;
-
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
 
-    /// @notice This error is thrown when the request.extraData field has an invalid length
-    error InvalidExtraDataLength();
-
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
-    /// @custom:reverts If fulfillmentInfo not found at inboxContractStorageKey on request.inboxContract
     /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
     /// chain block timestamp.
     /// @custom:reverts If the L2StateRoot does not correspond to the validated L1 storage slot
-    ///
-    /// @dev Implementation will vary by L2
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
     /// @param receiver The CAIP-10 identifier for the destination chain
     /// @param attributes The attributes of the message
     /// @param proof The proof to validate
-    function _validateProof2(
+    function _validateProof(
         bytes memory inboxContractStorageKey,
         string calldata receiver,
         bytes[] calldata attributes,

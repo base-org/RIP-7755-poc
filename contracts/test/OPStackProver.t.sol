@@ -11,7 +11,7 @@ import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {ERC7786Base} from "../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
-import {Call, CrossChainRequest} from "../src/RIP7755Structs.sol";
+import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
 
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
@@ -75,7 +75,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
@@ -90,7 +90,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
@@ -105,7 +105,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
@@ -120,7 +120,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert();
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
@@ -133,7 +133,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL1Storage.selector);
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
@@ -146,7 +146,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2StateRoot.selector);
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
@@ -159,7 +159,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
 
         vm.prank(FILLER);
         vm.expectRevert(OPStackProver.InvalidL2Storage.selector);
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
@@ -171,7 +171,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        prover.validateProof2(inboxStorageKey, receiver, attributes, storageProofData);
+        prover.validateProof(inboxStorageKey, receiver, attributes, storageProofData);
     }
 
     function _buildProofAndEncodeProof(string memory json) private returns (bytes memory) {
