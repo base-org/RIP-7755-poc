@@ -8,15 +8,9 @@ import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
 import {StringsHelper} from "../../src/libraries/StringsHelper.sol";
 import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
-import {CrossChainRequest, Call} from "../../src/RIP7755Structs.sol";
+import {Call} from "../../src/RIP7755Structs.sol";
 
 contract SubmitToInbox is Script, ERC7786Base {
-    using GlobalTypes for address;
-    using CAIP10 for address;
-    using StringsHelper for address;
-
-    bytes4 private constant _SHOYUBASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
-
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         RIP7755Inbox inbox = RIP7755Inbox(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
