@@ -1,11 +1,12 @@
 import mongoose, { type ObjectId } from "mongoose";
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 
 import type { RequestType } from "../common/types/request";
 import { Submission } from "./submissions.schema";
 import type { ActiveChains } from "../common/types/chain";
 import type { SubmissionType } from "../common/types/submission";
 import exponentialBackoff from "../common/utils/exponentialBackoff";
+import type Attributes from "../common/utils/attributes";
 
 export default class DBService {
   constructor() {
@@ -20,20 +21,29 @@ export default class DBService {
   async storeSuccessfulCall(
     requestHash: Address,
     txnHash: Address,
-    request: RequestType,
+    sender: string,
+    receiver: string,
+    payload: Hex,
+    value: bigint,
+    attributes: Attributes,
     activeChains: ActiveChains
   ): Promise<boolean> {
+    const { finalityDelaySeconds } = attributes.getDelay();
     const doc = new Submission({
       requestHash,
       claimAvailableAt:
-        Math.floor(Date.now() / 1000) + Number(request.finalityDelaySeconds),
+        Math.floor(Date.now() / 1000) + Number(finalityDelaySeconds),
       txnSubmittedHash: txnHash,
       activeChains: {
         src: activeChains.src.chainId,
         l1: activeChains.l1.chainId,
         dst: activeChains.dst.chainId,
       },
-      request,
+      sender,
+      receiver,
+      payload,
+      value,
+      attributes: attributes.getAttributes(),
       createdAt: new Date(),
       updatedAt: new Date(),
     });

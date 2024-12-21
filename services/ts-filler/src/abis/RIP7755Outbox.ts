@@ -8,76 +8,15 @@ export default [
   },
   {
     type: "function",
-    name: "cancelRequest",
+    name: "cancelMessage",
     inputs: [
+      { name: "sender", type: "string", internalType: "string" },
+      { name: "receiver", type: "string", internalType: "string" },
+      { name: "payload", type: "bytes", internalType: "bytes" },
       {
-        name: "request",
-        type: "tuple",
-        internalType: "struct CrossChainRequest",
-        components: [
-          {
-            name: "requester",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "calls",
-            type: "tuple[]",
-            internalType: "struct Call[]",
-            components: [
-              { name: "to", type: "bytes32", internalType: "bytes32" },
-              { name: "data", type: "bytes", internalType: "bytes" },
-              {
-                name: "value",
-                type: "uint256",
-                internalType: "uint256",
-              },
-            ],
-          },
-          {
-            name: "sourceChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "origin", type: "bytes32", internalType: "bytes32" },
-          {
-            name: "destinationChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "inboxContract",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "l2Oracle",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAsset",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAmount",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "finalityDelaySeconds",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "nonce", type: "uint256", internalType: "uint256" },
-          { name: "expiry", type: "uint256", internalType: "uint256" },
-          {
-            name: "extraData",
-            type: "bytes[]",
-            internalType: "bytes[]",
-          },
-        ],
+        name: "expandedAttributes",
+        type: "bytes[]",
+        internalType: "bytes[]",
       },
     ],
     outputs: [],
@@ -87,74 +26,13 @@ export default [
     type: "function",
     name: "claimReward",
     inputs: [
+      { name: "sender", type: "string", internalType: "string" },
+      { name: "receiver", type: "string", internalType: "string" },
+      { name: "payload", type: "bytes", internalType: "bytes" },
       {
-        name: "request",
-        type: "tuple",
-        internalType: "struct CrossChainRequest",
-        components: [
-          {
-            name: "requester",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "calls",
-            type: "tuple[]",
-            internalType: "struct Call[]",
-            components: [
-              { name: "to", type: "bytes32", internalType: "bytes32" },
-              { name: "data", type: "bytes", internalType: "bytes" },
-              {
-                name: "value",
-                type: "uint256",
-                internalType: "uint256",
-              },
-            ],
-          },
-          {
-            name: "sourceChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "origin", type: "bytes32", internalType: "bytes32" },
-          {
-            name: "destinationChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "inboxContract",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "l2Oracle",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAsset",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAmount",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "finalityDelaySeconds",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "nonce", type: "uint256", internalType: "uint256" },
-          { name: "expiry", type: "uint256", internalType: "uint256" },
-          {
-            name: "extraData",
-            type: "bytes[]",
-            internalType: "bytes[]",
-          },
-        ],
+        name: "expandedAttributes",
+        type: "bytes[]",
+        internalType: "bytes[]",
       },
       { name: "proof", type: "bytes", internalType: "bytes" },
       { name: "payTo", type: "address", internalType: "address" },
@@ -164,8 +42,8 @@ export default [
   },
   {
     type: "function",
-    name: "getRequestStatus",
-    inputs: [{ name: "requestHash", type: "bytes32", internalType: "bytes32" }],
+    name: "getMessageStatus",
+    inputs: [{ name: "messageId", type: "bytes32", internalType: "bytes32" }],
     outputs: [
       {
         name: "",
@@ -177,234 +55,26 @@ export default [
   },
   {
     type: "function",
-    name: "hashRequest",
+    name: "sendMessage",
     inputs: [
       {
-        name: "request",
-        type: "tuple",
-        internalType: "struct CrossChainRequest",
-        components: [
-          {
-            name: "requester",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "calls",
-            type: "tuple[]",
-            internalType: "struct Call[]",
-            components: [
-              { name: "to", type: "bytes32", internalType: "bytes32" },
-              { name: "data", type: "bytes", internalType: "bytes" },
-              {
-                name: "value",
-                type: "uint256",
-                internalType: "uint256",
-              },
-            ],
-          },
-          {
-            name: "sourceChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "origin", type: "bytes32", internalType: "bytes32" },
-          {
-            name: "destinationChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "inboxContract",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "l2Oracle",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAsset",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAmount",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "finalityDelaySeconds",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "nonce", type: "uint256", internalType: "uint256" },
-          { name: "expiry", type: "uint256", internalType: "uint256" },
-          {
-            name: "extraData",
-            type: "bytes[]",
-            internalType: "bytes[]",
-          },
-        ],
+        name: "destinationChain",
+        type: "string",
+        internalType: "string",
       },
+      { name: "receiver", type: "string", internalType: "string" },
+      { name: "payload", type: "bytes", internalType: "bytes" },
+      { name: "attributes", type: "bytes[]", internalType: "bytes[]" },
     ],
     outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
-    stateMutability: "pure",
-  },
-  {
-    type: "function",
-    name: "hashRequestMemory",
-    inputs: [
-      {
-        name: "request",
-        type: "tuple",
-        internalType: "struct CrossChainRequest",
-        components: [
-          {
-            name: "requester",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "calls",
-            type: "tuple[]",
-            internalType: "struct Call[]",
-            components: [
-              { name: "to", type: "bytes32", internalType: "bytes32" },
-              { name: "data", type: "bytes", internalType: "bytes" },
-              {
-                name: "value",
-                type: "uint256",
-                internalType: "uint256",
-              },
-            ],
-          },
-          {
-            name: "sourceChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "origin", type: "bytes32", internalType: "bytes32" },
-          {
-            name: "destinationChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "inboxContract",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "l2Oracle",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAsset",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAmount",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "finalityDelaySeconds",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "nonce", type: "uint256", internalType: "uint256" },
-          { name: "expiry", type: "uint256", internalType: "uint256" },
-          {
-            name: "extraData",
-            type: "bytes[]",
-            internalType: "bytes[]",
-          },
-        ],
-      },
-    ],
-    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
-    stateMutability: "pure",
-  },
-  {
-    type: "function",
-    name: "requestCrossChainCall",
-    inputs: [
-      {
-        name: "request",
-        type: "tuple",
-        internalType: "struct CrossChainRequest",
-        components: [
-          {
-            name: "requester",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "calls",
-            type: "tuple[]",
-            internalType: "struct Call[]",
-            components: [
-              { name: "to", type: "bytes32", internalType: "bytes32" },
-              { name: "data", type: "bytes", internalType: "bytes" },
-              {
-                name: "value",
-                type: "uint256",
-                internalType: "uint256",
-              },
-            ],
-          },
-          {
-            name: "sourceChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "origin", type: "bytes32", internalType: "bytes32" },
-          {
-            name: "destinationChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "inboxContract",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "l2Oracle",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAsset",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAmount",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "finalityDelaySeconds",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "nonce", type: "uint256", internalType: "uint256" },
-          { name: "expiry", type: "uint256", internalType: "uint256" },
-          {
-            name: "extraData",
-            type: "bytes[]",
-            internalType: "bytes[]",
-          },
-        ],
-      },
-    ],
-    outputs: [],
     stateMutability: "payable",
+  },
+  {
+    type: "function",
+    name: "supportsAttribute",
+    inputs: [{ name: "selector", type: "bytes4", internalType: "bytes4" }],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "pure",
   },
   {
     type: "event",
@@ -440,83 +110,43 @@ export default [
   },
   {
     type: "event",
-    name: "CrossChainCallRequested",
+    name: "MessagePosted",
     inputs: [
       {
-        name: "requestHash",
+        name: "outboxId",
         type: "bytes32",
         indexed: true,
         internalType: "bytes32",
       },
       {
-        name: "request",
-        type: "tuple",
+        name: "sender",
+        type: "string",
         indexed: false,
-        internalType: "struct CrossChainRequest",
-        components: [
-          {
-            name: "requester",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "calls",
-            type: "tuple[]",
-            internalType: "struct Call[]",
-            components: [
-              { name: "to", type: "bytes32", internalType: "bytes32" },
-              { name: "data", type: "bytes", internalType: "bytes" },
-              {
-                name: "value",
-                type: "uint256",
-                internalType: "uint256",
-              },
-            ],
-          },
-          {
-            name: "sourceChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "origin", type: "bytes32", internalType: "bytes32" },
-          {
-            name: "destinationChainId",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "inboxContract",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "l2Oracle",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAsset",
-            type: "bytes32",
-            internalType: "bytes32",
-          },
-          {
-            name: "rewardAmount",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          {
-            name: "finalityDelaySeconds",
-            type: "uint256",
-            internalType: "uint256",
-          },
-          { name: "nonce", type: "uint256", internalType: "uint256" },
-          { name: "expiry", type: "uint256", internalType: "uint256" },
-          {
-            name: "extraData",
-            type: "bytes[]",
-            internalType: "bytes[]",
-          },
-        ],
+        internalType: "string",
+      },
+      {
+        name: "receiver",
+        type: "string",
+        indexed: false,
+        internalType: "string",
+      },
+      {
+        name: "payload",
+        type: "bytes",
+        indexed: false,
+        internalType: "bytes",
+      },
+      {
+        name: "value",
+        type: "uint256",
+        indexed: false,
+        internalType: "uint256",
+      },
+      {
+        name: "attributes",
+        type: "bytes[]",
+        indexed: false,
+        internalType: "bytes[]",
       },
     ],
     anonymous: false,
@@ -533,18 +163,9 @@ export default [
   },
   {
     type: "error",
-    name: "BeaconRootDoesNotMatch",
-    inputs: [
-      { name: "expected", type: "bytes32", internalType: "bytes32" },
-      { name: "actual", type: "bytes32", internalType: "bytes32" },
-    ],
+    name: "AttributeNotFound",
+    inputs: [{ name: "selector", type: "bytes4", internalType: "bytes4" }],
   },
-  {
-    type: "error",
-    name: "BeaconRootsOracleCallFailed",
-    inputs: [{ name: "callData", type: "bytes", internalType: "bytes" }],
-  },
-  { type: "error", name: "BytesLengthExceeds32", inputs: [] },
   {
     type: "error",
     name: "CannotCancelRequestBeforeExpiry",
@@ -557,18 +178,16 @@ export default [
       { name: "expiry", type: "uint256", internalType: "uint256" },
     ],
   },
-  { type: "error", name: "ContentLengthMismatch", inputs: [] },
-  { type: "error", name: "EmptyItem", inputs: [] },
-  {
-    type: "error",
-    name: "ExecutionStateRootMerkleProofFailed",
-    inputs: [],
-  },
   { type: "error", name: "ExpiryTooSoon", inputs: [] },
   { type: "error", name: "FailedInnerCall", inputs: [] },
-  { type: "error", name: "FinalityDelaySecondsInProgress", inputs: [] },
-  { type: "error", name: "InvalidAccountRLP", inputs: [] },
-  { type: "error", name: "InvalidBlockFieldRLP", inputs: [] },
+  {
+    type: "error",
+    name: "InvalidAttributeLength",
+    inputs: [
+      { name: "expected", type: "uint256", internalType: "uint256" },
+      { name: "actual", type: "uint256", internalType: "uint256" },
+    ],
+  },
   {
     type: "error",
     name: "InvalidCaller",
@@ -581,11 +200,6 @@ export default [
       },
     ],
   },
-  { type: "error", name: "InvalidDataRemainder", inputs: [] },
-  { type: "error", name: "InvalidHeader", inputs: [] },
-  { type: "error", name: "InvalidL1Storage", inputs: [] },
-  { type: "error", name: "InvalidL2StateRoot", inputs: [] },
-  { type: "error", name: "InvalidL2Storage", inputs: [] },
   {
     type: "error",
     name: "InvalidStatus",
@@ -610,12 +224,22 @@ export default [
       { name: "received", type: "uint256", internalType: "uint256" },
     ],
   },
-  { type: "error", name: "ProofValidationFailed", inputs: [] },
   {
     type: "error",
     name: "SafeERC20FailedOperation",
     inputs: [{ name: "token", type: "address", internalType: "address" }],
   },
-  { type: "error", name: "UnexpectedList", inputs: [] },
-  { type: "error", name: "UnexpectedString", inputs: [] },
+  {
+    type: "error",
+    name: "StringsInsufficientHexLength",
+    inputs: [
+      { name: "value", type: "uint256", internalType: "uint256" },
+      { name: "length", type: "uint256", internalType: "uint256" },
+    ],
+  },
+  {
+    type: "error",
+    name: "UnsupportedAttribute",
+    inputs: [{ name: "selector", type: "bytes4", internalType: "bytes4" }],
+  },
 ] as const;
