@@ -63,9 +63,7 @@ contract RIP7755Inbox is ERC7786Base {
         bytes calldata payload,
         bytes[] calldata attributes
     ) external payable returns (bytes4) {
-        string memory receiver = address(this).local();
-        string memory combinedSender = CAIP10.format(sourceChain, sender);
-        bytes32 messageId = keccak256(abi.encode(combinedSender, receiver, payload, attributes));
+        bytes32 messageId = getMessageId(sourceChain, sender, payload, attributes);
 
         _runPrecheck(sourceChain, sender, payload, attributes);
 
@@ -91,6 +89,27 @@ contract RIP7755Inbox is ERC7786Base {
     /// @return _ Fulfillment info stored for the call hash
     function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
         return _getFulfillmentInfo(requestHash);
+    }
+
+    /// @notice Returns the message id for a given message
+    ///
+    /// @dev Filters out the fulfiller attribute from the attributes array
+    ///
+    /// @param sourceChain The CAIP-2 source chain identifier
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param payload The encoded calls array
+    /// @param attributes The attributes of the message
+    ///
+    /// @return messageId The message id
+    function getMessageId(
+        string calldata sourceChain,
+        string calldata sender,
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) public view returns (bytes32) {
+        string memory receiver = address(this).local();
+        string memory combinedSender = CAIP10.format(sourceChain, sender);
+        return keccak256(abi.encode(combinedSender, receiver, payload, _filterOutFulfiller(attributes)));
     }
 
     function _sendCallsAndValidateMsgValue(bytes calldata payload) private {
@@ -155,6 +174,20 @@ contract RIP7755Inbox is ERC7786Base {
         }
 
         return abi.decode(fulfillerAttribute[4:], (address));
+    }
+
+    function _filterOutFulfiller(bytes[] calldata attributes) private pure returns (bytes[] memory) {
+        bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
+        uint256 filteredIndex;
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i][:4]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
+                filteredAttributes[filteredIndex] = attributes[i];
+                unchecked {
+                    filteredIndex++;
+                }
+            }
+        }
+        return filteredAttributes;
     }
 
     function _getMainStorage() private pure returns (MainStorage storage $) {

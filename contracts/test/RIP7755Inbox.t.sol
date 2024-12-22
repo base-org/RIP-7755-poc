@@ -23,8 +23,6 @@ contract RIP7755InboxTest is Test, ERC7786Base {
         bytes32 messageId;
         string sourceChain;
         string sender;
-        string combinedSender;
-        string receiver;
         bytes payload;
         bytes[] attributes;
     }
@@ -47,7 +45,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_storesFulfillment_withSuccessfulPrecheck() external {
-        Message memory m = _initMessage(0, true);
+        Message memory m = _initMessage(true);
 
         vm.prank(FULFILLER);
         inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
@@ -59,14 +57,14 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_reverts_failedPrecheck() external {
-        Message memory m = _initMessage(0, true);
+        Message memory m = _initMessage(true);
 
         vm.expectRevert();
         inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
     function test_executeMessage_reverts_callAlreadyFulfilled() external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         vm.prank(FULFILLER);
         inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
@@ -77,7 +75,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_callsTargetContract(uint256 inputNum) external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         calls.push(
             Call({
@@ -95,7 +93,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_sendsEth(uint256 amount) external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         calls.push(Call({to: ALICE.addressToBytes32(), data: "", value: amount}));
         m.payload = abi.encode(calls);
@@ -108,7 +106,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_reverts_ifTargetContractReverts() external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         calls.push(
             Call({
@@ -125,7 +123,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_storesFulfillment() external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         vm.prank(FULFILLER);
         inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
@@ -137,7 +135,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_reverts_ifMsgValueTooHigh() external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         vm.deal(FULFILLER, 1);
         vm.prank(FULFILLER);
@@ -146,7 +144,7 @@ contract RIP7755InboxTest is Test, ERC7786Base {
     }
 
     function test_executeMessage_emitsEvent() external {
-        Message memory m = _initMessage(0, false);
+        Message memory m = _initMessage(false);
 
         vm.prank(FULFILLER);
         vm.expectEmit(true, true, false, false);
@@ -154,15 +152,13 @@ contract RIP7755InboxTest is Test, ERC7786Base {
         inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
     }
 
-    function _initMessage(uint256 rewardAmount, bool isPrecheck) private view returns (Message memory) {
+    function _initMessage(bool isPrecheck) private view returns (Message memory) {
         string memory sourceChain = CAIP10.formatCaip2(block.chainid);
         string memory sender = address(this).toChecksumHexString();
-        string memory receiver = address(inbox).local();
-        string memory combinedSender = CAIP10.format(sourceChain, sender);
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](isPrecheck ? 6 : 5);
 
-        attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, bytes32(0), rewardAmount);
+        attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, bytes32(0), uint256(0));
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, block.timestamp + 11);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
@@ -173,11 +169,9 @@ contract RIP7755InboxTest is Test, ERC7786Base {
         }
 
         return Message({
-            messageId: keccak256(abi.encode(combinedSender, receiver, payload, attributes)),
+            messageId: inbox.getMessageId(sourceChain, sender, payload, attributes),
             sourceChain: sourceChain,
             sender: sender,
-            combinedSender: combinedSender,
-            receiver: receiver,
             payload: payload,
             attributes: attributes
         });
