@@ -59,7 +59,7 @@ bun run index.ts
 
 ## Docker Support
 
-The `ts-filler` service can also be run inside a Docker container. The provided `docker-compose.tml` file sets up the environment and installs the necessary dependencies.
+The `ts-filler` service can also be run inside a Docker container. The provided `docker-compose.yml` file sets up the environment and installs the necessary dependencies.
 
 To build and run the Docker container, use the following command:
 
