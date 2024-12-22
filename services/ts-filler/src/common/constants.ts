@@ -1,4 +1,4 @@
-import { type Address } from "viem";
+import { type Hex } from "viem";
 
 export default {
   slots: {
@@ -21,4 +21,4 @@ export default {
     "0xc65a7bb8d6351c1cf70c95a316cc6a92839c986682d98bc35f958f4883f9d2a8",
     "0x0175b7a638427703f0dbe7bb9bbf987a2551717b34e79f33b5b1008d1fa01db9",
   ],
-} as { slots: Record<string, Address>; mockL1StateRootProof: `0x${string}`[] };
+} as { slots: Record<string, Hex>; mockL1StateRootProof: Hex[] };

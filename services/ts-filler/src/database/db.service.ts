@@ -1,7 +1,6 @@
 import mongoose, { type ObjectId } from "mongoose";
 import type { Address, Hex } from "viem";
 
-import type { RequestType } from "../common/types/request";
 import { Submission } from "./submissions.schema";
 import type { ActiveChains } from "../common/types/chain";
 import type { SubmissionType } from "../common/types/submission";

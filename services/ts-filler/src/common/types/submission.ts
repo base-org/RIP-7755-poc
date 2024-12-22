@@ -1,7 +1,5 @@
-import type { Address } from "viem";
+import type { Address, Hex } from "viem";
 import type { ObjectId } from "mongoose";
-
-import type { RequestType } from "./request";
 
 export type SubmissionType = {
   _id: ObjectId;
@@ -9,7 +7,11 @@ export type SubmissionType = {
   claimAvailableAt: number;
   txnSubmittedHash: Address;
   rewardClaimedTxnHash: Address;
-  request: RequestType;
+  sender: string;
+  receiver: string;
+  payload: Hex;
+  value: bigint;
+  attributes: Hex[];
   activeChains: {
     src: number;
     l1: number;

@@ -1,20 +1,10 @@
-import {
-  decodeAbiParameters,
-  zeroAddress,
-  zeroHash,
-  type Address,
-  type Hex,
-} from "viem";
+import { decodeAbiParameters, zeroHash, type Address, type Hex } from "viem";
 import bytes32ToAddress from "./bytes32ToAddress";
 
-const PRECHECK_ATTRIBUTE_SELECTOR = "0xfa1e5831";
-const NONCE_ATTRIBUTE_SELECTOR = "0xce03fdab";
 const REWARD_ATTRIBUTE_SELECTOR = "0xa362e5db";
 const DELAY_ATTRIBUTE_SELECTOR = "0x84f550e0";
-const REQUESTER_ATTRIBUTE_SELECTOR = "0x3bd94e4c";
 const FULFILLER_ATTRIBUTE_SELECTOR = "0x138a03fc";
 const L2_ORACLE_ATTRIBUTE_SELECTOR = "0x7ff7245a";
-const SHOYU_BASHI_ATTRIBUTE_SELECTOR = "0xda07e15d";
 
 export default class Attributes {
   constructor(private attributes: Hex[]) {}

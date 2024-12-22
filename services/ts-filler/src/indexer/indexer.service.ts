@@ -6,7 +6,6 @@ import chains from "../chain/chains";
 import ConfigService from "../config/config.service";
 import { SupportedChains } from "../common/types/chain";
 import OutboxAbi from "../abis/RIP7755Outbox";
-import type { RequestType } from "../common/types/request";
 import SignerService from "../signer/signer.service";
 import DBService from "../database/db.service";
 import HandlerService from "../handler/handler.service";
