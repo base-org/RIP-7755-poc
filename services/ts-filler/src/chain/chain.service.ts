@@ -1,6 +1,5 @@
 import {
   decodeEventLog,
-  toHex,
   type Address,
   type Block,
   type Hex,

@@ -1,33 +1,34 @@
-import type { Address } from "viem";
+import type { Hex } from "viem";
+import type { Assertion } from "./chain";
 
 export type AccountProofParams = {
-  storageKey: Address;
-  storageValue: Address;
-  accountProof: Address[];
-  storageProof: Address[];
+  storageKey: Hex;
+  storageValue: Hex;
+  accountProof: Hex[];
+  storageProof: Hex[];
 };
 
 export type StateProofParams = {
-  beaconRoot: Address;
+  beaconRoot: Hex;
   beaconOracleTimestamp: bigint;
-  executionStateRoot: Address;
-  stateRootProof: Address[];
+  executionStateRoot: Hex;
+  stateRootProof: Hex[];
 };
 
 export type ArbitrumProofType = {
   stateProofParams: StateProofParams;
   dstL2StateRootProofParams: AccountProofParams;
   dstL2AccountProofParams: AccountProofParams;
-  sendRoot: Address;
-  encodedBlockArray: Address;
-  nodeIndex: bigint;
+  encodedBlockArray: Hex;
+  afterState: Assertion;
+  prevAssertionHash: Hex;
+  sequencerBatchAcc: Hex;
 };
 
 export type OPStackProofType = {
-  l2StateRoot: Address;
-  l2BlockHash: Address;
+  l2MessagePasserStorageRoot: Hex;
+  encodedBlockArray: Hex;
   stateProofParams: StateProofParams;
   dstL2StateRootProofParams: AccountProofParams;
   dstL2AccountProofParams: AccountProofParams;
-  l2MessagePasserStorageRoot: Address;
 };

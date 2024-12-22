@@ -1,8 +1,8 @@
-import { sha256, encodePacked } from "viem";
+import { sha256, encodePacked, type Hex } from "viem";
 
 import constants from "../constants";
 
-export default function deriveBeaconRoot(curr: `0x${string}`): `0x${string}` {
+export default function deriveBeaconRoot(curr: Hex): Hex {
   let index = 6434;
   const types = ["bytes32", "bytes32"];
 

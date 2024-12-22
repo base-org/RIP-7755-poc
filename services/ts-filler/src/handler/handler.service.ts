@@ -1,11 +1,9 @@
 import { decodeAbiParameters, zeroAddress, type Hex } from "viem";
 
-import type { RequestType } from "../common/types/request";
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
 import { Provers, type ActiveChains } from "../common/types/chain";
 import RIP7755Inbox from "../abis/RIP7755Inbox";
-import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 import type CAIP10 from "../common/utils/caip10";
 import type Attributes from "../common/utils/attributes";
 
