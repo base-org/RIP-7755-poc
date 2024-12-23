@@ -2,23 +2,23 @@
 
 ## Overview
 
-This application demonstrates a fundamental use-case empowered by the RIP-7755 protocol. It serves as an Ethereum bridge between the Arbitrum Sepolia and Base Sepolia networks. The bridge facilitates fast and permissionless transfers of ETH between these two networks, showcasing the potential of RIP-7755 in real-world applications.
+his application demonstrates a practical use-case for the RIP-7755 protocol, acting as an Ethereum bridge between the Arbitrum Sepolia and Base Sepolia networks. It enables fast, seamless, and permissionless transfers of ETH, highlighting the protocol's potential for real-world applications.
 
 ## Key Features
 
-- **High Speed**: The bridge implementation is exceptionally fast, achieving a latency of just 6 seconds, which is significantly quicker than most existing bridging solutions.
-- **Permissionless**: The bridge operates without requiring any special permissions or trust assumptions, making it accessible to all users.
+- **High Speed**:  Achieves a latency of just 6 seconds, significantly faster than most existing bridging solutions.
+- **Permissionless**: Operates without requiring special permissions or trust assumptions, ensuring accessibility for all users.
 
 ## Prerequisites
 
-To ensure the application functions correctly, the following prerequisites must be met:
+To ensure proper functionality, the following prerequisites must be met:
 
-1. **Running Backend Service**: The application in the [`services/ts-filler`](../../services/ts-filler) directory must be running. This service handles the backend operations necessary for the bridge to function.
-2. **Coinbase Wallet**: It is recommended to have [Coinbase Wallet](https://www.coinbase.com/wallet) installed in your browser. This wallet will be used to interact with the Ethereum networks.
+1. **Backend Service**: The backend service in the services/ts-filler directory must be running. This service handles critical backend operations for the bridge.
+2. **Wallet Setup**: Install Coinbase Wallet in your browser to interact with the Ethereum networks. Ensure it is connected and configured.
 
 ## Setup Instructions
 
-1. **Clone the Repository**: Clone the repository to your local machine.
+1. **Clone the Repository**: Clone the repository to your local machine using the following command:
 
    ```sh
    git clone <repository-url>
@@ -54,4 +54,17 @@ To ensure the application functions correctly, the following prerequisites must 
 
 ## Usage
 
-Once the application is running, you can access it via your web browser. Use Coinbase Wallet to connect to the Ethereum networks and start bridging ETH between Arbitrum Sepolia and Base Sepolia.
+Once the application is running, access it through your browser. Follow these steps:
+
+1. **Connect Your Wallet**: Use Coinbase Wallet to connect to the Ethereum networks.
+2. **Select Source and Destination Networks**: Choose **Arbitrum Sepolia** and **Base Sepolia** as the source and destination networks.
+3. **Bridge ETH**: Specify the amount of ETH you wish to transfer and confirm the transaction.
+
+---
+
+## Additional Information
+
+- Ensure both the backend service and frontend application are running simultaneously for full functionality.
+- For production deployment, consult the [Deployment Guide](../../deployment/README.md) or follow your organization's deployment pipeline.
+
+By following these steps, you can seamlessly bridge ETH between networks and experience the power of the RIP-7755 protocol in action.
