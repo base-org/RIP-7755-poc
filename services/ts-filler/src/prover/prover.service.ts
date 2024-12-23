@@ -29,42 +29,50 @@ import {
 } from "../common/types/chain";
 import type {
   ArbitrumProofType,
+  HashiProofType,
   OPStackProofType,
+  ProofType,
 } from "../common/types/proof";
-import config from "../config";
 import deriveBeaconRoot from "../common/utils/deriveBeaconRoot";
 
 export default class ProverService {
+  private usingHashi: boolean;
+
   constructor(
     private readonly activeChains: ActiveChains,
-    private readonly chainService: ChainService
-  ) {}
+    private readonly chainService: ChainService,
+    private readonly isDevnet = false
+  ) {
+    this.usingHashi =
+      !this.activeChains.src.exposesL1State ||
+      !this.activeChains.dst.sharesStateWithL1;
+  }
 
-  async generateProof(
-    requestHash: Address
-  ): Promise<ArbitrumProofType | OPStackProofType> {
-    let beaconData: GetBeaconRootAndL2TimestampReturnType;
-    let l1BlockNumber: bigint;
-    let stateRootInclusion: StateRootProofReturnType;
+  async generateProof(requestHash: Address): Promise<ProofType> {
+    let beaconData: GetBeaconRootAndL2TimestampReturnType | undefined;
+    let l1BlockNumber: bigint | undefined;
+    let stateRootInclusion: StateRootProofReturnType | undefined;
 
-    if (config.devnet) {
-      const l1Block = await this.chainService.getL1Block();
-      l1BlockNumber = l1Block.number as bigint;
-      stateRootInclusion = {
-        proof: constants.mockL1StateRootProof,
-        leaf: l1Block.stateRoot,
-      };
-      beaconData = {
-        beaconRoot: deriveBeaconRoot(l1Block.stateRoot),
-        timestampForL2BeaconOracle: l1Block.timestamp,
-      };
-    } else {
-      beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
-      const beaconBlock = await this.chainService.getBeaconBlock(
-        beaconData.beaconRoot
-      );
-      stateRootInclusion = this.getExecutionStateRootProof(beaconBlock);
-      l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber);
+    if (!this.usingHashi) {
+      if (this.isDevnet) {
+        const l1Block = await this.chainService.getL1Block();
+        l1BlockNumber = l1Block.number as bigint;
+        stateRootInclusion = {
+          proof: constants.mockL1StateRootProof,
+          leaf: l1Block.stateRoot,
+        };
+        beaconData = {
+          beaconRoot: deriveBeaconRoot(l1Block.stateRoot),
+          timestampForL2BeaconOracle: l1Block.timestamp,
+        };
+      } else {
+        beaconData = await this.chainService.getBeaconRootAndL2Timestamp();
+        const beaconBlock = await this.chainService.getBeaconBlock(
+          beaconData.beaconRoot
+        );
+        stateRootInclusion = this.getExecutionStateRootProof(beaconBlock);
+        l1BlockNumber = BigInt(beaconBlock.body.executionPayload.blockNumber);
+      }
     }
 
     const { l2Block, parentAssertionHash, afterInboxBatchAcc, assertion } =
@@ -119,14 +127,6 @@ export default class ProverService {
     const dstConfig = this.activeChains.dst;
 
     const calls = [
-      this.activeChains.l1.publicClient.getProof(
-        this.buildL1Proof(
-          l1BlockNumber,
-          parentAssertionHash,
-          afterInboxBatchAcc,
-          assertion
-        )
-      ),
       dstConfig.publicClient.getProof({
         address: dstConfig.contracts.inbox,
         storageKeys: [l2Slot],
@@ -134,22 +134,39 @@ export default class ProverService {
       }),
     ];
 
-    if (
-      dstConfig.chainId === SupportedChains.OptimismSepolia ||
-      dstConfig.chainId === SupportedChains.MockOptimism
-    ) {
+    if (!this.usingHashi) {
+      if (!l1BlockNumber) {
+        throw new Error("L1 block number is required for non-Hashi proofs");
+      }
+
       calls.push(
-        dstConfig.publicClient.getProof({
-          address: dstConfig.contracts.l2MessagePasser,
-          storageKeys: [],
-          blockNumber: l2Block.number,
-        })
+        this.activeChains.l1.publicClient.getProof(
+          this.buildL1Proof(
+            l1BlockNumber,
+            parentAssertionHash,
+            afterInboxBatchAcc,
+            assertion
+          )
+        )
       );
+
+      if (
+        dstConfig.chainId === SupportedChains.OptimismSepolia ||
+        dstConfig.chainId === SupportedChains.MockOptimism
+      ) {
+        calls.push(
+          dstConfig.publicClient.getProof({
+            address: dstConfig.contracts.l2MessagePasser,
+            storageKeys: [],
+            blockNumber: l2Block.number,
+          })
+        );
+      }
     }
 
     const storageProofs = await Promise.all(calls);
 
-    const [storageProof, l2StorageProof, l2MessagePasserStorageProof] =
+    const [l2StorageProof, storageProof, l2MessagePasserStorageProof] =
       storageProofs;
     return { storageProof, l2StorageProof, l2MessagePasserStorageProof };
   }
@@ -251,27 +268,126 @@ export default class ProverService {
   private storeProofObj(
     proofs: Proofs,
     l2Block: Block,
-    beaconData: GetBeaconRootAndL2TimestampReturnType,
-    stateRootInclusion: StateRootProofReturnType,
+    beaconData?: GetBeaconRootAndL2TimestampReturnType,
+    stateRootInclusion?: StateRootProofReturnType,
     assertion?: Assertion,
     parentAssertionHash?: Hex,
     afterInboxBatchAcc?: Hex
-  ): ArbitrumProofType | OPStackProofType {
+  ): ProofType {
     console.log("storeProofObj");
 
-    const blockArray = this.buildBlockArray(l2Block);
-
-    if (keccak256(toRlp(blockArray)) !== l2Block.hash) {
-      throw new Error("Blockhash mismatch");
+    if (this.usingHashi) {
+      return this.buildHashiProof(proofs, l2Block);
     }
 
-    const proofObj: any = {
-      encodedBlockArray: toRlp(blockArray),
+    if (!beaconData) {
+      throw new Error("Beacon data is required for non-Hashi proofs");
+    }
+    if (!stateRootInclusion) {
+      throw new Error("State root inclusion is required for non-Hashi proofs");
+    }
+
+    switch (this.activeChains.dst.chainId) {
+      case SupportedChains.ArbitrumSepolia:
+        if (!assertion) {
+          throw new Error("Assertion is required for Arbitrum proofs");
+        }
+        if (!parentAssertionHash) {
+          throw new Error(
+            "Parent assertion hash is required for Arbitrum proofs"
+          );
+        }
+        if (!afterInboxBatchAcc) {
+          throw new Error(
+            "After inbox batch acc is required for Arbitrum proofs"
+          );
+        }
+        return this.buildArbitrumProof(
+          proofs,
+          l2Block,
+          beaconData,
+          stateRootInclusion,
+          assertion,
+          parentAssertionHash,
+          afterInboxBatchAcc
+        );
+      case SupportedChains.OptimismSepolia:
+        return this.buildOPStackProof(
+          proofs,
+          l2Block,
+          beaconData,
+          stateRootInclusion
+        );
+      default:
+        throw new Error("Unsupported chain");
+    }
+  }
+
+  private buildArbitrumProof(
+    proofs: Proofs,
+    l2Block: Block,
+    beaconData: GetBeaconRootAndL2TimestampReturnType,
+    stateRootInclusion: StateRootProofReturnType,
+    assertion: Assertion,
+    parentAssertionHash: Hex,
+    afterInboxBatchAcc: Hex
+  ): ArbitrumProofType {
+    if (!proofs.storageProof) {
+      throw new Error("Storage proof is required for Arbitrum proofs");
+    }
+
+    return {
       stateProofParams: {
         beaconRoot: beaconData.beaconRoot,
-        beaconOracleTimestamp: toHex(beaconData.timestampForL2BeaconOracle, {
-          size: 32,
-        }),
+        beaconOracleTimestamp: beaconData.timestampForL2BeaconOracle,
+        executionStateRoot: stateRootInclusion.leaf,
+        stateRootProof: stateRootInclusion.proof,
+      },
+      dstL2StateRootProofParams: {
+        storageKey: proofs.storageProof.storageProof[0].key,
+        storageValue: this.convertToHex(
+          proofs.storageProof.storageProof[0].value
+        ),
+        accountProof: proofs.storageProof.accountProof,
+        storageProof: proofs.storageProof.storageProof[0].proof,
+      },
+      dstL2AccountProofParams: {
+        storageKey: proofs.l2StorageProof.storageProof[0].key,
+        storageValue: this.convertToHex(
+          proofs.l2StorageProof.storageProof[0].value
+        ),
+        accountProof: proofs.l2StorageProof.accountProof,
+        storageProof: proofs.l2StorageProof.storageProof[0].proof,
+      },
+      encodedBlockArray: this.getEncodedBlockArray(l2Block),
+      afterState: assertion,
+      prevAssertionHash: parentAssertionHash,
+      sequencerBatchAcc: afterInboxBatchAcc,
+    };
+  }
+
+  private buildOPStackProof(
+    proofs: Proofs,
+    l2Block: Block,
+    beaconData: GetBeaconRootAndL2TimestampReturnType,
+    stateRootInclusion: StateRootProofReturnType
+  ): OPStackProofType {
+    if (!proofs.l2MessagePasserStorageProof) {
+      throw new Error(
+        "L2 message passer storage proof is required for OPStack proofs"
+      );
+    }
+    if (!proofs.storageProof) {
+      throw new Error("Storage proof is required for OPStack proofs");
+    }
+
+    return {
+      l2MessagePasserStorageRoot:
+        proofs.l2MessagePasserStorageProof.storageHash,
+      encodedBlockArray: this.getEncodedBlockArray(l2Block),
+      stateProofParams: {
+        beaconRoot: beaconData.beaconRoot,
+        beaconOracleTimestamp: beaconData.timestampForL2BeaconOracle,
         executionStateRoot: stateRootInclusion.leaf,
         stateRootProof: stateRootInclusion.proof,
       },
@@ -292,35 +408,34 @@ export default class ProverService {
         storageProof: proofs.l2StorageProof.storageProof[0].proof,
       },
     };
-
-    if (proofs.l2MessagePasserStorageProof) {
-      proofObj["l2MessagePasserStorageRoot"] =
-        proofs.l2MessagePasserStorageProof.storageHash;
-    }
-
-    if (this.activeChains.dst.chainId === SupportedChains.ArbitrumSepolia) {
-      if (!assertion) {
-        throw new Error("Assertion is required for Arbitrum proofs");
-      }
-      if (!parentAssertionHash) {
-        throw new Error(
-          "Parent assertion hash is required for Arbitrum proofs"
-        );
-      }
-      if (!afterInboxBatchAcc) {
-        throw new Error(
-          "After inbox batch acc is required for Arbitrum proofs"
-        );
-      }
-      proofObj["afterState"] = assertion;
-      proofObj["prevAssertionHash"] = parentAssertionHash;
-      proofObj["sequencerBatchAcc"] = afterInboxBatchAcc;
-    }
-
-    return proofObj;
   }
 
-  private buildBlockArray(l2Block: any): any[] {
+  private buildHashiProof(proofs: Proofs, l2Block: Block): HashiProofType {
+    return {
+      rlpEncodedBlockHeader: this.getEncodedBlockArray(l2Block),
+      dstAccountProofParams: {
+        storageKey: proofs.l2StorageProof.storageProof[0].key,
+        storageValue: this.convertToHex(
+          proofs.l2StorageProof.storageProof[0].value
+        ),
+        accountProof: proofs.l2StorageProof.accountProof,
+        storageProof: proofs.l2StorageProof.storageProof[0].proof,
+      },
+    };
+  }
+
+  private getEncodedBlockArray(l2Block: Block): Hex {
+    const blockArray = this.buildBlockArray(l2Block);
+    const encodedBlockArray = toRlp(blockArray);
+
+    if (keccak256(encodedBlockArray) !== l2Block.hash) {
+      throw new Error("Blockhash mismatch");
+    }
+
+    return encodedBlockArray;
+  }
+
+  private buildBlockArray(l2Block: any): Hex[] {
     const blockArray = [
       l2Block.parentHash,
       l2Block.sha3Uncles,

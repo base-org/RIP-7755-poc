@@ -19,16 +19,20 @@ import {
   type L2Block,
 } from "../common/types/chain";
 import type ConfigService from "../config/config.service";
-import RIP7755Inbox from "../abis/RIP7755Inbox";
-import type { FulfillmentInfoType } from "../common/types/fulfillmentInfo";
 import safeFetch from "../common/utils/safeFetch";
 import exponentialBackoff from "../common/utils/exponentialBackoff";
 
 export default class ChainService {
+  private usingHashi: boolean;
+
   constructor(
     private readonly activeChains: ActiveChains,
     private readonly configService: ConfigService
-  ) {}
+  ) {
+    this.usingHashi =
+      !this.activeChains.src.exposesL1State ||
+      !this.activeChains.dst.sharesStateWithL1;
+  }
 
   async getBeaconRootAndL2Timestamp(): Promise<GetBeaconRootAndL2TimestampReturnType> {
     console.log("getBeaconRootAndL2Timestamp");
@@ -74,7 +78,7 @@ export default class ChainService {
     return await this.activeChains.l1.publicClient.getBlock();
   }
 
-  async getL2Block(blockNumber: bigint): Promise<{
+  async getL2Block(blockNumber?: bigint): Promise<{
     l2Block: Block;
     parentAssertionHash?: Hex;
     afterInboxBatchAcc?: Hex;
@@ -85,6 +89,7 @@ export default class ChainService {
     switch (this.activeChains.dst.chainId) {
       case SupportedChains.ArbitrumSepolia:
         return await this.getArbitrumSepoliaBlock(blockNumber);
+      case SupportedChains.BaseSepolia:
       case SupportedChains.OptimismSepolia:
       case SupportedChains.MockOptimism:
         return await this.getOptimismSepoliaBlock(blockNumber);
@@ -93,13 +98,20 @@ export default class ChainService {
     }
   }
 
-  private async getArbitrumSepoliaBlock(l1BlockNumber: bigint): Promise<{
+  private async getArbitrumSepoliaBlock(l1BlockNumber?: bigint): Promise<{
     l2Block: Block;
     parentAssertionHash: Hex;
     afterInboxBatchAcc: Hex;
     assertion: Assertion;
   }> {
     console.log("getArbitrumSepoliaBlock");
+
+    if (!this.usingHashi) {
+      if (!l1BlockNumber) {
+        throw new Error("Block number is required");
+      }
+    }
+
     // Need to get blockHash instead
     // 1. Get latest node from Rollup contract
     const assertionHash: Hex = await exponentialBackoff(async () => {
@@ -148,7 +160,7 @@ export default class ChainService {
   }
 
   private async getOptimismSepoliaBlock(
-    blockNumber: bigint
+    blockNumber?: bigint
   ): Promise<{ l2Block: Block }> {
     const l2BlockNumber = await this.getL2BlockNumber(blockNumber);
     const l2Block = await exponentialBackoff(async () => {
@@ -166,7 +178,13 @@ export default class ChainService {
     return await this.request(url);
   }
 
-  private async getL2BlockNumber(l1BlockNumber: bigint): Promise<bigint> {
+  private async getL2BlockNumber(l1BlockNumber?: bigint): Promise<bigint> {
+    if (!this.usingHashi) {
+      if (!l1BlockNumber) {
+        throw new Error("Block number is required");
+      }
+    }
+
     const config = this.activeChains.l1;
     const [, l2BlockNumber]: [any, bigint] = await exponentialBackoff(
       async () => {
@@ -190,18 +208,6 @@ export default class ChainService {
     const url = `${this.activeChains.src.etherscanApiUrl}/api?module=logs&action=getLogs&address=${outboxAddress}&topic0=0xa37ff6d366884aabcbf069aa27b0e52078eea55e90ad8fc2349cd0a2aac08298&page=1&apikey=${apiKey}&fromBlock=${fromBlock}`;
 
     return await this.request(url);
-  }
-
-  async getFulfillmentInfo(requestHash: Address): Promise<FulfillmentInfoType> {
-    const config = this.activeChains.dst;
-    return await exponentialBackoff(async () => {
-      return await config.publicClient.readContract({
-        address: config.contracts.inbox,
-        abi: RIP7755Inbox,
-        functionName: "getFulfillmentInfo",
-        args: [requestHash],
-      });
-    });
   }
 
   private async request(url: string): Promise<any> {

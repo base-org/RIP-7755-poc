@@ -33,8 +33,8 @@ export default [
           },
           {
             name: "machineStatus",
-            type: "ArbitrumProver.MachineStatus",
-            internalType: "enum ArbitrumProver.MachineStatus",
+            type: "uint8",
+            internalType: "uint8",
           },
           {
             name: "endHistoryRoot",
