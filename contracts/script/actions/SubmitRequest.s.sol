@@ -47,6 +47,7 @@ contract SubmitRequest is Script, ERC7786Base {
         returns (string memory, string memory, bytes memory, bytes[] memory)
     {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
+        // HelperConfig.NetworkConfig memory srcConfig = helperConfig.getConfig(block.chainid);
 
         Call[] memory calls = new Call[](1);
         calls[0] =
@@ -60,7 +61,7 @@ contract SubmitRequest is Script, ERC7786Base {
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, 0.0002 ether);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, duration, block.timestamp + 2 weeks);
         attributes[2] = abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, dstConfig.l2Oracle);
-        // attributes[2] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, dstConfig.shoyuBashi);
+        // attributes[2] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, srcConfig.shoyuBashi);
 
         return (destinationChain, receiver, payload, attributes);
     }
