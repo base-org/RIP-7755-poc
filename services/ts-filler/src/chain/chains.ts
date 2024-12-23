@@ -16,8 +16,8 @@ export default {
   421614: {
     chainId: 421614,
     outboxContracts: {
-      OPStack: "0x70133C8D5b8fAcd20EAb47D609611009f39ae2D8",
-      Hashi: "0xF648758260bfA7A9dBe1B69f471b23AfFf1cBa6E",
+      OPStack: "0x47b5B7908C5713741275F02573b1E1c923De53b6",
+      Hashi: "0xEea9a1118F80C7318c87ecC9E74638eE4adB4a6b",
     },
     rpcUrl:
       process.env.ARBITRUM_SEPOLIA_RPC ||
@@ -27,7 +27,7 @@ export default {
       "0x0000000000000000000000000000000000000000000000000000000000000076",
     contracts: {
       // inbox: "0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874", // mock verifier address
-      inbox: "0x5873D69cd7Cd6f1040AA87E6107eB6516E9F5359",
+      inbox: "0x3925cA932720B63ccD2C359DF27fD4146b123628",
     },
     publicClient: createPublicClient({
       chain: arbitrumSepolia,
@@ -43,16 +43,16 @@ export default {
   84532: {
     chainId: 84532,
     outboxContracts: {
-      Arbitrum: "0x3D52b08C3B7Bf624eAD9A79b2e689eA93b80A270",
-      OPStack: "0x887f1Bf9F66DFc92901daCcC3d88462b17251B75",
-      Hashi: "0x61B4C289F10f77713C0f1fb38B70741E404Be347",
+      Arbitrum: "0xAD1F7De075f304821838d5b7D53B6Af3787acB84",
+      OPStack: "0x778BBC9031303111863556A839f942fa57958dAB",
+      Hashi: "0x421194292DC69C440528d3865Ae6A2B22F683Cb6",
     },
     rpcUrl: process.env.BASE_SEPOLIA_RPC || baseSepolia.rpcUrls.default.http[0],
     l2Oracle: "0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205",
     l2OracleStorageKey:
       "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
     contracts: {
-      inbox: "0x4C1e8c60c3f07AD8A0d08FCD5Cf93f6b73dFeB76",
+      inbox: "0x0D595D4d3dC06548D536e74528C5B8ecc2171B31",
     },
     publicClient: createPublicClient({
       chain: baseSepolia,
@@ -68,9 +68,9 @@ export default {
   11155420: {
     chainId: 11155420,
     outboxContracts: {
-      Arbitrum: "0x558D42DFD77B6E0aD643F63C23aaba426359cd75",
-      OPStack: "0xb0524e2D930A46b4B7Eea9fb1E586d00823f66D9",
-      Hashi: "0x3365567988f788F7e878377CF211CC98A3505E15",
+      Arbitrum: "0xCe255d8676A34575bd580D1520f0e2968Ea45Ec3",
+      OPStack: "0x10971bB1913D3Fa79B0503aF4568CA11f237E919",
+      Hashi: "0xcCB16Bf719ac9A0D125d7491Dfa897E9053Ca415",
     },
     rpcUrl:
       process.env.OPTIMISM_SEPOLIA_RPC ||
@@ -80,7 +80,7 @@ export default {
       "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
     contracts: {
       l2MessagePasser: "0x4200000000000000000000000000000000000016",
-      inbox: "0xcDdCD048d3AbdE4c917391f65fE296B64841619C",
+      inbox: "0x27B9e81C31eab9fdB8Ed1280680b23299FBa4cd8",
     },
     publicClient: createPublicClient({
       chain: optimismSepolia,

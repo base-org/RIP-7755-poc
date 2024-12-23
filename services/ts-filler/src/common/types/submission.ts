@@ -12,6 +12,7 @@ export type SubmissionType = {
   payload: Hex;
   value: bigint;
   attributes: Hex[];
+  devnet: boolean;
   activeChains: {
     src: number;
     l1: number;

@@ -21,7 +21,7 @@ export default class Attributes {
           [{ type: "bytes32" }],
           ("0x" + attribute.slice(10)) as Hex
         )
-      : zeroHash;
+      : [zeroHash];
 
     return bytes32ToAddress(address as Hex);
   }
@@ -54,6 +54,12 @@ export default class Attributes {
   setFulfiller(fulfiller: Address): void {
     this.attributes.push(
       `${FULFILLER_ATTRIBUTE_SELECTOR}${fulfiller.slice(2).padStart(64, "0")}`
+    );
+  }
+
+  removeFulfiller(): void {
+    this.attributes = this.attributes.filter(
+      (attr) => attr.slice(0, 10) !== FULFILLER_ATTRIBUTE_SELECTOR
     );
   }
 

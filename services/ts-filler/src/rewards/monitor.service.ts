@@ -12,9 +12,13 @@ import ArbitrumProof from "../abis/ArbitrumProof";
 import OPStackProof from "../abis/OPStackProof";
 import type {
   ArbitrumProofType,
+  HashiProofType,
   OPStackProofType,
+  ProofType,
 } from "../common/types/proof";
-import bytes32ToAddress from "../common/utils/bytes32ToAddress";
+import CAIP10 from "../common/utils/caip10";
+import HashiProof from "../abis/HashiProof";
+import Attributes from "../common/utils/attributes";
 
 export default class RewardMonitorService {
   private processing = false;
@@ -50,68 +54,84 @@ export default class RewardMonitorService {
   }
 
   private async handleJob(job: SubmissionType): Promise<void> {
-    const activeChains = {
-      src: chains[job.activeChains.src],
-      l1: chains[job.activeChains.l1],
-      dst: chains[job.activeChains.dst],
-    };
-    const chainService = new ChainService(activeChains, this.configService);
-    const signerService = new SignerService(chains[job.activeChains.dst]);
-    const proverService = new ProverService(activeChains, chainService);
-    const { requestHash, request } = job;
+    try {
+      const activeChains = {
+        src: chains[job.activeChains.src],
+        l1: chains[job.activeChains.l1],
+        dst: chains[job.activeChains.dst],
+      };
+      const chainService = new ChainService(activeChains, this.configService);
+      const signerService = new SignerService(chains[job.activeChains.src]);
+      const proverService = new ProverService(
+        activeChains,
+        chainService,
+        job.devnet
+      );
+      const { requestHash, sender, receiver, payload, attributes } = job;
 
-    const [fulfillmentInfo, proof] = await Promise.all([
-      chainService.getFulfillmentInfo(requestHash),
-      proverService.generateProof(requestHash),
-    ]);
-    const payTo = signerService.getFulfillerAddress();
+      const proof = await proverService.generateProof(requestHash);
+      const payTo = signerService.getFulfillerAddress();
+      const attributesClass = new Attributes(attributes);
+      attributesClass.removeFulfiller();
 
-    const encodedProof = this.encodeProof(proof);
+      const encodedProof = this.encodeProof(proof);
 
-    const functionName = "claimReward";
-    const args = [request, fulfillmentInfo, encodedProof, payTo];
+      const functionName = "claimReward";
+      const args = [
+        sender,
+        receiver,
+        payload,
+        attributesClass.getAttributes(),
+        encodedProof,
+        payTo,
+      ];
 
-    console.log(
-      "Proof successfully generated. Sending rewardClaim transaction"
-    );
+      console.log(
+        "Proof successfully generated. Sending rewardClaim transaction"
+      );
 
-    const txnHash = await signerService.sendTransaction(
-      bytes32ToAddress(job.request.origin),
-      RIP7755Outbox,
-      functionName,
-      args
-    );
+      const senderObj = new CAIP10(sender);
 
-    if (!txnHash) {
-      throw new Error("Failed to submit transaction");
+      const txnHash = await signerService.sendTransaction(
+        senderObj.getAddress(),
+        RIP7755Outbox,
+        functionName,
+        args
+      );
+
+      if (!txnHash) {
+        throw new Error("Failed to submit transaction");
+      }
+
+      console.log(`Transaction successful: ${txnHash}`);
+
+      await this.dbService.updateRewardClaimed(job._id, txnHash);
+    } catch (e) {
+      console.error(e);
     }
-
-    console.log(`Transaction successful: ${txnHash}`);
-
-    await this.dbService.updateRewardClaimed(job._id, txnHash);
   }
 
-  private encodeProof(
-    proof: ArbitrumProofType | OPStackProofType
-  ): EncodeAbiParametersReturnType {
+  private encodeProof(proof: ProofType): EncodeAbiParametersReturnType {
     if (this.isArbitrumProofType(proof)) {
       return encodeAbiParameters(ArbitrumProof, [proof]);
     } else if (this.isOPStackProofType(proof)) {
       return encodeAbiParameters(OPStackProof, [proof]);
+    } else if (this.isHashiProofType(proof)) {
+      return encodeAbiParameters(HashiProof, [proof]);
     } else {
       throw new Error("Unknown proof type");
     }
   }
 
-  private isArbitrumProofType(
-    proof: ArbitrumProofType | OPStackProofType
-  ): proof is ArbitrumProofType {
-    return (proof as ArbitrumProofType).nodeIndex !== undefined;
+  private isArbitrumProofType(proof: ProofType): proof is ArbitrumProofType {
+    return (proof as ArbitrumProofType).prevAssertionHash !== undefined;
   }
 
-  private isOPStackProofType(
-    proof: ArbitrumProofType | OPStackProofType
-  ): proof is OPStackProofType {
-    return (proof as OPStackProofType).l2StateRoot !== undefined;
+  private isOPStackProofType(proof: ProofType): proof is OPStackProofType {
+    return (proof as OPStackProofType).l2MessagePasserStorageRoot !== undefined;
+  }
+
+  private isHashiProofType(proof: ProofType): proof is HashiProofType {
+    return (proof as HashiProofType).rlpEncodedBlockHeader !== undefined;
   }
 }

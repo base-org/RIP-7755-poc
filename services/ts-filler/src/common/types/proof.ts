@@ -32,3 +32,10 @@ export type OPStackProofType = {
   dstL2StateRootProofParams: AccountProofParams;
   dstL2AccountProofParams: AccountProofParams;
 };
+
+export type HashiProofType = {
+  rlpEncodedBlockHeader: Hex;
+  dstAccountProofParams: AccountProofParams;
+};
+
+export type ProofType = ArbitrumProofType | OPStackProofType | HashiProofType;
