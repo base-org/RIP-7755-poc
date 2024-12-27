@@ -49,6 +49,13 @@ export default class ProverService {
   }
 
   async generateProof(requestHash: Address): Promise<ProofType> {
+    const { proof } = await this.generateProofWithL2Block(requestHash);
+    return proof;
+  }
+
+  async generateProofWithL2Block(
+    requestHash: Address
+  ): Promise<{ proof: ProofType; l2Block: Block }> {
     let beaconData: GetBeaconRootAndL2TimestampReturnType | undefined;
     let l1BlockNumber: bigint | undefined;
     let stateRootInclusion: StateRootProofReturnType | undefined;
@@ -89,7 +96,7 @@ export default class ProverService {
     };
     const storageProofs = await this.getStorageProofs(storageProofOpts);
 
-    return this.storeProofObj(
+    const proof = this.storeProofObj(
       storageProofs,
       l2Block,
       beaconData,
@@ -98,6 +105,8 @@ export default class ProverService {
       parentAssertionHash,
       afterInboxBatchAcc
     );
+
+    return { proof, l2Block };
   }
 
   private getExecutionStateRootProof(block: any): StateRootProofReturnType {
@@ -336,6 +345,13 @@ export default class ProverService {
       throw new Error("Storage proof is required for Arbitrum proofs");
     }
 
+    if (proofs.storageProof.storageProof[0].value === 0n) {
+      throw new Error("Storage proof value is 0");
+    }
+    if (proofs.l2StorageProof.storageProof[0].value === 0n) {
+      throw new Error("L2 storage proof value is 0");
+    }
+
     return {
       stateProofParams: {
         beaconRoot: beaconData.beaconRoot,
@@ -380,6 +396,12 @@ export default class ProverService {
     if (!proofs.storageProof) {
       throw new Error("Storage proof is required for OPStack proofs");
     }
+    if (proofs.storageProof.storageProof[0].value === 0n) {
+      throw new Error("Storage proof value is 0");
+    }
+    if (proofs.l2StorageProof.storageProof[0].value === 0n) {
+      throw new Error("L2 storage proof value is 0");
+    }
 
     return {
       l2MessagePasserStorageRoot:
@@ -411,6 +433,10 @@ export default class ProverService {
   }
 
   private buildHashiProof(proofs: Proofs, l2Block: Block): HashiProofType {
+    if (proofs.l2StorageProof.storageProof[0].value === 0n) {
+      throw new Error("L2 storage proof value is 0");
+    }
+
     return {
       rlpEncodedBlockHeader: this.getEncodedBlockArray(l2Block),
       dstAccountProofParams: {

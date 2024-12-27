@@ -19,6 +19,8 @@ import type {
 import CAIP10 from "../common/utils/caip10";
 import HashiProof from "../abis/HashiProof";
 import Attributes from "../common/utils/attributes";
+import ShoyuBashi from "../abis/ShoyuBashi";
+import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 
 export default class RewardMonitorService {
   private processing = false;
@@ -69,11 +71,28 @@ export default class RewardMonitorService {
       );
       const { requestHash, sender, receiver, payload, attributes } = job;
 
-      const proof = await proverService.generateProof(requestHash);
-      const payTo = signerService.getFulfillerAddress();
+      const { proof, l2Block } = await proverService.generateProofWithL2Block(
+        requestHash
+      );
       const attributesClass = new Attributes(attributes);
       attributesClass.removeFulfiller();
 
+      const usingHashi =
+        !activeChains.src.exposesL1State || !activeChains.dst.sharesStateWithL1;
+
+      if (usingHashi) {
+        // NOTE: This is only for a proof of concept. We have a mock shoyu bashi contract that allows us to directly set the block hash for the l2 block number.
+        // In production, more sophisticated logic will be needed to determine the latest block number accounted for in the Hashi system.
+        const shoyuBashi = attributesClass.getShoyuBashi();
+        await signerService.sendTransaction(
+          bytes32ToAddress(shoyuBashi),
+          ShoyuBashi,
+          "setHash",
+          [activeChains.dst.chainId, l2Block.number as bigint, l2Block.hash]
+        );
+      }
+
+      const payTo = signerService.getFulfillerAddress();
       const encodedProof = this.encodeProof(proof);
 
       const functionName = "claimReward";

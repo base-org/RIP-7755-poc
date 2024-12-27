@@ -5,6 +5,7 @@ const REWARD_ATTRIBUTE_SELECTOR = "0xa362e5db";
 const DELAY_ATTRIBUTE_SELECTOR = "0x84f550e0";
 const FULFILLER_ATTRIBUTE_SELECTOR = "0x138a03fc";
 const L2_ORACLE_ATTRIBUTE_SELECTOR = "0x7ff7245a";
+const SHOYU_BASHI_ATTRIBUTE_SELECTOR = "0xda07e15d";
 
 export default class Attributes {
   constructor(private attributes: Hex[]) {}
@@ -49,6 +50,17 @@ export default class Attributes {
       finalityDelaySeconds: Number(finalityDelaySeconds),
       expiry: Number(expiry),
     };
+  }
+
+  getShoyuBashi(): Hex {
+    const attribute = this.getAttribute(SHOYU_BASHI_ATTRIBUTE_SELECTOR);
+
+    const [hash] = decodeAbiParameters(
+      [{ type: "bytes32" }],
+      ("0x" + attribute.slice(10)) as Hex
+    );
+
+    return hash;
   }
 
   setFulfiller(fulfiller: Address): void {

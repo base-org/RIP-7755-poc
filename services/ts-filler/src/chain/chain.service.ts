@@ -179,10 +179,16 @@ export default class ChainService {
   }
 
   private async getL2BlockNumber(l1BlockNumber?: bigint): Promise<bigint> {
-    if (!this.usingHashi) {
-      if (!l1BlockNumber) {
-        throw new Error("Block number is required");
-      }
+    if (this.usingHashi) {
+      // NOTE: This is only for a proof of concept. We have a mock shoyu bashi contract that allows us to directly set the block hash for the l2 block number.
+      // In production, more sophisticated logic will be needed to determine the latest block number accounted for in the Hashi system.
+      return await exponentialBackoff(
+        async () => await this.activeChains.dst.publicClient.getBlockNumber()
+      );
+    }
+
+    if (!l1BlockNumber) {
+      throw new Error("Block number is required");
     }
 
     const config = this.activeChains.l1;
