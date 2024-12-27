@@ -41,7 +41,7 @@ contract HelperConfig is Script {
             hashiOutbox: 0xEea9a1118F80C7318c87ecC9E74638eE4adB4a6b,
             inbox: 0x3925cA932720B63ccD2C359DF27fD4146b123628,
             l2Oracle: 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4,
-            shoyuBashi: 0x5ecAEc6E028da6c29516Fc51aAB740a1B1CF9666,
+            shoyuBashi: 0xce8b068D4F7F2eb3bDAFa72eC3C4feE78CF9Ccf7,
             deployerKey: vm.envUint("PRIVATE_KEY")
         });
     }
