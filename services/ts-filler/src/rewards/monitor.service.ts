@@ -72,7 +72,8 @@ export default class RewardMonitorService {
       const { requestHash, sender, receiver, payload, attributes } = job;
 
       const { proof, l2Block } = await proverService.generateProofWithL2Block(
-        requestHash
+        requestHash,
+        job.claimAvailableAt
       );
       const attributesClass = new Attributes(attributes);
       attributesClass.removeFulfiller();

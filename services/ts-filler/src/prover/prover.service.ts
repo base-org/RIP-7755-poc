@@ -54,7 +54,8 @@ export default class ProverService {
   }
 
   async generateProofWithL2Block(
-    requestHash: Address
+    requestHash: Address,
+    timestampCutoff = 0
   ): Promise<{ proof: ProofType; l2Block: Block }> {
     let beaconData: GetBeaconRootAndL2TimestampReturnType | undefined;
     let l1BlockNumber: bigint | undefined;
@@ -85,6 +86,10 @@ export default class ProverService {
     const { l2Block, parentAssertionHash, afterInboxBatchAcc, assertion } =
       await this.chainService.getL2Block(l1BlockNumber);
     const l2Slot = this.deriveRIP7755VerifierStorageSlot(requestHash);
+
+    if (timestampCutoff > l2Block.timestamp) {
+      throw new Error("L2 block timestamp is too old");
+    }
 
     const storageProofOpts = {
       l1BlockNumber,
