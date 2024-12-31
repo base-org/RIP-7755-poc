@@ -1,50 +1,31 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755OutboxToArbitrum} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
 
 import {MockArbitrumProver} from "./mocks/MockArbitrumProver.sol";
-import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
+import {BaseTest} from "./BaseTest.t.sol";
 
-contract ArbitrumProverTest is Test, ERC7786Base {
+contract ArbitrumProverTest is BaseTest {
     using stdJson for string;
     using GlobalTypes for address;
     using CAIP10 for address;
 
     MockArbitrumProver prover;
-    ERC20Mock mockErc20;
-    MockBeaconOracle mockBeaconOracle;
-
-    Call[] calls;
-    address ALICE = makeAddr("alice");
-    address FILLER = makeAddr("filler");
-    string validProof;
-    string invalidL1State;
-    string invalidBlockHeaders;
-    string invalidL2Storage;
-    uint256 private _REWARD_AMOUNT = 1 ether;
-    bytes32 private constant _VERIFIER_STORAGE_LOCATION =
-        0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
     address private constant _INBOX_CONTRACT = 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874;
 
     function setUp() external {
         prover = new MockArbitrumProver();
-        mockErc20 = new ERC20Mock();
-        deployCodeTo("MockBeaconOracle.sol", abi.encode(), 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
-        mockBeaconOracle = MockBeaconOracle(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
+        approveAddr = address(prover);
+        _setUp();
 
-        string memory rootPath = vm.projectRoot();
         string memory path = string.concat(rootPath, "/test/data/ArbitrumSepoliaProof.json");
         string memory invalidPath = string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidL1State.json");
         string memory invalidBlockHeadersPath =
@@ -56,14 +37,6 @@ contract ArbitrumProverTest is Test, ERC7786Base {
         invalidL1State = vm.readFile(invalidPath);
         invalidBlockHeaders = vm.readFile(invalidBlockHeadersPath);
         invalidL2Storage = vm.readFile(invalidL2StoragePath);
-    }
-
-    modifier fundAlice(uint256 amount) {
-        mockErc20.mint(ALICE, amount);
-        vm.deal(ALICE, amount);
-        vm.prank(ALICE);
-        mockErc20.approve(address(prover), amount);
-        _;
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
@@ -199,9 +172,5 @@ contract ArbitrumProverTest is Test, ERC7786Base {
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4); // Arbitrum Rollup on Sepolia
 
         return (sender, receiver, payload, attributes);
-    }
-
-    function _deriveStorageKey(bytes32 messageId) private pure returns (bytes memory) {
-        return abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
     }
 }
