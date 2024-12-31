@@ -1,19 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
-
 import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StringsHelper} from "../src/libraries/StringsHelper.sol";
-import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 
 import {MockOutbox} from "./mocks/MockOutbox.sol";
+import {BaseTest} from "./BaseTest.t.sol";
 
-contract RIP7755OutboxTest is Test, ERC7786Base {
+contract RIP7755OutboxTest is BaseTest {
     using GlobalTypes for address;
     using CAIP10 for address;
     using StringsHelper for address;
@@ -30,11 +26,6 @@ contract RIP7755OutboxTest is Test, ERC7786Base {
     }
 
     MockOutbox outbox;
-    ERC20Mock mockErc20;
-
-    Call[] calls;
-    address ALICE = makeAddr("alice");
-    address FILLER = makeAddr("filler");
 
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
@@ -45,16 +36,9 @@ contract RIP7755OutboxTest is Test, ERC7786Base {
     event CrossChainCallCanceled(bytes32 indexed callHash);
 
     function setUp() public {
+        _setUp();
         outbox = new MockOutbox();
-        mockErc20 = new ERC20Mock();
-    }
-
-    modifier fundAlice(uint256 amount) {
-        mockErc20.mint(ALICE, amount);
-        vm.deal(ALICE, amount);
-        vm.prank(ALICE);
-        mockErc20.approve(address(outbox), amount);
-        _;
+        approveAddr = address(outbox);
     }
 
     function test_sendMessage_incrementsNonce(uint256 rewardAmount) external fundAlice(rewardAmount) {

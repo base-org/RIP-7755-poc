@@ -1,66 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
 import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
 
-import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 import {MockOPStackProver} from "./mocks/MockOPStackProver.sol";
+import {BaseTest} from "./BaseTest.t.sol";
 
-contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
+contract OPStackProverTest is BaseTest {
     using stdJson for string;
     using GlobalTypes for address;
     using CAIP10 for address;
 
     MockOPStackProver prover;
-    ERC20Mock mockErc20;
-    MockBeaconOracle mockBeaconOracle;
-
-    Call[] calls;
-    address ALICE = makeAddr("alice");
-    address FILLER = makeAddr("filler");
-    string validProof;
-    string invalidL1StorageProof;
-    string invalidL2StateRootProof;
-    string invalidL2StorageProof;
-    uint256 private _REWARD_AMOUNT = 1 ether;
-    bytes32 private constant _VERIFIER_STORAGE_LOCATION =
-        0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
     address private constant _INBOX_CONTRACT = 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512;
 
     function setUp() external {
         prover = new MockOPStackProver();
-        mockErc20 = new ERC20Mock();
-        deployCodeTo("MockBeaconOracle.sol", abi.encode(), 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
-        mockBeaconOracle = MockBeaconOracle(0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02);
+        approveAddr = address(prover);
+        _setUp();
 
-        string memory rootPath = vm.projectRoot();
         string memory path = string.concat(rootPath, "/test/data/OPSepoliaProof.json");
         string memory invalidL1StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL1Storage.json");
         string memory invalidL2StateRootPath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2StateRoot.json");
         string memory invalidL2StoragePath = string.concat(rootPath, "/test/data/invalids/OPInvalidL2Storage.json");
         validProof = vm.readFile(path);
-        invalidL1StorageProof = vm.readFile(invalidL1StoragePath);
+        invalidL1State = vm.readFile(invalidL1StoragePath);
         invalidL2StateRootProof = vm.readFile(invalidL2StateRootPath);
-        invalidL2StorageProof = vm.readFile(invalidL2StoragePath);
-    }
-
-    modifier fundAlice(uint256 amount) {
-        mockErc20.mint(ALICE, amount);
-        vm.deal(ALICE, amount);
-        vm.prank(ALICE);
-        mockErc20.approve(address(prover), amount);
-        _;
+        invalidL2Storage = vm.readFile(invalidL2StoragePath);
     }
 
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
@@ -127,7 +100,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
-        bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1StorageProof);
+        bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1State);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
@@ -153,7 +126,7 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
 
-        bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StorageProof);
+        bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2Storage);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
@@ -232,9 +205,5 @@ contract RIP7755OutboxOPStackValidatorTest is Test, ERC7786Base {
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
 
         return (sender, receiver, payload, attributes);
-    }
-
-    function _deriveStorageKey(bytes32 messageId) private pure returns (bytes memory) {
-        return abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
     }
 }

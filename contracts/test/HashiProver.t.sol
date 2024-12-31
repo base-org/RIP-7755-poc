@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Test} from "forge-std/Test.sol";
-import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
 import {stdJson} from "forge-std/StdJson.sol";
 
 import {HashiProver} from "../src/libraries/provers/HashiProver.sol";
@@ -11,13 +9,12 @@ import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755OutboxToHashi} from "../src/outboxes/RIP7755OutboxToHashi.sol";
-import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 
 import {MockShoyuBashi} from "./mocks/MockShoyuBashi.sol";
 import {MockHashiProver} from "./mocks/MockHashiProver.sol";
+import {BaseTest} from "./BaseTest.t.sol";
 
-contract HashiProverTest is Test, ERC7786Base {
+contract HashiProverTest is BaseTest {
     using stdJson for string;
     using GlobalTypes for address;
     using BlockHeaders for bytes;
@@ -27,33 +24,16 @@ contract HashiProverTest is Test, ERC7786Base {
     address private constant _INBOX_CONTRACT = 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512;
 
     MockHashiProver prover;
-    ERC20Mock mockErc20;
     MockShoyuBashi shoyuBashi;
-
-    Call[] calls;
-    address ALICE = makeAddr("alice");
-    address FILLER = makeAddr("filler");
-    string validProof;
-    uint256 private constant _REWARD_AMOUNT = 1 ether;
-    bytes32 private constant _VERIFIER_STORAGE_LOCATION =
-        0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
     function setUp() external {
         shoyuBashi = new MockShoyuBashi();
         prover = new MockHashiProver();
-        mockErc20 = new ERC20Mock();
+        approveAddr = address(prover);
+        _setUp();
 
-        string memory rootPath = vm.projectRoot();
         string memory path = string.concat(rootPath, "/test/data/HashiProverProof.json");
         validProof = vm.readFile(path);
-    }
-
-    modifier fundAlice(uint256 amount) {
-        mockErc20.mint(ALICE, amount);
-        vm.deal(ALICE, amount);
-        vm.prank(ALICE);
-        mockErc20.approve(address(prover), amount);
-        _;
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
@@ -153,9 +133,5 @@ contract HashiProverTest is Test, ERC7786Base {
         attributes[5] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, address(shoyuBashi).addressToBytes32());
 
         return (sender, receiver, payload, attributes);
-    }
-
-    function _deriveStorageKey(bytes32 messageId) private pure returns (bytes memory) {
-        return abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
     }
 }
