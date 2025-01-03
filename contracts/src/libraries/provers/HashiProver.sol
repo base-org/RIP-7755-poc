@@ -34,7 +34,7 @@ library HashiProver {
         StateValidator.AccountProofParameters dstAccountProofParams;
     }
 
-    /// @notice This error is thrown when verification of proof.blockHash agaist the one stored in Hashi fails
+    /// @notice This error is thrown when verification of proof.blockHash against the one stored in Hashi fails
     error InvalidBlockHeader();
 
     /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
