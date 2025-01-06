@@ -124,7 +124,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
         string memory sender = address(this).local();
         string memory combinedReceiver = CAIP10.format(destinationChain, receiver);
 
-        bytes32 messageId = keccak256(abi.encode(sender, combinedReceiver, payload, expandedAttributes));
+        bytes32 messageId = getMessageId(sender, combinedReceiver, payload, expandedAttributes);
         _messageStatus[messageId] = CrossChainCallStatus.Requested;
 
         emit MessagePosted(messageId, sender, combinedReceiver, payload, msg.value, expandedAttributes);
@@ -150,7 +150,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
         bytes calldata proof,
         address payTo
     ) external {
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, expandedAttributes));
+        bytes32 messageId = getMessageIdCalldata(sender, receiver, payload, expandedAttributes);
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
@@ -178,7 +178,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
         bytes calldata payload,
         bytes[] calldata expandedAttributes
     ) external {
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, expandedAttributes));
+        bytes32 messageId = getMessageIdCalldata(sender, receiver, payload, expandedAttributes);
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
@@ -221,6 +221,40 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @return _ True if the attribute selector is supported by this contract
     function supportsAttribute(bytes4 selector) external pure returns (bool) {
         return selector == _REWARD_ATTRIBUTE_SELECTOR || selector == _DELAY_ATTRIBUTE_SELECTOR;
+    }
+
+    /// @notice Returns the keccak256 hash of a message request
+    ///
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param payload The encoded calls array
+    /// @param attributes The attributes to be included in the message
+    ///
+    /// @return _ The keccak256 hash of the message request
+    function getMessageId(
+        string memory sender,
+        string memory receiver,
+        bytes calldata payload,
+        bytes[] memory attributes
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(sender, receiver, payload, attributes));
+    }
+
+    /// @notice Returns the keccak256 hash of a message request
+    ///
+    /// @param sender The CAIP-10 account address of the sender
+    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param payload The encoded calls array
+    /// @param attributes The attributes to be included in the message
+    ///
+    /// @return _ The keccak256 hash of the message request
+    function getMessageIdCalldata(
+        string calldata sender,
+        string calldata receiver,
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(sender, receiver, payload, attributes));
     }
 
     /// @notice Validates storage proofs and verifies fill
