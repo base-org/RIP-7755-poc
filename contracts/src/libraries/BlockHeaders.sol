@@ -39,6 +39,7 @@ library BlockHeaders {
         returns (bytes32, uint256, uint256)
     {
         RLPReader.RLPItem[] memory blockFields = blockHeaders.readList();
+
         if (blockFields.length < MINIMUM_BLOCK_FIELDS_LENGTH) {
             revert InvalidBlockFieldRLP();
         }
@@ -46,7 +47,7 @@ library BlockHeaders {
         return (
             bytes32(blockFields[3].readBytes()),
             _bytesToUint256(blockFields[8].readBytes()),
-            uint256(bytes32(blockFields[11].readBytes()))
+            _bytesToUint256(blockFields[11].readBytes())
         );
     }
 
