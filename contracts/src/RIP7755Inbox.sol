@@ -2,9 +2,9 @@
 pragma solidity 0.8.24;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
-import {CAIP10} from "./libraries/CAIP10.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
 import {Call} from "./RIP7755Structs.sol";

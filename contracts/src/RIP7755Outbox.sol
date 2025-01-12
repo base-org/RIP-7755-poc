@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 import {SafeERC20, IERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
-import {CAIP10} from "./libraries/CAIP10.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
 import {RIP7755Inbox} from "./RIP7755Inbox.sol";

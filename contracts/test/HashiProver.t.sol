@@ -2,10 +2,10 @@
 pragma solidity 0.8.24;
 
 import {stdJson} from "forge-std/StdJson.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
 import {HashiProver} from "../src/libraries/provers/HashiProver.sol";
 import {BlockHeaders} from "../src/libraries/BlockHeaders.sol";
-import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755OutboxToHashi} from "../src/outboxes/RIP7755OutboxToHashi.sol";
@@ -120,7 +120,7 @@ contract HashiProverTest is BaseTest {
         returns (string memory, string memory, bytes memory, bytes[] memory)
     {
         string memory sender = address(this).local();
-        string memory receiver = _INBOX_CONTRACT.remote(HASHI_DOMAIN_DST_CHAIN_ID);
+        string memory receiver = _remote(_INBOX_CONTRACT, HASHI_DOMAIN_DST_CHAIN_ID);
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](6);
 

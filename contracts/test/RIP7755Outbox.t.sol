@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {CAIP10} from "../src/libraries/CAIP10.sol";
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
-import {StringsHelper} from "../src/libraries/StringsHelper.sol";
 import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 
 import {MockOutbox} from "./mocks/MockOutbox.sol";
@@ -12,7 +14,7 @@ import {BaseTest} from "./BaseTest.t.sol";
 contract RIP7755OutboxTest is BaseTest {
     using GlobalTypes for address;
     using CAIP10 for address;
-    using StringsHelper for address;
+    using Strings for address;
 
     struct Message {
         string destinationChain;
@@ -551,7 +553,7 @@ contract RIP7755OutboxTest is BaseTest {
     }
 
     function _initMessage(uint256 rewardAmount, bool isNativeAsset) private view returns (Message memory) {
-        string memory destinationChain = CAIP10.formatCaip2(block.chainid);
+        string memory destinationChain = CAIP2.local();
         string memory sender = address(outbox).local();
         string memory receiver = address(outbox).toChecksumHexString();
         string memory combinedReceiver = CAIP10.format(destinationChain, receiver);

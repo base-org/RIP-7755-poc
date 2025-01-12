@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+
 import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 import {HashiProver} from "../libraries/provers/HashiProver.sol";
-import {CAIP10} from "../libraries/CAIP10.sol";
 import {GlobalTypes} from "../libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
@@ -16,6 +19,7 @@ import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
     using GlobalTypes for bytes32;
+    using Strings for string;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
@@ -64,8 +68,9 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
 
     function _extractInboxAndChainId(string calldata receiver) internal pure returns (address, uint256) {
         (string memory caip2, string memory inboxString) = CAIP10.parse(receiver);
-        address inboxContract = CAIP10.stringToAddress(inboxString);
-        uint256 destinationChainId = CAIP10.extractChainId(caip2);
+        address inboxContract = inboxString.parseAddress();
+        (, string memory ref) = CAIP2.parse(caip2);
+        uint256 destinationChainId = ref.parseUint();
         return (inboxContract, destinationChainId);
     }
 
