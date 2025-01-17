@@ -3,6 +3,9 @@ pragma solidity 0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC20Mock} from "openzeppelin-contracts/contracts/mocks/token/ERC20Mock.sol";
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {ERC7786Base} from "../src/ERC7786Base.sol";
 import {Call} from "../src/RIP7755Structs.sol";
@@ -47,5 +50,9 @@ contract BaseTest is Test, ERC7786Base {
 
     function _deriveStorageKey(bytes32 messageId) internal pure returns (bytes memory) {
         return abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
+    }
+
+    function _remote(address addr, uint256 chainId) internal pure returns (string memory) {
+        return CAIP10.format(CAIP2.format("eip155", Strings.toString(chainId)), Strings.toChecksumHexString(addr));
     }
 }

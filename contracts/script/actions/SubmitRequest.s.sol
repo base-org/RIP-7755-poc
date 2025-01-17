@@ -2,10 +2,10 @@
 pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import {CAIP10} from "../../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
-import {StringsHelper} from "../../src/libraries/StringsHelper.sol";
 import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 import {Call} from "../../src/RIP7755Structs.sol";
@@ -13,8 +13,7 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 
 contract SubmitRequest is Script, ERC7786Base {
     using GlobalTypes for address;
-    using CAIP10 for address;
-    using StringsHelper for address;
+    using Strings for uint256;
 
     HelperConfig public helperConfig;
 
@@ -53,8 +52,8 @@ contract SubmitRequest is Script, ERC7786Base {
         calls[0] =
             Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
-        string memory destinationChain = CAIP10.formatCaip2(destinationChainId);
-        string memory receiver = dstConfig.inbox.toChecksumHexString();
+        string memory destinationChain = CAIP2.format("eip155", destinationChainId.toString());
+        string memory receiver = Strings.toChecksumHexString(dstConfig.inbox);
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](3);
 

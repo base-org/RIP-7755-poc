@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+
 import {OPStackProver} from "../libraries/provers/OPStackProver.sol";
-import {CAIP10} from "../libraries/CAIP10.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 
@@ -36,7 +38,7 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
         bytes calldata proof
     ) internal view override {
         (, string memory inboxString) = CAIP10.parse(receiver);
-        address inboxContract = CAIP10.stringToAddress(inboxString);
+        address inboxContract = Strings.parseAddress(inboxString);
         bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
         address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
 

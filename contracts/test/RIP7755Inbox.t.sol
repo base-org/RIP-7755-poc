@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+
 import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
-import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
-import {StringsHelper} from "../src/libraries/StringsHelper.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Call} from "../src/RIP7755Structs.sol";
 
@@ -14,8 +15,7 @@ import {BaseTest} from "./BaseTest.t.sol";
 
 contract RIP7755InboxTest is BaseTest {
     using GlobalTypes for address;
-    using CAIP10 for address;
-    using StringsHelper for address;
+    using Strings for address;
 
     struct Message {
         bytes32 messageId;
@@ -147,7 +147,7 @@ contract RIP7755InboxTest is BaseTest {
     }
 
     function _initMessage(bool isPrecheck) private view returns (Message memory) {
-        string memory sourceChain = CAIP10.formatCaip2(block.chainid);
+        string memory sourceChain = CAIP2.local();
         string memory sender = address(this).toChecksumHexString();
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](isPrecheck ? 6 : 5);

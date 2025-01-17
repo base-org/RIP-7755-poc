@@ -2,9 +2,9 @@
 pragma solidity 0.8.24;
 
 import {stdJson} from "forge-std/StdJson.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
-import {CAIP10} from "../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
@@ -187,8 +187,8 @@ contract OPStackProverTest is BaseTest {
         view
         returns (string memory, string memory, bytes memory, bytes[] memory)
     {
-        string memory sender = 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874.remote(11155420);
-        string memory receiver = _INBOX_CONTRACT.remote(111112);
+        string memory sender = _remote(0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, 11155420);
+        string memory receiver = _remote(_INBOX_CONTRACT, 111112);
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](6);
 

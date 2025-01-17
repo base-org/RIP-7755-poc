@@ -2,9 +2,9 @@
 pragma solidity 0.8.24;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
-import {CAIP10} from "./libraries/CAIP10.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
 import {Call} from "./RIP7755Structs.sol";
@@ -63,6 +63,7 @@ contract RIP7755Inbox is ERC7786Base {
         bytes calldata payload,
         bytes[] calldata attributes
     ) external payable returns (bytes4) {
+        address fulfiller = _getFulfiller(attributes);
         bytes32 messageId = getMessageId(sourceChain, sender, payload, attributes);
 
         _runPrecheck(sourceChain, sender, payload, attributes);
@@ -70,8 +71,6 @@ contract RIP7755Inbox is ERC7786Base {
         if (_getFulfillmentInfo(messageId).timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
-
-        address fulfiller = _getFulfiller(attributes);
 
         _setFulfillmentInfo(messageId, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
 
@@ -165,14 +164,8 @@ contract RIP7755Inbox is ERC7786Base {
         return $.fulfillmentInfo[requestHash];
     }
 
-    function _getFulfiller(bytes[] calldata attributes) private view returns (address) {
-        (bool found, bytes calldata fulfillerAttribute) =
-            _locateAttributeUnchecked(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
-
-        if (!found) {
-            return msg.sender;
-        }
-
+    function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
+        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
         return abi.decode(fulfillerAttribute[4:], (address));
     }
 

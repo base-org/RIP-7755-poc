@@ -2,10 +2,9 @@
 pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 
-import {CAIP10} from "../../src/libraries/CAIP10.sol";
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
-import {StringsHelper} from "../../src/libraries/StringsHelper.sol";
 import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
 import {Call} from "../../src/RIP7755Structs.sol";
@@ -27,7 +26,7 @@ contract SubmitToInbox is Script, ERC7786Base {
     function _initMessage() private pure returns (string memory, string memory, bytes memory, bytes[] memory) {
         Call[] memory calls = new Call[](0);
 
-        string memory sourceChain = CAIP10.formatCaip2(31337);
+        string memory sourceChain = CAIP2.format("eip155", "31337");
         string memory sender = "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496";
         bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](6);
