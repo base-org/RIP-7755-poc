@@ -6,7 +6,7 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToOPStack, RIP7755Outbox} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
+import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
 
 import {MockOPStackProver} from "./mocks/MockOPStackProver.sol";
 import {BaseTest} from "./BaseTest.t.sol";
@@ -35,12 +35,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1735681520);
 
@@ -53,12 +49,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
@@ -72,12 +64,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
@@ -91,12 +79,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
@@ -110,12 +94,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1State);
@@ -127,12 +107,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StateRootProof);
@@ -144,12 +120,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2Storage);
@@ -161,12 +133,8 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
@@ -215,11 +183,11 @@ contract OPStackProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, RIP7755Outbox.Message[] memory, bytes[] memory)
+        returns (string memory, string memory, Message[] memory, bytes[] memory)
     {
         string memory sender = _remote(0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, 11155420);
         string memory destinationChain = _remote(111112);
-        RIP7755Outbox.Message[] memory calls = new RIP7755Outbox.Message[](0);
+        Message[] memory calls = new Message[](0);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] = abi.encodeWithSelector(

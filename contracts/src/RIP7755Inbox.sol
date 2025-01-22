@@ -3,11 +3,11 @@ pragma solidity 0.8.24;
 
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
-import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
-import {Call} from "./RIP7755Structs.sol";
 
 /// @title RIP7755Inbox
 ///
@@ -17,8 +17,7 @@ import {Call} from "./RIP7755Structs.sol";
 /// destination chains and store record of their fulfillment.
 contract RIP7755Inbox is ERC7786Base {
     using Address for address payable;
-    using GlobalTypes for bytes32;
-    using CAIP10 for address;
+    using Strings for string;
 
     struct MainStorage {
         /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
@@ -33,8 +32,9 @@ contract RIP7755Inbox is ERC7786Base {
         address fulfiller;
     }
 
-    // Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
-    bytes32 private constant _MAIN_STORAGE_LOCATION = 0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+    /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. Derived from
+    ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
     /// @notice Event emitted when a cross chain call is fulfilled
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
@@ -53,20 +53,20 @@ contract RIP7755Inbox is ERC7786Base {
     ///
     /// @param sourceChain The CAIP-2 source chain identifier
     /// @param sender The CAIP-10 account address of the sender
-    /// @param payload The encoded calls array
-    /// @param attributes The attributes of the message
+    /// @param messages The messages to be included in the request
+    /// @param globalAttributes The attributes to be included in the message
     ///
     /// @return selector The selector of the function
-    function executeMessage(
+    function executeMessages(
         string calldata sourceChain,
         string calldata sender,
-        bytes calldata payload,
-        bytes[] calldata attributes
+        Message[] calldata messages,
+        bytes[] calldata globalAttributes
     ) external payable returns (bytes4) {
-        address fulfiller = _getFulfiller(attributes);
-        bytes32 messageId = getMessageId(sourceChain, sender, payload, attributes);
+        address fulfiller = _getFulfiller(globalAttributes);
+        bytes32 messageId = getRequestId(sourceChain, sender, messages, globalAttributes);
 
-        _runPrecheck(sourceChain, sender, payload, attributes);
+        _runPrecheck(sourceChain, sender, messages, globalAttributes);
 
         if (_getFulfillmentInfo(messageId).timestamp != 0) {
             revert CallAlreadyFulfilled();
@@ -74,7 +74,7 @@ contract RIP7755Inbox is ERC7786Base {
 
         _setFulfillmentInfo(messageId, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
 
-        _sendCallsAndValidateMsgValue(payload);
+        _sendCallsAndValidateMsgValue(messages);
 
         emit CallFulfilled({requestHash: messageId, fulfilledBy: fulfiller});
 
@@ -90,37 +90,37 @@ contract RIP7755Inbox is ERC7786Base {
         return _getFulfillmentInfo(requestHash);
     }
 
-    /// @notice Returns the message id for a given message
+    /// @notice Returns the keccak256 hash of a message request
     ///
     /// @dev Filters out the fulfiller attribute from the attributes array
     ///
     /// @param sourceChain The CAIP-2 source chain identifier
     /// @param sender The CAIP-10 account address of the sender
-    /// @param payload The encoded calls array
-    /// @param attributes The attributes of the message
+    /// @param messages The messages to be included in the request
+    /// @param attributes The attributes to be included in the message
     ///
-    /// @return messageId The message id
-    function getMessageId(
+    /// @return _ The keccak256 hash of the message request
+    function getRequestId(
         string calldata sourceChain,
         string calldata sender,
-        bytes calldata payload,
+        Message[] calldata messages,
         bytes[] calldata attributes
     ) public view returns (bytes32) {
-        string memory receiver = address(this).local();
         string memory combinedSender = CAIP10.format(sourceChain, sender);
-        return keccak256(abi.encode(combinedSender, receiver, payload, _filterOutFulfiller(attributes)));
+        string memory destinationChain = CAIP2.local();
+        return keccak256(abi.encode(combinedSender, destinationChain, messages, _filterOutFulfiller(attributes)));
     }
 
-    function _sendCallsAndValidateMsgValue(bytes calldata payload) private {
+    function _sendCallsAndValidateMsgValue(Message[] calldata messages) private {
         uint256 valueSent;
 
-        Call[] memory calls = abi.decode(payload, (Call[]));
-
-        for (uint256 i; i < calls.length; i++) {
-            _call(payable(calls[i].to.bytes32ToAddress()), calls[i].data, calls[i].value);
+        for (uint256 i; i < messages.length; i++) {
+            address payable to = payable(messages[i].receiver.parseAddress());
+            uint256 value = _locateAttributeValue(messages[i].attributes, _VALUE_ATTRIBUTE_SELECTOR);
+            _call(to, messages[i].payload, value);
 
             unchecked {
-                valueSent += calls[i].value;
+                valueSent += value;
             }
         }
 
@@ -145,7 +145,7 @@ contract RIP7755Inbox is ERC7786Base {
     function _runPrecheck(
         string calldata sourceChain, // [CAIP-2] chain identifier
         string calldata sender, // [CAIP-10] account address
-        bytes calldata payload,
+        Message[] calldata messages,
         bytes[] calldata attributes
     ) private view {
         (bool found, bytes calldata precheckAttribute) =
@@ -156,7 +156,7 @@ contract RIP7755Inbox is ERC7786Base {
         }
 
         address precheckContract = abi.decode(precheckAttribute[4:], (address));
-        IPrecheckContract(precheckContract).precheckCall(sourceChain, sender, payload, attributes, msg.sender);
+        IPrecheckContract(precheckContract).precheckCall(sourceChain, sender, messages, attributes, msg.sender);
     }
 
     function _getFulfillmentInfo(bytes32 requestHash) private view returns (FulfillmentInfo memory) {

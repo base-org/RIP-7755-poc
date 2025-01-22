@@ -4,31 +4,28 @@ pragma solidity 0.8.24;
 import {Script} from "forge-std/Script.sol";
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 
-import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
 import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
-import {Call} from "../../src/RIP7755Structs.sol";
 
 contract SubmitToInbox is Script, ERC7786Base {
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         RIP7755Inbox inbox = RIP7755Inbox(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
 
-        (string memory sourceChain, string memory sender, bytes memory payload, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory messages, bytes[] memory attributes) =
             _initMessage();
 
         vm.startBroadcast(pk);
-        inbox.executeMessage(sourceChain, sender, payload, attributes);
+        inbox.executeMessages(sourceChain, sender, messages, attributes);
         vm.stopBroadcast();
     }
 
     // Using dummy values for local testing
-    function _initMessage() private pure returns (string memory, string memory, bytes memory, bytes[] memory) {
-        Call[] memory calls = new Call[](0);
+    function _initMessage() private pure returns (string memory, string memory, Message[] memory, bytes[] memory) {
+        Message[] memory calls = new Message[](0);
 
         string memory sourceChain = CAIP2.format("eip155", "31337");
         string memory sender = "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496";
-        bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] = abi.encodeWithSelector(
@@ -45,6 +42,6 @@ contract SubmitToInbox is Script, ERC7786Base {
             _SHOYU_BASHI_ATTRIBUTE_SELECTOR, 0x0000000000000000000000005615deb798bb3e4dfa0139dfa1b3d433cc23b72f
         );
 
-        return (sourceChain, sender, payload, attributes);
+        return (sourceChain, sender, calls, attributes);
     }
 }

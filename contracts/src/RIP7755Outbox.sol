@@ -30,16 +30,6 @@ abstract contract RIP7755Outbox is ERC7786Base {
         Completed
     }
 
-    /// @notice A struct representing an individual call within a 7755 request
-    struct Message {
-        /// @dev The CAIP-10 account address of the receiver (not including the chain identifier)
-        string receiver;
-        /// @dev The calldata for the call to be made to the receiver
-        bytes payload;
-        /// @dev The attributes to be included in the message (should be empty)
-        bytes[] attributes;
-    }
-
     /// @notice A mapping from the keccak256 hash of a message request to its current status
     mapping(bytes32 messageId => CrossChainCallStatus status) private _messageStatus;
 
@@ -47,10 +37,10 @@ abstract contract RIP7755Outbox is ERC7786Base {
     ///         contract is deployed on following ERC-7528
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
-    /// @notice Main storage location in `RIP7755Inbox` used as the base for the fulfillmentInfo mapping following
-    ///         EIP-7201. (keccak256("RIP-7755"))
+    /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. Derived from
+    ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
-        0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+        0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;

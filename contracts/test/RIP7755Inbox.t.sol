@@ -7,7 +7,6 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
 import {MockTarget} from "./mocks/MockTarget.sol";
@@ -17,11 +16,11 @@ contract RIP7755InboxTest is BaseTest {
     using GlobalTypes for address;
     using Strings for address;
 
-    struct Message {
+    struct TestMessage {
         bytes32 messageId;
         string sourceChain;
         string sender;
-        bytes payload;
+        Message[] messages;
         bytes[] attributes;
     }
 
@@ -39,10 +38,10 @@ contract RIP7755InboxTest is BaseTest {
     }
 
     function test_executeMessage_storesFulfillment_withSuccessfulPrecheck() external {
-        Message memory m = _initMessage(true);
+        TestMessage memory m = _initMessage(true);
 
         vm.prank(FILLER);
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
 
         RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
 
@@ -51,76 +50,78 @@ contract RIP7755InboxTest is BaseTest {
     }
 
     function test_executeMessage_reverts_failedPrecheck() external {
-        Message memory m = _initMessage(true);
+        TestMessage memory m = _initMessage(true);
 
         vm.expectRevert();
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
     function test_executeMessage_reverts_callAlreadyFulfilled() external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
         vm.prank(FILLER);
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755Inbox.CallAlreadyFulfilled.selector);
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
     function test_executeMessage_callsTargetContract(uint256 inputNum) external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
-        calls.push(
-            Call({
-                to: address(target).addressToBytes32(),
-                data: abi.encodeWithSelector(target.target.selector, inputNum),
-                value: 0
+        _appendMessage(
+            m,
+            Message({
+                receiver: address(target).toChecksumHexString(),
+                payload: abi.encodeWithSelector(target.target.selector, inputNum),
+                attributes: new bytes[](0)
             })
         );
-        m.payload = abi.encode(calls);
 
         vm.prank(FILLER);
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
 
         assertEq(target.number(), inputNum);
     }
 
     function test_executeMessage_sendsEth(uint256 amount) external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
-        calls.push(Call({to: ALICE.addressToBytes32(), data: "", value: amount}));
-        m.payload = abi.encode(calls);
+        bytes[] memory attributes = new bytes[](1);
+        attributes[0] = abi.encodeWithSelector(_VALUE_ATTRIBUTE_SELECTOR, amount);
+
+        _appendMessage(m, Message({receiver: ALICE.toChecksumHexString(), payload: "", attributes: attributes}));
 
         vm.deal(FILLER, amount);
         vm.prank(FILLER);
-        inbox.executeMessage{value: amount}(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages{value: amount}(m.sourceChain, m.sender, m.messages, m.attributes);
 
         assertEq(ALICE.balance, amount);
     }
 
     function test_executeMessage_reverts_ifTargetContractReverts() external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
-        calls.push(
-            Call({
-                to: address(target).addressToBytes32(),
-                data: abi.encodeWithSelector(target.shouldFail.selector),
-                value: 0
+        _appendMessage(
+            m,
+            Message({
+                receiver: address(target).toChecksumHexString(),
+                payload: abi.encodeWithSelector(target.shouldFail.selector),
+                attributes: new bytes[](0)
             })
         );
-        m.payload = abi.encode(calls);
 
         vm.prank(FILLER);
         vm.expectRevert(MockTarget.MockError.selector);
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
     function test_executeMessage_storesFulfillment() external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
         vm.prank(FILLER);
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
 
         RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
 
@@ -129,27 +130,26 @@ contract RIP7755InboxTest is BaseTest {
     }
 
     function test_executeMessage_reverts_ifMsgValueTooHigh() external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
         vm.deal(FILLER, 1);
         vm.prank(FILLER);
         vm.expectRevert(abi.encodeWithSelector(RIP7755Inbox.InvalidValue.selector, 0, 1));
-        inbox.executeMessage{value: 1}(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages{value: 1}(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
     function test_executeMessage_emitsEvent() external {
-        Message memory m = _initMessage(false);
+        TestMessage memory m = _initMessage(false);
 
         vm.prank(FILLER);
         vm.expectEmit(true, true, false, false);
         emit CallFulfilled({requestHash: m.messageId, fulfilledBy: FILLER});
-        inbox.executeMessage(m.sourceChain, m.sender, m.payload, m.attributes);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function _initMessage(bool isPrecheck) private view returns (Message memory) {
+    function _initMessage(bool isPrecheck) private view returns (TestMessage memory) {
         string memory sourceChain = CAIP2.local();
         string memory sender = address(this).toChecksumHexString();
-        bytes memory payload = abi.encode(calls);
         bytes[] memory attributes = new bytes[](isPrecheck ? 6 : 5);
 
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, bytes32(0), uint256(0));
@@ -162,12 +162,21 @@ contract RIP7755InboxTest is BaseTest {
             attributes[5] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR, address(precheck));
         }
 
-        return Message({
-            messageId: inbox.getMessageId(sourceChain, sender, payload, attributes),
+        return TestMessage({
+            messageId: inbox.getRequestId(sourceChain, sender, new Message[](0), attributes),
             sourceChain: sourceChain,
             sender: sender,
-            payload: payload,
+            messages: new Message[](0),
             attributes: attributes
         });
+    }
+
+    function _appendMessage(TestMessage memory m, Message memory message) private pure {
+        Message[] memory messages = new Message[](m.messages.length + 1);
+        for (uint256 i = 0; i < m.messages.length; i++) {
+            messages[i] = m.messages[i];
+        }
+        messages[m.messages.length] = message;
+        m.messages = messages;
     }
 }

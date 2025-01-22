@@ -8,7 +8,7 @@ import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToArbitrum, RIP7755Outbox} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
+import {RIP7755OutboxToArbitrum} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
 
 import {MockArbitrumProver} from "./mocks/MockArbitrumProver.sol";
 import {BaseTest} from "./BaseTest.t.sol";
@@ -41,12 +41,8 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
 
@@ -59,12 +55,8 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
@@ -76,12 +68,8 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
@@ -93,12 +81,8 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL2Storage);
@@ -110,12 +94,8 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (
-            string memory sender,
-            string memory destinationChain,
-            RIP7755Outbox.Message[] memory calls,
-            bytes[] memory attributes
-        ) = _initMessage(_REWARD_AMOUNT);
+        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
@@ -176,11 +156,11 @@ contract ArbitrumProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, RIP7755Outbox.Message[] memory, bytes[] memory)
+        returns (string memory, string memory, Message[] memory, bytes[] memory)
     {
         string memory sender = address(this).local();
         string memory destinationChain = CAIP2.local();
-        RIP7755Outbox.Message[] memory calls = new RIP7755Outbox.Message[](0);
+        Message[] memory calls = new Message[](0);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] =

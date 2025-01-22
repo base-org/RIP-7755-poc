@@ -8,7 +8,6 @@ import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
@@ -18,7 +17,6 @@ contract BaseTest is Test, ERC7786Base {
 
     address approveAddr;
 
-    Call[] calls;
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
     string rootPath;
@@ -29,7 +27,7 @@ contract BaseTest is Test, ERC7786Base {
     string invalidL2Storage;
 
     uint256 constant _REWARD_AMOUNT = 1 ether;
-    bytes32 constant _VERIFIER_STORAGE_LOCATION = 0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+    bytes32 constant _VERIFIER_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
     function _setUp() internal {
         mockErc20 = new ERC20Mock();
