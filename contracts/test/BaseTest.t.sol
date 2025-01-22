@@ -55,4 +55,8 @@ contract BaseTest is Test, ERC7786Base {
     function _remote(address addr, uint256 chainId) internal pure returns (string memory) {
         return CAIP10.format(CAIP2.format("eip155", Strings.toString(chainId)), Strings.toChecksumHexString(addr));
     }
+
+    function _remote(uint256 chainId) internal pure returns (string memory) {
+        return CAIP2.format("eip155", Strings.toString(chainId));
+    }
 }

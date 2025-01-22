@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
-import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
-
-import {IShoyuBashi} from "../interfaces/IShoyuBashi.sol";
 import {HashiProver} from "../libraries/provers/HashiProver.sol";
 import {GlobalTypes} from "../libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
@@ -19,7 +14,6 @@ import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
     using GlobalTypes for bytes32;
-    using Strings for string;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     /// current destination chain block timestamp.
@@ -34,21 +28,21 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param receiver The CAIP-10 identifier for the destination chain
+    /// @param inbox The address of the `RIP7755Inbox` contract
     /// @param attributes The attributes of the message
     /// @param proof The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
-        string calldata receiver,
+        address inbox,
         bytes[] calldata attributes,
         bytes calldata proof
     ) internal view override {
-        (address inboxContract, uint256 destinationChainId) = _extractInboxAndChainId(receiver);
+        uint256 destinationChainId = _extractChainId(attributes);
 
         /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
         address shoyuBashi = _extractShoyuBashi(attributes);
         HashiProver.Target memory target = HashiProver.Target({
-            addr: inboxContract,
+            addr: inbox,
             storageKey: inboxContractStorageKey,
             destinationChainId: destinationChainId,
             shoyuBashi: shoyuBashi
@@ -66,12 +60,11 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         }
     }
 
-    function _extractInboxAndChainId(string calldata receiver) internal pure returns (address, uint256) {
-        (string memory caip2, string memory inboxString) = CAIP10.parse(receiver);
-        address inboxContract = inboxString.parseAddress();
-        (, string memory ref) = CAIP2.parse(caip2);
-        uint256 destinationChainId = ref.parseUint();
-        return (inboxContract, destinationChainId);
+    function _extractChainId(bytes[] calldata attributes) internal pure returns (uint256) {
+        bytes calldata destinationChainAttribute = _locateAttribute(attributes, _DESTINATION_CHAIN_SELECTOR);
+        bytes32 destinationChainBytes32 = abi.decode(destinationChainAttribute[4:], (bytes32));
+        uint256 destinationChainId = uint256(destinationChainBytes32);
+        return destinationChainId;
     }
 
     function _extractShoyuBashi(bytes[] calldata attributes) internal pure returns (address) {

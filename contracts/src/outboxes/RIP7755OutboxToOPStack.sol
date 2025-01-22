@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
-
 import {OPStackProver} from "../libraries/provers/OPStackProver.sol";
 import {RIP7755Inbox} from "../RIP7755Inbox.sol";
 import {RIP7755Outbox} from "../RIP7755Outbox.sol";
@@ -28,22 +25,20 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     /// `RIP7755Inbox` contract
-    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param inbox The address of the `RIP7755Inbox` contract
     /// @param attributes The attributes of the request
     /// @param proof The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
-        string calldata receiver,
+        address inbox,
         bytes[] calldata attributes,
         bytes calldata proof
     ) internal view override {
-        (, string memory inboxString) = CAIP10.parse(receiver);
-        address inboxContract = Strings.parseAddress(inboxString);
         bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
         address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
 
         OPStackProver.Target memory target =
-            OPStackProver.Target({l1Address: l2Oracle, l2Address: inboxContract, l2StorageKey: inboxContractStorageKey});
+            OPStackProver.Target({l1Address: l2Oracle, l2Address: inbox, l2StorageKey: inboxContractStorageKey});
         (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
 
         RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));

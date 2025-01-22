@@ -13,8 +13,8 @@ import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fillers that
-/// submit the cross chain calls to destination chains.
+/// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
+///         that submit the cross chain calls to destination chains.
 abstract contract RIP7755Outbox is ERC7786Base {
     using Address for address payable;
     using SafeERC20 for IERC20;
@@ -30,13 +30,25 @@ abstract contract RIP7755Outbox is ERC7786Base {
         Completed
     }
 
+    /// @notice A struct representing an individual call within a 7755 request
+    struct Message {
+        /// @dev The CAIP-10 account address of the receiver (not including the chain identifier)
+        string receiver;
+        /// @dev The calldata for the call to be made to the receiver
+        bytes payload;
+        /// @dev The attributes to be included in the message (should be empty)
+        bytes[] attributes;
+    }
+
     /// @notice A mapping from the keccak256 hash of a message request to its current status
     mapping(bytes32 messageId => CrossChainCallStatus status) private _messageStatus;
 
-    /// @notice The bytes32 representation of the address representing the native currency of the blockchain this contract is deployed on following ERC-7528
+    /// @notice The bytes32 representation of the address representing the native currency of the blockchain this
+    ///         contract is deployed on following ERC-7528
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
-    // Main storage location in `RIP7755Inbox` used as the base for the fulfillmentInfo mapping following EIP-7201. (keccak256("RIP-7755"))
+    /// @notice Main storage location in `RIP7755Inbox` used as the base for the fulfillmentInfo mapping following
+    ///         EIP-7201. (keccak256("RIP-7755"))
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
         0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
 
@@ -44,20 +56,19 @@ abstract contract RIP7755Outbox is ERC7786Base {
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
 
     /// @notice The expected length of the attributes array supplied to `sendMessage`
-    uint256 private constant _EXPECTED_ATTRIBUTE_LENGTH = 2;
+    uint256 private constant _EXPECTED_ATTRIBUTE_LENGTH = 3;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
 
     /// @notice Event emitted when a user sends a message to the `RIP7755Inbox`
     /// @param outboxId The keccak256 hash of the message request
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
     /// @param sender The CAIP-10 account address of the sender
-    /// @param receiver The CAIP-10 account address of the receiver
-    /// @param payload The encoded calls array
-    /// @param value The value of the transaction
-    /// @param attributes The attributes to be included in the message
-    event MessagePosted(
-        bytes32 indexed outboxId, string sender, string receiver, bytes payload, uint256 value, bytes[] attributes
+    /// @param messages The messages to be included in the request
+    /// @param globalAttributes The attributes to be included in the message
+    event MessagesPosted(
+        bytes32 indexed outboxId, string destinationChain, string sender, Message[] messages, bytes[] globalAttributes
     );
 
     /// @notice Event emitted when a cross chain call is successfully completed
@@ -70,13 +81,13 @@ abstract contract RIP7755Outbox is ERC7786Base {
     event CrossChainCallCanceled(bytes32 indexed requestHash);
 
     /// @notice This error is thrown when a cross chain request specifies the native currency as the reward type but
-    /// does not send the correct `msg.value`
+    ///         does not send the correct `msg.value`
     /// @param expected The expected `msg.value` that should have been sent with the transaction
     /// @param received The actual `msg.value` that was sent with the transaction
     error InvalidValue(uint256 expected, uint256 received);
 
     /// @notice This error is thrown if a user attempts to cancel a request or a Filler attempts to claim a reward for
-    /// a request that is not in the `CrossChainCallStatus.Requested` state
+    ///         a request that is not in the `CrossChainCallStatus.Requested` state
     /// @param expected The expected status during the transaction
     /// @param actual The actual request status during the transaction
     error InvalidStatus(CrossChainCallStatus expected, CrossChainCallStatus actual);
@@ -91,71 +102,102 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @param expectedCaller The account that created the request
     error InvalidCaller(address caller, address expectedCaller);
 
-    /// @notice This error is thrown if a request expiry does not give enough time for `CrossChainRequest.finalityDelaySeconds` to pass
+    /// @notice This error is thrown if a request expiry does not give enough time for the delay attribute to pass
     error ExpiryTooSoon();
 
     /// @notice This error is thrown if an unsupported attribute is provided
     /// @param selector The selector of the unsupported attribute
     error UnsupportedAttribute(bytes4 selector);
 
-    /// @notice This error is thrown if the attribute length supplied to `sendMessage` is not equal to the expected length
+    /// @notice This error is thrown if the attribute length supplied to `sendMessage` is not equal to the expected
+    ///         length
     /// @param expected The expected length of the attributes
     /// @param actual The actual length of the attributes
     error InvalidAttributeLength(uint256 expected, uint256 actual);
 
-    /// @notice Initiates the sending of a message
+    /// @notice This error is thrown if a required attribute is missing from the global attributes array for a 7755
+    ///         request
+    /// @param selector The selector of the missing attribute
+    error MissingRequiredAttribute(bytes4 selector);
+
+    /// @notice Initiates the sending of a 7755 request containing a single message
     ///
-    /// @custom:reverts If the attribute length is not equal to 2
+    /// @custom:reverts If the attributes array length is less than 3
+    /// @custom:reverts If a required attribute is missing from the global attributes array. Required attributes are:
+    ///                 - Reward attribute
+    ///                 - Delay attribute
+    ///                 - Inbox attribute
     /// @custom:reverts If an unsupported attribute is provided
     ///
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param receiver The CAIP-10 account address of the receiver
+    /// @param receiver The CAIP-10 account address of the receiver (not including the chain identifier)
     /// @param payload The encoded calls array
     /// @param attributes The attributes to be included in the message
     ///
-    /// @return messageId The generated message id
+    /// @return messageId The generated request id
     function sendMessage(
         string calldata destinationChain,
         string calldata receiver,
         bytes calldata payload,
         bytes[] calldata attributes
     ) external payable returns (bytes32) {
-        bytes[] memory expandedAttributes = _processAttributes(attributes);
-        string memory sender = address(this).local();
-        string memory combinedReceiver = CAIP10.format(destinationChain, receiver);
+        Message[] memory messages = new Message[](1);
+        messages[0] = Message({receiver: receiver, payload: payload, attributes: new bytes[](0)});
+        return _sendMessages(destinationChain, messages, attributes);
+    }
 
-        bytes32 messageId = getMessageId(sender, combinedReceiver, payload, expandedAttributes);
-        _messageStatus[messageId] = CrossChainCallStatus.Requested;
-
-        emit MessagePosted(messageId, sender, combinedReceiver, payload, msg.value, expandedAttributes);
-
-        return messageId;
+    /// @notice Initiates the sending of a 7755 request containing multiple messages
+    ///
+    /// @custom:reverts If the attributes array length is less than 3
+    /// @custom:reverts If a required attribute is missing from the global attributes array. Required attributes are:
+    ///                 - Reward attribute
+    ///                 - Delay attribute
+    ///                 - Inbox attribute
+    /// @custom:reverts If an unsupported attribute is provided
+    ///
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
+    /// @param messages The messages to be included in the request
+    /// @param globalAttributes The attributes to be included in the message
+    ///
+    /// @return messageId The generated request id
+    function sendMessages(
+        string calldata destinationChain,
+        Message[] calldata messages,
+        bytes[] calldata globalAttributes
+    ) external payable returns (bytes32) {
+        return _sendMessages(destinationChain, messages, globalAttributes);
     }
 
     /// @notice To be called by a Filler that successfully submitted a cross chain request to the destination chain and
-    /// can prove it with a valid nested storage proof
+    ///         can prove it with a valid nested storage proof
+    ///
+    /// @custom:reverts If the request is not in the `CrossChainCallStatus.Requested` state
+    /// @custom:reverts If storage proof invalid
+    /// @custom:reverts If finality delay seconds have not passed since the request was fulfilled on destination chain
+    /// @custom:reverts If the reward attribute is not found in the attributes array
     ///
     /// @param sender The CAIP-10 account address of the sender
-    /// @param receiver The CAIP-10 account address of the receiver
-    /// @param payload The encoded calls array
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
+    /// @param messages The messages to be included in the request
     /// @param expandedAttributes The attributes to be included in the message
-    /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
-    /// storage on the destination chain
+    /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in storage on
+    ///              the destination chain
     /// @param payTo The address the Filler wants to receive the reward
     function claimReward(
         string calldata sender,
-        string calldata receiver,
-        bytes calldata payload,
+        string calldata destinationChain,
+        Message[] calldata messages,
         bytes[] calldata expandedAttributes,
         bytes calldata proof,
         address payTo
     ) external {
-        bytes32 messageId = getMessageIdCalldata(sender, receiver, payload, expandedAttributes);
+        bytes32 messageId = getRequestIdCalldata(sender, destinationChain, messages, expandedAttributes);
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
+        address inbox = _getInboxAddress(expandedAttributes);
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validateProof(storageKey, receiver, expandedAttributes, proof);
+        _validateProof(storageKey, inbox, expandedAttributes, proof);
 
         _messageStatus[messageId] = CrossChainCallStatus.Completed;
 
@@ -166,19 +208,24 @@ abstract contract RIP7755Outbox is ERC7786Base {
 
     /// @notice Cancels a pending request that has expired
     ///
-    /// @dev Can only be called if the request is in the `CrossChainCallStatus.Requested` state
+    /// @custom:reverts If the request is not in the `CrossChainCallStatus.Requested` state
+    /// @custom:reverts If the requester attribute is not found in the attributes array
+    /// @custom:reverts If the delay attribute is not found in the attributes array
+    /// @custom:reverts If `msg.sender` is not the requester defined by the requester attribute
+    /// @custom:reverts If the current block timestamp is less than the expiry timestamp plus the cancel delay seconds
+    /// @custom:reverts If the reward attribute is not found in the attributes array
     ///
     /// @param sender The CAIP-10 account address of the sender
-    /// @param receiver The CAIP-10 account address of the receiver
-    /// @param payload The encoded calls array
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
+    /// @param messages The messages to be included in the request
     /// @param expandedAttributes The attributes to be included in the message
     function cancelMessage(
         string calldata sender,
-        string calldata receiver,
-        bytes calldata payload,
+        string calldata destinationChain,
+        Message[] calldata messages,
         bytes[] calldata expandedAttributes
     ) external {
-        bytes32 messageId = getMessageIdCalldata(sender, receiver, payload, expandedAttributes);
+        bytes32 messageId = getRequestIdCalldata(sender, destinationChain, messages, expandedAttributes);
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
@@ -226,54 +273,54 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @notice Returns the keccak256 hash of a message request
     ///
     /// @param sender The CAIP-10 account address of the sender
-    /// @param receiver The CAIP-10 account address of the receiver
-    /// @param payload The encoded calls array
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
+    /// @param messages The messages to be included in the request
     /// @param attributes The attributes to be included in the message
     ///
     /// @return _ The keccak256 hash of the message request
-    function getMessageId(
+    function getRequestId(
         string memory sender,
-        string memory receiver,
-        bytes calldata payload,
+        string calldata destinationChain,
+        Message[] memory messages,
         bytes[] memory attributes
     ) public pure returns (bytes32) {
-        return keccak256(abi.encode(sender, receiver, payload, attributes));
+        return keccak256(abi.encode(sender, destinationChain, messages, attributes));
     }
 
     /// @notice Returns the keccak256 hash of a message request
     ///
     /// @param sender The CAIP-10 account address of the sender
-    /// @param receiver The CAIP-10 account address of the receiver
-    /// @param payload The encoded calls array
+    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
+    /// @param messages The messages to be included in the request
     /// @param attributes The attributes to be included in the message
     ///
     /// @return _ The keccak256 hash of the message request
-    function getMessageIdCalldata(
+    function getRequestIdCalldata(
         string calldata sender,
-        string calldata receiver,
-        bytes calldata payload,
+        string calldata destinationChain,
+        Message[] calldata messages,
         bytes[] calldata attributes
     ) public pure returns (bytes32) {
-        return keccak256(abi.encode(sender, receiver, payload, attributes));
+        return keccak256(abi.encode(sender, destinationChain, messages, attributes));
     }
 
     /// @notice Validates storage proofs and verifies fill
     ///
-    /// @custom:reverts If storage proof invalid.
+    /// @custom:reverts If storage proof invalid
     /// @custom:reverts If fillInfo not found at inboxContractStorageKey on crossChainCall.verifyingContract
-    /// @custom:reverts If fillInfo.timestamp is less than
-    /// crossChainCall.finalityDelaySeconds from current destination chain block timestamp.
+    /// @custom:reverts If fillInfo.timestamp is less than crossChainCall.finalityDelaySeconds from current destination
+    ///                 chain block timestamp
     ///
     /// @dev Implementation will vary by L2
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Inbox` contract
-    /// @param receiver The CAIP-10 account address of the receiver
+    ///                                `RIP7755Inbox` contract
+    /// @param inbox The address of the `RIP7755Inbox` contract
     /// @param attributes The attributes to be included in the message
     /// @param proofData The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
-        string calldata receiver,
+        address inbox,
         bytes[] calldata attributes,
         bytes calldata proofData
     ) internal view virtual;
@@ -294,13 +341,29 @@ abstract contract RIP7755Outbox is ERC7786Base {
         return fulfillmentInfo;
     }
 
+    function _sendMessages(
+        string calldata destinationChain,
+        Message[] memory messages,
+        bytes[] calldata globalAttributes
+    ) private returns (bytes32) {
+        bytes[] memory expandedAttributes = _processAttributes(globalAttributes);
+        string memory sender = address(this).local();
+
+        bytes32 messageId = getRequestId(sender, destinationChain, messages, expandedAttributes);
+        _messageStatus[messageId] = CrossChainCallStatus.Requested;
+
+        emit MessagesPosted(messageId, destinationChain, sender, messages, expandedAttributes);
+
+        return messageId;
+    }
+
     function _processAttributes(bytes[] calldata attributes) private returns (bytes[] memory) {
         if (attributes.length < _EXPECTED_ATTRIBUTE_LENGTH) {
             revert InvalidAttributeLength(_EXPECTED_ATTRIBUTE_LENGTH, attributes.length);
         }
 
         bytes[] memory adjustedAttributes = new bytes[](attributes.length + 2);
-        bool[2] memory attributeProcessed = [false, false];
+        bool[3] memory attributeProcessed = [false, false, false];
 
         for (uint256 i; i < attributes.length; i++) {
             bytes4 attributeSelector = bytes4(attributes[i]);
@@ -311,11 +374,25 @@ abstract contract RIP7755Outbox is ERC7786Base {
             } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
                 _handleDelayAttribute(attributes[i]);
                 attributeProcessed[1] = true;
+            } else if (attributeSelector == _INBOX_ATTRIBUTE_SELECTOR && !attributeProcessed[2]) {
+                attributeProcessed[2] = true;
             } else if (!_isOptionalAttribute(attributeSelector)) {
                 revert UnsupportedAttribute(attributeSelector);
             }
 
             adjustedAttributes[i] = attributes[i];
+        }
+
+        if (!attributeProcessed[0]) {
+            revert MissingRequiredAttribute(_REWARD_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[1]) {
+            revert MissingRequiredAttribute(_DELAY_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[2]) {
+            revert MissingRequiredAttribute(_INBOX_ATTRIBUTE_SELECTOR);
         }
 
         adjustedAttributes[attributes.length] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, _getNextNonce());
@@ -377,6 +454,12 @@ abstract contract RIP7755Outbox is ERC7786Base {
 
     function _isOptionalAttribute(bytes4 selector) private pure returns (bool) {
         return selector == _PRECHECK_ATTRIBUTE_SELECTOR || selector == _L2_ORACLE_ATTRIBUTE_SELECTOR
-            || selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR;
+            || selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR || selector == _DESTINATION_CHAIN_SELECTOR;
+    }
+
+    function _getInboxAddress(bytes[] calldata attributes) private pure returns (address) {
+        bytes calldata inboxAttribute = _locateAttribute(attributes, _INBOX_ATTRIBUTE_SELECTOR);
+        bytes32 inbox = abi.decode(inboxAttribute[4:], (bytes32));
+        return inbox.bytes32ToAddress();
     }
 }

@@ -3,11 +3,12 @@ pragma solidity 0.8.24;
 
 import {stdJson} from "forge-std/StdJson.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
+import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToArbitrum} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
+import {RIP7755OutboxToArbitrum, RIP7755Outbox} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
 
 import {MockArbitrumProver} from "./mocks/MockArbitrumProver.sol";
 import {BaseTest} from "./BaseTest.t.sol";
@@ -40,9 +41,13 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
@@ -50,58 +55,74 @@ contract ArbitrumProverTest is BaseTest {
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToArbitrum.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidStateRoot.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidBlockHeaders.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL2Storage);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidL2Storage.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function _buildProof(string memory json) private returns (ArbitrumProver.RIP7755Proof memory) {
@@ -155,11 +176,11 @@ contract ArbitrumProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, bytes memory, bytes[] memory)
+        returns (string memory, string memory, RIP7755Outbox.Message[] memory, bytes[] memory)
     {
         string memory sender = address(this).local();
-        string memory receiver = _INBOX_CONTRACT.local(); // RIP7755Inbox on Arbitrum Sepolia // 421614, // arbitrum sepolia chain ID
-        bytes memory payload = abi.encode(calls);
+        string memory destinationChain = CAIP2.local();
+        RIP7755Outbox.Message[] memory calls = new RIP7755Outbox.Message[](0);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] =
@@ -171,6 +192,6 @@ contract ArbitrumProverTest is BaseTest {
         attributes[5] =
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4); // Arbitrum Rollup on Sepolia
 
-        return (sender, receiver, payload, attributes);
+        return (sender, destinationChain, calls, attributes);
     }
 }

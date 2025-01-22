@@ -8,7 +8,7 @@ import {HashiProver} from "../src/libraries/provers/HashiProver.sol";
 import {BlockHeaders} from "../src/libraries/BlockHeaders.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToHashi} from "../src/outboxes/RIP7755OutboxToHashi.sol";
+import {RIP7755OutboxToHashi, RIP7755Outbox} from "../src/outboxes/RIP7755OutboxToHashi.sol";
 
 import {MockShoyuBashi} from "./mocks/MockShoyuBashi.sol";
 import {MockHashiProver} from "./mocks/MockHashiProver.sol";
@@ -37,9 +37,13 @@ contract HashiProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -47,13 +51,17 @@ contract HashiProverTest is BaseTest {
 
         vm.prank(FILLER);
         vm.expectRevert(RIP7755OutboxToHashi.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_reverts_ifInvaldBlockHeader() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
         HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
 
         (, uint256 blockNumber,) = proof.rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
@@ -65,14 +73,18 @@ contract HashiProverTest is BaseTest {
 
         vm.prank(FILLER);
         vm.expectRevert(HashiProver.InvalidBlockHeader.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_reverts_ifInvalidStorage() external fundAlice(_REWARD_AMOUNT) {
         bytes memory wrongStorageValue = "0x23214a0864fc0014cab6030267738f01affdd547000000000000000067444860";
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
         proof.dstAccountProofParams.storageValue = wrongStorageValue;
@@ -80,19 +92,23 @@ contract HashiProverTest is BaseTest {
 
         vm.prank(FILLER);
         vm.expectRevert(HashiProver.InvalidStorage.selector);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function test_proveGnosisChiadoStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory receiver, bytes memory payload, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = keccak256(abi.encode(sender, receiver, payload, attributes));
+        (
+            string memory sender,
+            string memory destinationChain,
+            RIP7755Outbox.Message[] memory calls,
+            bytes[] memory attributes
+        ) = _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
 
         HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        prover.validateProof(inboxStorageKey, receiver, attributes, abi.encode(proof));
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
     function _buildProof(string memory json) private returns (HashiProver.RIP7755Proof memory) {
@@ -117,11 +133,11 @@ contract HashiProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, bytes memory, bytes[] memory)
+        returns (string memory, string memory, RIP7755Outbox.Message[] memory, bytes[] memory)
     {
         string memory sender = address(this).local();
-        string memory receiver = _remote(_INBOX_CONTRACT, HASHI_DOMAIN_DST_CHAIN_ID);
-        bytes memory payload = abi.encode(calls);
+        string memory destinationChain = _remote(HASHI_DOMAIN_DST_CHAIN_ID);
+        RIP7755Outbox.Message[] memory calls = new RIP7755Outbox.Message[](0);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] =
@@ -132,6 +148,6 @@ contract HashiProverTest is BaseTest {
         attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
         attributes[5] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, address(shoyuBashi).addressToBytes32());
 
-        return (sender, receiver, payload, attributes);
+        return (sender, destinationChain, calls, attributes);
     }
 }
