@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {stdJson} from "forge-std/StdJson.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
+import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
@@ -17,10 +18,11 @@ contract ArbitrumProverTest is BaseTest {
     using stdJson for string;
     using GlobalTypes for address;
     using CAIP10 for address;
+    using Strings for address;
 
     MockArbitrumProver prover;
 
-    address private constant _INBOX_CONTRACT = 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874;
+    address private constant _INBOX_CONTRACT = 0xdac62f96404AB882F5a61CFCaFb0C470a19FC514;
 
     function setUp() external {
         prover = new MockArbitrumProver();
@@ -41,9 +43,9 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
@@ -55,9 +57,9 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -68,9 +70,9 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -81,9 +83,9 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL2Storage);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -94,9 +96,9 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -123,7 +125,7 @@ contract ArbitrumProverTest is BaseTest {
 
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
-            beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
+            beaconOracleTimestamp: json.readUint(".stateProofParams.beaconOracleTimestamp"),
             executionStateRoot: json.readBytes32(".stateProofParams.executionStateRoot"),
             stateRootProof: abi.decode(json.parseRaw(".stateProofParams.stateRootProof"), (bytes32[]))
         });
@@ -158,8 +160,8 @@ contract ArbitrumProverTest is BaseTest {
         view
         returns (string memory, string memory, Message[] memory, bytes[] memory)
     {
-        string memory sender = address(this).local();
-        string memory destinationChain = CAIP2.local();
+        string memory sourceChain = _remote(31337);
+        string memory sender = address(this).toChecksumHexString();
         Message[] memory calls = new Message[](0);
         bytes[] memory attributes = new bytes[](6);
 
@@ -172,6 +174,6 @@ contract ArbitrumProverTest is BaseTest {
         attributes[5] =
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4); // Arbitrum Rollup on Sepolia
 
-        return (sender, destinationChain, calls, attributes);
+        return (sourceChain, sender, calls, attributes);
     }
 }

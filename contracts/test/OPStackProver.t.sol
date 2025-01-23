@@ -205,28 +205,4 @@ contract OPStackProverTest is BaseTest {
 
         return (sourceChain, sender, calls, attributes);
     }
-
-    function _filterOutFulfiller(bytes[] memory attributes) private pure returns (bytes[] memory) {
-        bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
-        uint256 filteredIndex;
-        for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
-                filteredAttributes[filteredIndex] = attributes[i];
-                unchecked {
-                    filteredIndex++;
-                }
-            }
-        }
-        return filteredAttributes;
-    }
-
-    function _getMessageId(
-        string memory sourceChain,
-        string memory sender,
-        Message[] memory calls,
-        bytes[] memory attributes
-    ) private pure returns (bytes32) {
-        string memory combinedSender = CAIP10.format(sourceChain, sender);
-        return keccak256(abi.encode(combinedSender, _remote(111112), calls, _filterOutFulfiller(attributes)));
-    }
 }
