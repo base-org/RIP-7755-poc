@@ -173,7 +173,7 @@ contract RIP7755Inbox is ERC7786Base {
         bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
         uint256 filteredIndex;
         for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i][:4]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
+            if (bytes4(attributes[i]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
                 filteredAttributes[filteredIndex] = attributes[i];
                 unchecked {
                     filteredIndex++;

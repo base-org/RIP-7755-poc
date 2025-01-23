@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import {stdJson} from "forge-std/StdJson.sol";
+import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
@@ -35,9 +36,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1735681520);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
@@ -49,9 +50,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
@@ -64,9 +65,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
@@ -79,9 +80,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
@@ -94,9 +95,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL1State);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -107,9 +108,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2StateRootProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -120,9 +121,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(invalidL2Storage);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -133,9 +134,9 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = prover.getRequestId(sender, destinationChain, calls, attributes);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
         bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -152,7 +153,7 @@ contract OPStackProverTest is BaseTest {
     function _buildProof(string memory json) private returns (OPStackProver.RIP7755Proof memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
-            beaconOracleTimestamp: uint256(json.readBytes32(".stateProofParams.beaconOracleTimestamp")),
+            beaconOracleTimestamp: json.readUint(".stateProofParams.beaconOracleTimestamp"),
             executionStateRoot: json.readBytes32(".stateProofParams.executionStateRoot"),
             stateRootProof: abi.decode(json.parseRaw(".stateProofParams.stateRootProof"), (bytes32[]))
         });
@@ -185,23 +186,47 @@ contract OPStackProverTest is BaseTest {
         view
         returns (string memory, string memory, Message[] memory, bytes[] memory)
     {
-        string memory sender = _remote(0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874, 11155420);
-        string memory destinationChain = _remote(111112);
+        string memory sourceChain = _remote(31337);
+        string memory sender = "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496";
         Message[] memory calls = new Message[](0);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] = abi.encodeWithSelector(
-            _REWARD_ATTRIBUTE_SELECTOR, 0x2e234DAe75C793f67A35089C9d99245E1C58470b.addressToBytes32(), rewardAmount
+            _REWARD_ATTRIBUTE_SELECTOR, 0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a, rewardAmount
         );
-        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1735681520);
+        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1828828574);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(
-            _REQUESTER_ATTRIBUTE_SELECTOR, 0x328809Bc894f92807417D2dAD6b7C998c1aFdac6.addressToBytes32()
+            _REQUESTER_ATTRIBUTE_SELECTOR, 0x000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac6
         );
         attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
         attributes[5] =
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
 
-        return (sender, destinationChain, calls, attributes);
+        return (sourceChain, sender, calls, attributes);
+    }
+
+    function _filterOutFulfiller(bytes[] memory attributes) private pure returns (bytes[] memory) {
+        bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
+        uint256 filteredIndex;
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
+                filteredAttributes[filteredIndex] = attributes[i];
+                unchecked {
+                    filteredIndex++;
+                }
+            }
+        }
+        return filteredAttributes;
+    }
+
+    function _getMessageId(
+        string memory sourceChain,
+        string memory sender,
+        Message[] memory calls,
+        bytes[] memory attributes
+    ) private pure returns (bytes32) {
+        string memory combinedSender = CAIP10.format(sourceChain, sender);
+        return keccak256(abi.encode(combinedSender, _remote(111112), calls, _filterOutFulfiller(attributes)));
     }
 }
