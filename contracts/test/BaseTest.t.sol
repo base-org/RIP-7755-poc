@@ -8,7 +8,6 @@ import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {ERC7786Base} from "../src/ERC7786Base.sol";
-import {Call} from "../src/RIP7755Structs.sol";
 
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
@@ -18,7 +17,6 @@ contract BaseTest is Test, ERC7786Base {
 
     address approveAddr;
 
-    Call[] calls;
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
     string rootPath;
@@ -29,7 +27,7 @@ contract BaseTest is Test, ERC7786Base {
     string invalidL2Storage;
 
     uint256 constant _REWARD_AMOUNT = 1 ether;
-    bytes32 constant _VERIFIER_STORAGE_LOCATION = 0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2;
+    bytes32 constant _VERIFIER_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
     function _setUp() internal {
         mockErc20 = new ERC20Mock();
@@ -54,5 +52,33 @@ contract BaseTest is Test, ERC7786Base {
 
     function _remote(address addr, uint256 chainId) internal pure returns (string memory) {
         return CAIP10.format(CAIP2.format("eip155", Strings.toString(chainId)), Strings.toChecksumHexString(addr));
+    }
+
+    function _remote(uint256 chainId) internal pure returns (string memory) {
+        return CAIP2.format("eip155", Strings.toString(chainId));
+    }
+
+    function _filterOutFulfiller(bytes[] memory attributes) internal pure returns (bytes[] memory) {
+        bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
+        uint256 filteredIndex;
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
+                filteredAttributes[filteredIndex] = attributes[i];
+                unchecked {
+                    filteredIndex++;
+                }
+            }
+        }
+        return filteredAttributes;
+    }
+
+    function _getMessageId(
+        string memory sourceChain,
+        string memory sender,
+        Message[] memory calls,
+        bytes[] memory attributes
+    ) internal pure returns (bytes32) {
+        string memory combinedSender = CAIP10.format(sourceChain, sender);
+        return keccak256(abi.encode(combinedSender, _remote(111112), calls, _filterOutFulfiller(attributes)));
     }
 }

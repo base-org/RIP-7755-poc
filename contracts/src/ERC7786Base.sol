@@ -7,6 +7,16 @@ pragma solidity ^0.8.24;
 ///
 /// @notice This contract contains the selectors for the RIP-7755-supported attributes of the ERC7786 standard
 contract ERC7786Base {
+    /// @notice A struct representing an individual call within a 7755 request
+    struct Message {
+        /// @dev The CAIP-10 account address of the receiver (not including the chain identifier)
+        string receiver;
+        /// @dev The calldata for the call to be made to the receiver
+        bytes payload;
+        /// @dev The attributes to be included in the message (should be empty)
+        bytes[] attributes;
+    }
+
     /// @notice The selector for the precheck attribute
     bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xfa1e5831; // precheck(address)
 
@@ -30,6 +40,15 @@ contract ERC7786Base {
 
     /// @notice The selector for the shoyuBashi attribute
     bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
+
+    /// @notice The selector for the inbox attribute
+    bytes4 internal constant _INBOX_ATTRIBUTE_SELECTOR = 0xbd362374; // inbox(bytes32)
+
+    /// @notice The selector for the destinationChain attribute
+    bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
+
+    /// @notice The selector for the value attribute
+    bytes4 internal constant _VALUE_ATTRIBUTE_SELECTOR = 0xc5a46ee6; // value(uint256)
 
     /// @notice This error is thrown if an attribute is not found in the attributes array
     /// @param selector The selector of the attribute that was not found
@@ -71,5 +90,20 @@ contract ERC7786Base {
             }
         }
         return (false, attributes[0]);
+    }
+
+    /// @notice Locates an attribute value in the attributes array
+    ///
+    /// @param attributes The attributes array to search
+    /// @param selector The selector of the attribute to find
+    ///
+    /// @return value The value of the attribute found
+    function _locateAttributeValue(bytes[] calldata attributes, bytes4 selector) internal pure returns (uint256) {
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) == selector) {
+                return abi.decode(attributes[i][4:], (uint256));
+            }
+        }
+        return 0;
     }
 }

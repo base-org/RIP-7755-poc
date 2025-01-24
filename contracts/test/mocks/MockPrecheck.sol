@@ -8,7 +8,7 @@ contract MockPrecheck is ERC7786Base, IPrecheckContract {
     function precheckCall(
         string calldata, // [CAIP-2] chain identifier
         string calldata, // [CAIP-10] account address
-        bytes calldata,
+        Message[] calldata,
         bytes[] calldata attributes,
         address caller
     ) external pure {

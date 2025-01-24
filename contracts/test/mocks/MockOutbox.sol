@@ -6,7 +6,7 @@ import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 contract MockOutbox is RIP7755Outbox {
     function _validateProof(
         bytes memory inboxContractStorageKey,
-        string calldata receiver,
+        address inbox,
         bytes[] calldata attributes,
         bytes calldata proofData
     ) internal view override {}

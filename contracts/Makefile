@@ -5,7 +5,7 @@
 ARBITRUM_REQUEST_HASH = 0xd2a7d400b8bf591dfa337aced6d4bab04e979ef9d183c9fc30bc1c6c0ce552aa
 OPTIMISM_REQUEST_HASH = 0xe38ad8c9e84178325f28799eb3aaae72551b2eea7920c43d88854edd350719f5
 FULFILLER_ADDRESS = 0x23214A0864FC0014CAb6030267738F01AFfdd547
-MOCK_VERIFIER_ADDRESS = 0x49E2cDC9e81825B6C718ae8244fe0D5b062F4874
+MOCK_VERIFIER_ADDRESS = 0xdac62f96404AB882F5a61CFCaFb0C470a19FC514
 
 # Default Anvil Keys
 PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
@@ -31,7 +31,7 @@ coverage:
 	forge coverage
 
 deploy-mock:
-	forge create --rpc-url $(ARBITRUM_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier
+	forge create --rpc-url $(ARBITRUM_RPC) --private-key $(PRIVATE_KEY) test/mocks/MockVerifier.sol:MockVerifier --broadcast -vvvv
 
 read-mock:
 	cast call $(MOCK_VERIFIER_ADDRESS) "getFulfillmentInfo(bytes32)(uint96,address)" $(ARBITRUM_REQUEST_HASH) --rpc-url $(ARBITRUM_RPC)
