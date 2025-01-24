@@ -21,7 +21,7 @@ contract HashiProverTest is BaseTest {
     using CAIP10 for address;
 
     uint256 public immutable HASHI_DOMAIN_DST_CHAIN_ID = 111112;
-    address private constant _INBOX_CONTRACT = 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512;
+    address private constant _INBOX_CONTRACT = 0xdac62f96404AB882F5a61CFCaFb0C470a19FC514;
 
     MockHashiProver prover;
     MockShoyuBashi shoyuBashi;
@@ -122,7 +122,7 @@ contract HashiProverTest is BaseTest {
         string memory sender = address(this).local();
         string memory destinationChain = _remote(HASHI_DOMAIN_DST_CHAIN_ID);
         Message[] memory calls = new Message[](0);
-        bytes[] memory attributes = new bytes[](6);
+        bytes[] memory attributes = new bytes[](7);
 
         attributes[0] =
             abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
@@ -131,6 +131,7 @@ contract HashiProverTest is BaseTest {
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
         attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
         attributes[5] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, address(shoyuBashi).addressToBytes32());
+        attributes[6] = abi.encodeWithSelector(_DESTINATION_CHAIN_SELECTOR, bytes32(HASHI_DOMAIN_DST_CHAIN_ID));
 
         return (sender, destinationChain, calls, attributes);
     }
