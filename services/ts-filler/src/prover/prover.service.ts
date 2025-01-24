@@ -325,6 +325,7 @@ export default class ProverService {
           parentAssertionHash,
           afterInboxBatchAcc
         );
+      case SupportedChains.MockOptimism:
       case SupportedChains.OptimismSepolia:
         return this.buildOPStackProof(
           proofs,

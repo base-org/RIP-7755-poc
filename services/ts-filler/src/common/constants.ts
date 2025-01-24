@@ -5,7 +5,7 @@ export default {
     anchorStateRegistrySlot:
       "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
     fulfillmentInfoSlot:
-      "0x43f1016e17bdb0194ec37b77cf476d255de00011d02616ab831d2e2ce63d9ee2",
+      "0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500",
   },
   mockL1StateRootProof: [
     "0x290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563",
