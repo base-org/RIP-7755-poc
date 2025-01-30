@@ -3,8 +3,8 @@ pragma solidity 0.8.24;
 
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
-import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 
@@ -27,15 +27,18 @@ contract RIP7755InboxTest is BaseTest {
     RIP7755Inbox inbox;
     MockPrecheck precheck;
     MockTarget target;
+    EntryPoint entryPoint;
 
     event PaymasterDeployed(address indexed sender, address indexed paymaster);
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
     function setUp() public {
-        DeployRIP7755Inbox deployer = new DeployRIP7755Inbox();
-        inbox = deployer.run();
+        entryPoint = new EntryPoint();
+        inbox = new RIP7755Inbox(address(entryPoint));
         precheck = new MockPrecheck();
         target = new MockTarget();
+        approveAddr = address(inbox);
+        _setUp();
     }
 
     function test_deployment_reverts_zeroAddress() external {
@@ -44,15 +47,22 @@ contract RIP7755InboxTest is BaseTest {
     }
 
     function test_deployPaymaster_deploysPaymaster() external {
-        address paymaster = inbox.deployPaymaster();
+        address paymaster = inbox.deployPaymaster(0);
         assertTrue(paymaster != address(0));
+    }
+
+    function test_deployPaymaster_fundsEntryPoint(uint128 amount) external fundAccount(FILLER, amount) {
+        vm.prank(FILLER);
+        inbox.deployPaymaster{value: amount}(amount);
+
+        assertEq(address(entryPoint).balance, amount);
     }
 
     function test_deployPaymaster_emitsEvent() external {
         vm.expectEmit(true, false, false, false);
         emit PaymasterDeployed(FILLER, address(0));
         vm.prank(FILLER);
-        inbox.deployPaymaster();
+        inbox.deployPaymaster(0);
     }
 
     function test_executeMessages_reverts_userOp() external {

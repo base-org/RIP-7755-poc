@@ -88,8 +88,10 @@ contract RIP7755Inbox is ERC7786Base, IInbox {
     }
 
     /// @notice Deploys a new paymaster contract
-    function deployPaymaster() external returns (address) {
-        address paymaster = address(new Paymaster(_ENTRYPOINT, msg.sender));
+    ///
+    /// @param entryPointDeposit The amount of eth to deposit on the EntryPoint contract
+    function deployPaymaster(uint256 entryPointDeposit) external payable returns (address) {
+        address paymaster = address(new Paymaster{value: msg.value}(_ENTRYPOINT, msg.sender, entryPointDeposit));
         isPaymaster[paymaster] = true;
         emit PaymasterDeployed(msg.sender, paymaster);
 

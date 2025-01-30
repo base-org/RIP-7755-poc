@@ -22,10 +22,10 @@ contract Paymaster is IPaymaster, Ownable {
     using SafeTransferLib for address payable;
 
     /// @notice The ERC-4337 EntryPoint contract
-    IEntryPoint public immutable entryPoint;
+    IEntryPoint public immutable ENTRY_POINT;
 
     /// @notice The RRC-7755 Inbox contract
-    IInbox public immutable inbox;
+    IInbox public immutable INBOX;
 
     /// @notice The address of the claim address
     address public claimAddress;
@@ -65,22 +65,27 @@ contract Paymaster is IPaymaster, Ownable {
     ///
     /// @custom:reverts If the EntryPoint contract or owner address is the zero address
     ///
-    /// @param _entryPoint The EntryPoint contract to use for the paymaster
-    /// @param _owner      The address of the owner of the paymaster
-    constructor(address _entryPoint, address _owner) {
+    /// @param _entryPoint        The EntryPoint contract to use for the paymaster
+    /// @param _owner             The address of the owner of the paymaster
+    /// @param _entryPointDeposit The amount of eth to deposit on the EntryPoint contract
+    constructor(address _entryPoint, address _owner, uint256 _entryPointDeposit) payable {
         if (address(_entryPoint) == address(0) || _owner == address(0)) {
             revert ZeroAddress();
         }
 
-        entryPoint = IEntryPoint(_entryPoint);
-        inbox = IInbox(msg.sender);
+        ENTRY_POINT = IEntryPoint(_entryPoint);
+        INBOX = IInbox(msg.sender);
         _initializeOwner(_owner);
         claimAddress = _owner;
+
+        if (_entryPointDeposit > 0) {
+            payable(_entryPoint).safeTransferETH(_entryPointDeposit);
+        }
     }
 
     /// @dev A modifier that ensures the caller is the EntryPoint contract
     modifier onlyEntryPoint() {
-        if (msg.sender != address(entryPoint)) {
+        if (msg.sender != address(ENTRY_POINT)) {
             revert NotEntryPoint();
         }
         _;
@@ -95,7 +100,7 @@ contract Paymaster is IPaymaster, Ownable {
     ///
     /// @param amount The amount to deposit on the the Entrypoint.
     function entryPointDeposit(uint256 amount) external payable onlyOwner {
-        payable(address(entryPoint)).safeTransferETH(amount);
+        payable(address(ENTRY_POINT)).safeTransferETH(amount);
     }
 
     /// @notice A function that allows a fulfiller to withdraw eth from the paymaster
@@ -109,7 +114,7 @@ contract Paymaster is IPaymaster, Ownable {
             revert ZeroAddress();
         }
 
-        entryPoint.withdrawTo(withdrawAddress, amount);
+        ENTRY_POINT.withdrawTo(withdrawAddress, amount);
     }
 
     /// @notice A function that allows a fulfiller to set their claim address
@@ -133,14 +138,14 @@ contract Paymaster is IPaymaster, Ownable {
     /// @param unstakeDelaySeconds The duration for which the stake cannot be withdrawn. Must be
     ///                            equal to or greater than the current unstake delay.
     function entryPointAddStake(uint32 unstakeDelaySeconds) external payable onlyOwner {
-        entryPoint.addStake{value: msg.value}(unstakeDelaySeconds);
+        ENTRY_POINT.addStake{value: msg.value}(unstakeDelaySeconds);
     }
 
     /// @notice Unlocks stake in the EntryPoint.
     ///
     /// @dev Reverts if not called by the owner of the contract.
     function entryPointUnlockStake() external onlyOwner {
-        entryPoint.unlockStake();
+        ENTRY_POINT.unlockStake();
     }
 
     /// @notice Withdraws stake from the EntryPoint.
@@ -150,7 +155,7 @@ contract Paymaster is IPaymaster, Ownable {
     ///
     /// @param to The beneficiary address.
     function entryPointWithdrawStake(address payable to) external onlyOwner {
-        entryPoint.withdrawStake(to);
+        ENTRY_POINT.withdrawStake(to);
     }
 
     /// @notice A function that validates a User Operation and returns the context and validation data
@@ -220,7 +225,7 @@ contract Paymaster is IPaymaster, Ownable {
         (bytes32 userOpHash, address claimAddr, address sender) = abi.decode(context, (bytes32, address, address));
 
         if (mode == PostOpMode.opSucceeded) {
-            inbox.storeExecutionReceipt(userOpHash, claimAddr);
+            INBOX.storeExecutionReceipt(userOpHash, claimAddr);
         }
 
         delete _withdrawable[sender];

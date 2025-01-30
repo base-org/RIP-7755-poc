@@ -33,7 +33,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         inbox = new RIP7755Inbox(address(entryPoint));
 
         vm.prank(signer.addr);
-        paymaster = Paymaster(payable(inbox.deployPaymaster()));
+        paymaster = Paymaster(payable(inbox.deployPaymaster(0)));
         approveAddr = address(paymaster);
         precheck = address(new MockUserOpPrecheck());
 
@@ -49,17 +49,17 @@ contract PaymasterTest is BaseTest, MockEndpoint {
 
     function test_deployment_reverts_zeroAddressEntryPoint() external {
         vm.expectRevert(Paymaster.ZeroAddress.selector);
-        new Paymaster(address(0), signer.addr);
+        new Paymaster(address(0), signer.addr, 0);
     }
 
     function test_deployment_reverts_zeroAddressOwner() external {
         vm.expectRevert(Paymaster.ZeroAddress.selector);
-        new Paymaster(address(entryPoint), address(0));
+        new Paymaster(address(entryPoint), address(0), 0);
     }
 
     function test_deployment_reverts_zeroAddressBoth() external {
         vm.expectRevert(Paymaster.ZeroAddress.selector);
-        new Paymaster(address(0), address(0));
+        new Paymaster(address(0), address(0), 0);
     }
 
     function test_entryPointDeposit_revertsIfNotCalledByOwner() public {
