@@ -28,6 +28,7 @@ contract RIP7755InboxTest is BaseTest {
     MockPrecheck precheck;
     MockTarget target;
 
+    event PaymasterDeployed(address indexed sender, address indexed paymaster);
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
     function setUp() public {
@@ -37,7 +38,24 @@ contract RIP7755InboxTest is BaseTest {
         target = new MockTarget();
     }
 
-    function test_executeMessage_storesFulfillment_withSuccessfulPrecheck() external {
+    function test_deployment_reverts_zeroAddress() external {
+        vm.expectRevert(RIP7755Inbox.ZeroAddress.selector);
+        new RIP7755Inbox(address(0));
+    }
+
+    function test_deployPaymaster_deploysPaymaster() external {
+        address paymaster = inbox.deployPaymaster();
+        assertTrue(paymaster != address(0));
+    }
+
+    function test_deployPaymaster_emitsEvent() external {
+        vm.expectEmit(true, false, false, false);
+        emit PaymasterDeployed(FILLER, address(0));
+        vm.prank(FILLER);
+        inbox.deployPaymaster();
+    }
+
+    function test_executeMessages_storesFulfillment_withSuccessfulPrecheck() external {
         TestMessage memory m = _initMessage(true);
 
         vm.prank(FILLER);
@@ -49,14 +67,14 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(info.timestamp, block.timestamp);
     }
 
-    function test_executeMessage_reverts_failedPrecheck() external {
+    function test_executeMessages_reverts_failedPrecheck() external {
         TestMessage memory m = _initMessage(true);
 
         vm.expectRevert();
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_reverts_callAlreadyFulfilled() external {
+    function test_executeMessages_reverts_callAlreadyFulfilled() external {
         TestMessage memory m = _initMessage(false);
 
         vm.prank(FILLER);
@@ -67,7 +85,7 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_callsTargetContract(uint256 inputNum) external {
+    function test_executeMessages_callsTargetContract(uint256 inputNum) external {
         TestMessage memory m = _initMessage(false);
 
         _appendMessage(
@@ -85,7 +103,7 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(target.number(), inputNum);
     }
 
-    function test_executeMessage_sendsEth(uint256 amount) external {
+    function test_executeMessages_sendsEth(uint256 amount) external {
         TestMessage memory m = _initMessage(false);
 
         bytes[] memory attributes = new bytes[](1);
@@ -100,7 +118,7 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(ALICE.balance, amount);
     }
 
-    function test_executeMessage_reverts_ifTargetContractReverts() external {
+    function test_executeMessages_reverts_ifTargetContractReverts() external {
         TestMessage memory m = _initMessage(false);
 
         _appendMessage(
@@ -117,7 +135,7 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_storesFulfillment() external {
+    function test_executeMessages_storesFulfillment() external {
         TestMessage memory m = _initMessage(false);
 
         vm.prank(FILLER);
@@ -129,7 +147,7 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(info.timestamp, block.timestamp);
     }
 
-    function test_executeMessage_reverts_ifMsgValueTooHigh() external {
+    function test_executeMessages_reverts_ifMsgValueTooHigh() external {
         TestMessage memory m = _initMessage(false);
 
         vm.deal(FILLER, 1);
@@ -138,13 +156,18 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages{value: 1}(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_emitsEvent() external {
+    function test_executeMessages_emitsEvent() external {
         TestMessage memory m = _initMessage(false);
 
         vm.prank(FILLER);
         vm.expectEmit(true, true, false, false);
         emit CallFulfilled({requestHash: m.messageId, fulfilledBy: FILLER});
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
+    }
+
+    function test_storeExecutionReceipt_reverts_invalidCaller() external {
+        vm.expectRevert(RIP7755Inbox.InvalidCaller.selector);
+        inbox.storeExecutionReceipt(bytes32(0), FILLER);
     }
 
     function _initMessage(bool isPrecheck) private view returns (TestMessage memory) {

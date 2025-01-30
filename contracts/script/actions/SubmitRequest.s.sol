@@ -39,7 +39,6 @@ contract SubmitRequest is Script, ERC7786Base {
 
     function _initMessage(uint256 destinationChainId, uint256 duration)
         private
-        view
         returns (string memory, Message[] memory, bytes[] memory)
     {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);

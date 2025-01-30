@@ -10,7 +10,7 @@ import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
 contract SubmitToInbox is Script, ERC7786Base {
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
-        RIP7755Inbox inbox = RIP7755Inbox(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
+        RIP7755Inbox inbox = RIP7755Inbox(payable(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512));
 
         (string memory sourceChain, string memory sender, Message[] memory messages, bytes[] memory attributes) =
             _initMessage();

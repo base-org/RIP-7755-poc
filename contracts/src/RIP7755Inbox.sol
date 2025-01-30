@@ -1,13 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
+import {IInbox} from "./interfaces/IInbox.sol";
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
+import {Paymaster} from "./Paymaster.sol";
 
 /// @title RIP7755Inbox
 ///
@@ -15,12 +18,13 @@ import {ERC7786Base} from "./ERC7786Base.sol";
 ///
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 /// destination chains and store record of their fulfillment.
-contract RIP7755Inbox is ERC7786Base {
+contract RIP7755Inbox is ERC7786Base, IInbox {
     using Address for address payable;
     using Strings for string;
 
     struct MainStorage {
-        /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
+        /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only
+        ///         be set once per call
         mapping(bytes32 requestHash => FulfillmentInfo) fulfillmentInfo;
     }
 
@@ -36,10 +40,24 @@ contract RIP7755Inbox is ERC7786Base {
     ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
+    /// @notice The ERC-4337 EntryPoint contract
+    address private immutable _ENTRYPOINT;
+
+    /// @notice A mapping from paymaster addresses to a boolean indicating whether they are valid paymasters. A valid
+    ///         paymaster is one deployed from this contract
+    mapping(address => bool) public isPaymaster;
+
     /// @notice Event emitted when a cross chain call is fulfilled
+    ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     /// @param fulfilledBy The account that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
+
+    /// @notice Event emitted when a paymaster is deployed
+    ///
+    /// @param sender The account that deployed the paymaster
+    /// @param paymaster The address of the deployed paymaster
+    event PaymasterDeployed(address indexed sender, address indexed paymaster);
 
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
     error CallAlreadyFulfilled();
@@ -48,6 +66,32 @@ contract RIP7755Inbox is ERC7786Base {
     /// @param expected The total value needed for all the calls
     /// @param actual The received `msg.value`
     error InvalidValue(uint256 expected, uint256 actual);
+
+    /// @notice This error is thrown when an address is the zero address
+    error ZeroAddress();
+
+    /// @notice This error is thrown when an invalid caller is detected
+    error InvalidCaller();
+
+    /// @dev Stores the address of the ERC-4337 EntryPoint contract
+    ///
+    /// @param entryPoint The address of the ERC-4337 EntryPoint contract
+    constructor(address entryPoint) {
+        if (entryPoint == address(0)) {
+            revert ZeroAddress();
+        }
+
+        _ENTRYPOINT = entryPoint;
+    }
+
+    /// @notice Deploys a new paymaster contract
+    function deployPaymaster() external returns (address) {
+        address paymaster = address(new Paymaster(_ENTRYPOINT, msg.sender));
+        isPaymaster[paymaster] = true;
+        emit PaymasterDeployed(msg.sender, paymaster);
+
+        return paymaster;
+    }
 
     /// @notice Delivery of a message sent from another chain.
     ///
@@ -72,13 +116,27 @@ contract RIP7755Inbox is ERC7786Base {
             revert CallAlreadyFulfilled();
         }
 
-        _setFulfillmentInfo(messageId, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
+        _setFulfillmentInfo(messageId, fulfiller);
 
         _sendCallsAndValidateMsgValue(messages);
 
         emit CallFulfilled({requestHash: messageId, fulfilledBy: fulfiller});
 
         return 0x675b049b; // this function's sig
+    }
+
+    /// @notice Stores the fulfillment info for a passed in call hash
+    ///
+    /// @dev This function is only callable by a paymaster deployed from this contract
+    ///
+    /// @param requestHash A keccak256 hash of a CrossChainRequest
+    /// @param fulfiller The address of the fulfiller
+    function storeExecutionReceipt(bytes32 requestHash, address fulfiller) external {
+        if (!isPaymaster[msg.sender]) {
+            revert InvalidCaller();
+        }
+
+        _setFulfillmentInfo(requestHash, fulfiller);
     }
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
@@ -137,7 +195,9 @@ contract RIP7755Inbox is ERC7786Base {
         }
     }
 
-    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
+    function _setFulfillmentInfo(bytes32 requestHash, address fulfiller) private {
+        FulfillmentInfo memory fulfillmentInfo =
+            FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller});
         MainStorage storage $ = _getMainStorage();
         $.fulfillmentInfo[requestHash] = fulfillmentInfo;
     }
