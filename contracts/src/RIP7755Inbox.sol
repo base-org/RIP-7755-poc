@@ -73,6 +73,9 @@ contract RIP7755Inbox is ERC7786Base, IInbox {
     /// @notice This error is thrown when an invalid caller is detected
     error InvalidCaller();
 
+    /// @notice This error is thrown when a User Operation is detected during an `executeMessages` call
+    error UserOp();
+
     /// @dev Stores the address of the ERC-4337 EntryPoint contract
     ///
     /// @param entryPoint The address of the ERC-4337 EntryPoint contract
@@ -108,6 +111,7 @@ contract RIP7755Inbox is ERC7786Base, IInbox {
         bytes[] calldata globalAttributes
     ) external payable returns (bytes4) {
         address fulfiller = _getFulfiller(globalAttributes);
+        _revertIfUserOp(globalAttributes);
         bytes32 messageId = getRequestId(sourceChain, sender, messages, globalAttributes);
 
         _runPrecheck(sourceChain, sender, messages, globalAttributes);
@@ -227,6 +231,18 @@ contract RIP7755Inbox is ERC7786Base, IInbox {
     function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
         bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
         return abi.decode(fulfillerAttribute[4:], (address));
+    }
+
+    function _revertIfUserOp(bytes[] calldata attributes) private pure {
+        (bool found, bytes calldata userOpAttribute) =
+            _locateAttributeUnchecked(attributes, _USER_OP_ATTRIBUTE_SELECTOR);
+        if (found) {
+            bool isUserOp = abi.decode(userOpAttribute[4:], (bool));
+
+            if (isUserOp) {
+                revert UserOp();
+            }
+        }
     }
 
     function _filterOutFulfiller(bytes[] calldata attributes) private pure returns (bytes[] memory) {
