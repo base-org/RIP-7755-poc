@@ -3,8 +3,8 @@ pragma solidity 0.8.24;
 
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
+import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
-import {DeployRIP7755Inbox} from "../script/DeployRIP7755Inbox.s.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 
@@ -27,18 +27,29 @@ contract RIP7755InboxTest is BaseTest {
     RIP7755Inbox inbox;
     MockPrecheck precheck;
     MockTarget target;
+    EntryPoint entryPoint;
 
+    event PaymasterDeployed(address indexed sender, address indexed paymaster);
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
     function setUp() public {
-        DeployRIP7755Inbox deployer = new DeployRIP7755Inbox();
-        inbox = deployer.run();
+        entryPoint = new EntryPoint();
+        inbox = new RIP7755Inbox(address(entryPoint));
         precheck = new MockPrecheck();
         target = new MockTarget();
+        approveAddr = address(inbox);
+        _setUp();
     }
 
-    function test_executeMessage_storesFulfillment_withSuccessfulPrecheck() external {
-        TestMessage memory m = _initMessage(true);
+    function test_executeMessages_reverts_userOp() external {
+        TestMessage memory m = _initMessage(false, true);
+
+        vm.expectRevert(RIP7755Inbox.UserOp.selector);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
+    }
+
+    function test_executeMessages_storesFulfillment_withSuccessfulPrecheck() external {
+        TestMessage memory m = _initMessage(true, false);
 
         vm.prank(FILLER);
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
@@ -49,15 +60,15 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(info.timestamp, block.timestamp);
     }
 
-    function test_executeMessage_reverts_failedPrecheck() external {
-        TestMessage memory m = _initMessage(true);
+    function test_executeMessages_reverts_failedPrecheck() external {
+        TestMessage memory m = _initMessage(true, false);
 
         vm.expectRevert();
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_reverts_callAlreadyFulfilled() external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_reverts_callAlreadyFulfilled() external {
+        TestMessage memory m = _initMessage(false, false);
 
         vm.prank(FILLER);
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
@@ -67,8 +78,8 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_callsTargetContract(uint256 inputNum) external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_callsTargetContract(uint256 inputNum) external {
+        TestMessage memory m = _initMessage(false, false);
 
         _appendMessage(
             m,
@@ -85,8 +96,8 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(target.number(), inputNum);
     }
 
-    function test_executeMessage_sendsEth(uint256 amount) external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_sendsEth(uint256 amount) external {
+        TestMessage memory m = _initMessage(false, false);
 
         bytes[] memory attributes = new bytes[](1);
         attributes[0] = abi.encodeWithSelector(_VALUE_ATTRIBUTE_SELECTOR, amount);
@@ -100,8 +111,8 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(ALICE.balance, amount);
     }
 
-    function test_executeMessage_reverts_ifTargetContractReverts() external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_reverts_ifTargetContractReverts() external {
+        TestMessage memory m = _initMessage(false, false);
 
         _appendMessage(
             m,
@@ -117,8 +128,8 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_storesFulfillment() external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_storesFulfillment() external {
+        TestMessage memory m = _initMessage(false, false);
 
         vm.prank(FILLER);
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
@@ -129,8 +140,8 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(info.timestamp, block.timestamp);
     }
 
-    function test_executeMessage_reverts_ifMsgValueTooHigh() external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_reverts_ifMsgValueTooHigh() external {
+        TestMessage memory m = _initMessage(false, false);
 
         vm.deal(FILLER, 1);
         vm.prank(FILLER);
@@ -138,8 +149,8 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages{value: 1}(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function test_executeMessage_emitsEvent() external {
-        TestMessage memory m = _initMessage(false);
+    function test_executeMessages_emitsEvent() external {
+        TestMessage memory m = _initMessage(false, false);
 
         vm.prank(FILLER);
         vm.expectEmit(true, true, false, false);
@@ -147,19 +158,20 @@ contract RIP7755InboxTest is BaseTest {
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
-    function _initMessage(bool isPrecheck) private view returns (TestMessage memory) {
+    function _initMessage(bool isPrecheck, bool isUserOp) private view returns (TestMessage memory) {
         string memory sourceChain = CAIP2.local();
         string memory sender = address(this).toChecksumHexString();
-        bytes[] memory attributes = new bytes[](isPrecheck ? 6 : 5);
+        bytes[] memory attributes = new bytes[](isPrecheck ? 7 : 6);
 
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, bytes32(0), uint256(0));
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, block.timestamp + 11);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
         attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
+        attributes[5] = abi.encodeWithSelector(_USER_OP_ATTRIBUTE_SELECTOR, isUserOp);
 
         if (isPrecheck) {
-            attributes[5] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR, address(precheck));
+            attributes[6] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR, address(precheck));
         }
 
         return TestMessage({

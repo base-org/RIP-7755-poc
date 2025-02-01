@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
@@ -8,6 +9,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
+import {Paymaster} from "./Paymaster.sol";
 
 /// @title RIP7755Inbox
 ///
@@ -15,12 +17,13 @@ import {ERC7786Base} from "./ERC7786Base.sol";
 ///
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 /// destination chains and store record of their fulfillment.
-contract RIP7755Inbox is ERC7786Base {
+contract RIP7755Inbox is ERC7786Base, Paymaster {
     using Address for address payable;
     using Strings for string;
 
     struct MainStorage {
-        /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
+        /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only
+        ///         be set once per call
         mapping(bytes32 requestHash => FulfillmentInfo) fulfillmentInfo;
     }
 
@@ -37,6 +40,7 @@ contract RIP7755Inbox is ERC7786Base {
     bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
     /// @notice Event emitted when a cross chain call is fulfilled
+    ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     /// @param fulfilledBy The account that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
@@ -48,6 +52,17 @@ contract RIP7755Inbox is ERC7786Base {
     /// @param expected The total value needed for all the calls
     /// @param actual The received `msg.value`
     error InvalidValue(uint256 expected, uint256 actual);
+
+    /// @notice This error is thrown when an invalid caller is detected
+    error InvalidCaller();
+
+    /// @notice This error is thrown when a User Operation is detected during an `executeMessages` call
+    error UserOp();
+
+    /// @dev Stores the address of the ERC-4337 EntryPoint contract
+    ///
+    /// @param entryPoint The address of the ERC-4337 EntryPoint contract
+    constructor(address entryPoint) Paymaster(entryPoint) {}
 
     /// @notice Delivery of a message sent from another chain.
     ///
@@ -64,6 +79,7 @@ contract RIP7755Inbox is ERC7786Base {
         bytes[] calldata globalAttributes
     ) external payable returns (bytes4) {
         address fulfiller = _getFulfiller(globalAttributes);
+        _revertIfUserOp(globalAttributes);
         bytes32 messageId = getRequestId(sourceChain, sender, messages, globalAttributes);
 
         _runPrecheck(sourceChain, sender, messages, globalAttributes);
@@ -72,7 +88,7 @@ contract RIP7755Inbox is ERC7786Base {
             revert CallAlreadyFulfilled();
         }
 
-        _setFulfillmentInfo(messageId, FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller}));
+        _setFulfillmentInfo(messageId, fulfiller);
 
         _sendCallsAndValidateMsgValue(messages);
 
@@ -137,7 +153,9 @@ contract RIP7755Inbox is ERC7786Base {
         }
     }
 
-    function _setFulfillmentInfo(bytes32 requestHash, FulfillmentInfo memory fulfillmentInfo) private {
+    function _setFulfillmentInfo(bytes32 requestHash, address fulfiller) internal override {
+        FulfillmentInfo memory fulfillmentInfo =
+            FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller});
         MainStorage storage $ = _getMainStorage();
         $.fulfillmentInfo[requestHash] = fulfillmentInfo;
     }
@@ -167,6 +185,18 @@ contract RIP7755Inbox is ERC7786Base {
     function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
         bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
         return abi.decode(fulfillerAttribute[4:], (address));
+    }
+
+    function _revertIfUserOp(bytes[] calldata attributes) private pure {
+        (bool found, bytes calldata userOpAttribute) =
+            _locateAttributeUnchecked(attributes, _USER_OP_ATTRIBUTE_SELECTOR);
+        if (found) {
+            bool isUserOp = abi.decode(userOpAttribute[4:], (bool));
+
+            if (isUserOp) {
+                revert UserOp();
+            }
+        }
     }
 
     function _filterOutFulfiller(bytes[] calldata attributes) private pure returns (bytes[] memory) {

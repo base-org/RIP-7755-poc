@@ -50,6 +50,10 @@ contract ERC7786Base {
     /// @notice The selector for the value attribute
     bytes4 internal constant _VALUE_ATTRIBUTE_SELECTOR = 0xc5a46ee6; // value(uint256)
 
+    /// @notice The selector for the isUserOp attribute. Used to designate a request designated to be a destination
+    ///         chain ERC-4337 User Operation
+    bytes4 internal constant _USER_OP_ATTRIBUTE_SELECTOR = 0xd45448dd; // isUserOp(bool)
+
     /// @notice This error is thrown if an attribute is not found in the attributes array
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);

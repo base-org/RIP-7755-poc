@@ -19,6 +19,7 @@ contract BaseTest is Test, ERC7786Base {
 
     address ALICE = makeAddr("alice");
     address FILLER = makeAddr("filler");
+    address BUNDLER = makeAddr("bundler");
     string rootPath;
     string validProof;
     string invalidL1State;
@@ -42,6 +43,14 @@ contract BaseTest is Test, ERC7786Base {
         mockErc20.mint(ALICE, amount);
         vm.deal(ALICE, amount);
         vm.prank(ALICE);
+        mockErc20.approve(approveAddr, amount);
+        _;
+    }
+
+    modifier fundAccount(address account, uint256 amount) {
+        mockErc20.mint(account, amount);
+        vm.deal(account, amount);
+        vm.prank(account);
         mockErc20.approve(approveAddr, amount);
         _;
     }
@@ -81,4 +90,7 @@ contract BaseTest is Test, ERC7786Base {
         string memory combinedSender = CAIP10.format(sourceChain, sender);
         return keccak256(abi.encode(combinedSender, _remote(111112), calls, _filterOutFulfiller(attributes)));
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

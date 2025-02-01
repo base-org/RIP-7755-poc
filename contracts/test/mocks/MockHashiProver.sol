@@ -10,4 +10,7 @@ contract MockHashiProver is RIP7755OutboxToHashi {
     {
         _validateProof(storageKey, inbox, attributes, proof);
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }
