@@ -41,30 +41,6 @@ contract RIP7755InboxTest is BaseTest {
         _setUp();
     }
 
-    function test_deployment_reverts_zeroAddress() external {
-        vm.expectRevert(RIP7755Inbox.ZeroAddress.selector);
-        new RIP7755Inbox(address(0));
-    }
-
-    function test_deployPaymaster_deploysPaymaster() external {
-        address paymaster = inbox.deployPaymaster(0);
-        assertTrue(paymaster != address(0));
-    }
-
-    function test_deployPaymaster_fundsEntryPoint(uint128 amount) external fundAccount(FILLER, amount) {
-        vm.prank(FILLER);
-        inbox.deployPaymaster{value: amount}(amount);
-
-        assertEq(address(entryPoint).balance, amount);
-    }
-
-    function test_deployPaymaster_emitsEvent() external {
-        vm.expectEmit(true, false, false, false);
-        emit PaymasterDeployed(FILLER, address(0));
-        vm.prank(FILLER);
-        inbox.deployPaymaster(0);
-    }
-
     function test_executeMessages_reverts_userOp() external {
         TestMessage memory m = _initMessage(false, true);
 
@@ -180,11 +156,6 @@ contract RIP7755InboxTest is BaseTest {
         vm.expectEmit(true, true, false, false);
         emit CallFulfilled({requestHash: m.messageId, fulfilledBy: FILLER});
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
-    }
-
-    function test_storeExecutionReceipt_reverts_invalidCaller() external {
-        vm.expectRevert(RIP7755Inbox.InvalidCaller.selector);
-        inbox.storeExecutionReceipt(bytes32(0), FILLER);
     }
 
     function _initMessage(bool isPrecheck, bool isUserOp) private view returns (TestMessage memory) {

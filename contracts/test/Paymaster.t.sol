@@ -9,8 +9,8 @@ import {Ownable} from "solady/auth/Ownable.sol";
 import {BaseTest} from "./BaseTest.t.sol";
 import {MockAccount} from "./mocks/MockAccount.sol";
 import {MockEndpoint} from "./mocks/MockEndpoint.sol";
-import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 import {Paymaster} from "../src/Paymaster.sol";
+import {MockPaymaster} from "./mocks/MockPaymaster.sol";
 import {MockUserOpPrecheck} from "./mocks/MockUserOpPrecheck.sol";
 
 contract PaymasterTest is BaseTest, MockEndpoint {
@@ -18,24 +18,22 @@ contract PaymasterTest is BaseTest, MockEndpoint {
     using ECDSA for bytes32;
 
     IEntryPoint entryPoint;
-    MockAccount account;
-    RIP7755Inbox inbox;
-    Paymaster paymaster;
-    address precheck;
+    MockAccount mockAccount;
+    MockPaymaster paymaster;
+    address precheckAddress;
 
     Vm.Wallet signer = vm.createWallet(block.timestamp);
+    Vm.Wallet otherSigner = vm.createWallet(1000);
 
-    event ClaimAddressSet(address indexed claimAddress);
+    event ClaimAddressSet(address indexed fulfiller, address indexed claimAddress);
 
     function setUp() external {
         entryPoint = IEntryPoint(new EntryPoint());
-        account = new MockAccount();
-        inbox = new RIP7755Inbox(address(entryPoint));
+        mockAccount = new MockAccount();
 
-        vm.prank(signer.addr);
-        paymaster = Paymaster(payable(inbox.deployPaymaster(0)));
+        paymaster = new MockPaymaster(address(entryPoint));
         approveAddr = address(paymaster);
-        precheck = address(new MockUserOpPrecheck());
+        precheckAddress = address(new MockUserOpPrecheck());
 
         _setUp();
     }
@@ -49,22 +47,65 @@ contract PaymasterTest is BaseTest, MockEndpoint {
 
     function test_deployment_reverts_zeroAddressEntryPoint() external {
         vm.expectRevert(Paymaster.ZeroAddress.selector);
-        new Paymaster(address(0), signer.addr, 0);
+        new MockPaymaster(address(0));
     }
 
-    function test_deployment_reverts_zeroAddressOwner() external {
-        vm.expectRevert(Paymaster.ZeroAddress.selector);
-        new Paymaster(address(entryPoint), address(0), 0);
+    function test_receive_incrementsMagicSpendBalance(uint256 amount) external fundAccount(signer.addr, amount) {
+        uint256 initialBalance = paymaster.getMagicSpendBalance(signer.addr);
+
+        vm.prank(signer.addr);
+        (bool success,) = payable(paymaster).call{value: amount}("");
+        assertTrue(success);
+
+        assertEq(paymaster.getMagicSpendBalance(signer.addr), initialBalance + amount);
     }
 
-    function test_deployment_reverts_zeroAddressBoth() external {
-        vm.expectRevert(Paymaster.ZeroAddress.selector);
-        new Paymaster(address(0), address(0), 0);
+    function test_entryPointDeposit_incrementsMagicSpendBalance(uint256 amount)
+        external
+        fundAccount(signer.addr, amount)
+    {
+        uint256 initialBalance = paymaster.getMagicSpendBalance(signer.addr);
+
+        vm.prank(signer.addr);
+        paymaster.entryPointDeposit{value: amount}(0);
+
+        assertEq(paymaster.getMagicSpendBalance(signer.addr), initialBalance + amount);
     }
 
-    function test_entryPointDeposit_revertsIfNotCalledByOwner() public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        paymaster.entryPointDeposit(1);
+    function test_entryPointDeposit_revertsIfInsufficientBalance(uint256 amount) external {
+        vm.assume(amount > 0);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(Paymaster.InsufficientMagicSpendBalance.selector, signer.addr, 0, amount)
+        );
+        vm.prank(signer.addr);
+        paymaster.entryPointDeposit(amount);
+    }
+
+    function test_entryPointDeposit_decrementsMagicSpendBalance(uint256 amount)
+        external
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        uint256 initialBalance = paymaster.getMagicSpendBalance(signer.addr);
+
+        vm.prank(signer.addr);
+        paymaster.entryPointDeposit(amount);
+
+        assertEq(paymaster.getMagicSpendBalance(signer.addr), initialBalance - amount);
+    }
+
+    function test_entryPointDeposit_incrementsGasBalance(uint256 amount)
+        external
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        uint256 initialBalance = paymaster.getGasBalance(signer.addr);
+
+        vm.prank(signer.addr);
+        paymaster.entryPointDeposit(amount);
+
+        assertEq(paymaster.getGasBalance(signer.addr), initialBalance + amount);
     }
 
     function test_entryPointDeposit_routesToEntryPoint(uint256 amount) public fundAccount(signer.addr, amount) {
@@ -80,17 +121,12 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         public
         fundAccount(signer.addr, amount)
     {
-        uint256 initialBalance = entryPoint.getDepositInfo(address(paymaster)).deposit;
+        uint256 initialBalance = entryPoint.balanceOf(address(paymaster));
 
         vm.prank(signer.addr);
         paymaster.entryPointDeposit{value: amount}(amount);
 
-        assertEq(entryPoint.getDepositInfo(address(paymaster)).deposit, initialBalance + amount);
-    }
-
-    function test_withdrawTo_revertsIfNotCalledByOwner() public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        paymaster.withdrawTo(payable(address(0)), 1);
+        assertEq(entryPoint.balanceOf(address(paymaster)), initialBalance + amount);
     }
 
     function test_withdrawTo_revertsIfWithdrawAddressIsZeroAddress() public {
@@ -99,120 +135,172 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         paymaster.withdrawTo(payable(address(0)), 1);
     }
 
-    function test_withdrawTo_withdrawsFromEntryPoint(uint256 amount)
+    function test_withdrawTo_revertsIfInsufficientBalance(address payable withdrawAddress, uint256 amount) public {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        vm.prank(signer.addr);
+        vm.expectRevert(
+            abi.encodeWithSelector(Paymaster.InsufficientMagicSpendBalance.selector, signer.addr, 0, amount)
+        );
+        paymaster.withdrawTo(withdrawAddress, amount);
+    }
+
+    function test_withdrawTo_decrementsMagicSpendBalance(address payable withdrawAddress, uint256 amount)
+        external
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        uint256 initialBalance = paymaster.getMagicSpendBalance(signer.addr);
+
+        vm.prank(signer.addr);
+        paymaster.withdrawTo(withdrawAddress, amount);
+
+        assertEq(paymaster.getMagicSpendBalance(signer.addr), initialBalance - amount);
+    }
+
+    function test_withdrawTo_withdrawsFromPaymaster(address payable withdrawAddress, uint256 amount)
         public
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
     {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        uint256 initialBalance = address(paymaster).balance;
+
+        vm.prank(signer.addr);
+        paymaster.withdrawTo(withdrawAddress, amount);
+
+        assertEq(address(paymaster).balance, initialBalance - amount);
+    }
+
+    function test_withdrawTo_sendsFundsToWithdrawAddress(address payable withdrawAddress, uint256 amount)
+        public
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        uint256 initialBalance = withdrawAddress.balance;
+
+        vm.prank(signer.addr);
+        paymaster.withdrawTo(withdrawAddress, amount);
+
+        assertEq(withdrawAddress.balance, initialBalance + amount);
+    }
+
+    function test_entryPointWithdrawTo_revertsIfWithdrawAddressIsZeroAddress() public {
+        vm.prank(signer.addr);
+        vm.expectRevert(Paymaster.ZeroAddress.selector);
+        paymaster.entryPointWithdrawTo(payable(address(0)), 1);
+    }
+
+    function test_entryPointWithdrawTo_revertsIfInsufficientBalance(address payable withdrawAddress, uint256 amount)
+        public
+    {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        vm.prank(signer.addr);
+        vm.expectRevert(abi.encodeWithSelector(Paymaster.InsufficientGasBalance.selector, signer.addr, 0, amount));
+        paymaster.entryPointWithdrawTo(withdrawAddress, amount);
+    }
+
+    function test_entryPointWithdrawTo_decrementsGasBalance(address payable withdrawAddress, uint256 amount)
+        external
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
         _deposit(amount);
+
+        uint256 initialBalance = paymaster.getGasBalance(signer.addr);
+
+        vm.prank(signer.addr);
+        paymaster.entryPointWithdrawTo(withdrawAddress, amount);
+
+        assertEq(paymaster.getGasBalance(signer.addr), initialBalance - amount);
+    }
+
+    function test_entryPointWithdrawTo_decrementsTotalTrackedGasBalance(address payable withdrawAddress, uint256 amount)
+        external
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        _deposit(amount);
+
+        uint256 initialBalance = paymaster.totalTrackedGasBalance();
+
+        vm.prank(signer.addr);
+        paymaster.entryPointWithdrawTo(withdrawAddress, amount);
+
+        assertEq(paymaster.totalTrackedGasBalance(), initialBalance - amount);
+    }
+
+    function test_entryPointWithdrawTo_withdrawsFromEntryPoint(address payable withdrawAddress, uint256 amount)
+        public
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
+
+        _deposit(amount);
+
         uint256 initialBalance = address(entryPoint).balance;
 
         vm.prank(signer.addr);
-        paymaster.withdrawTo(payable(ALICE), amount);
+        paymaster.entryPointWithdrawTo(withdrawAddress, amount);
 
         assertEq(address(entryPoint).balance, initialBalance - amount);
     }
 
-    function test_withdrawTo_sendsFundsToWithdrawAddress(uint256 amount)
+    function test_entryPointWithdrawTo_sendsFundsToWithdrawAddress(address payable withdrawAddress, uint256 amount)
         public
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
     {
-        uint256 initialBalance = payable(ALICE).balance;
+        vm.assume(amount > 0);
+        _isValidWithdrawAddress(withdrawAddress);
 
         _deposit(amount);
 
+        uint256 initialBalance = withdrawAddress.balance;
+
         vm.prank(signer.addr);
-        paymaster.withdrawTo(payable(ALICE), amount);
+        paymaster.entryPointWithdrawTo(withdrawAddress, amount);
 
-        assertEq(payable(ALICE).balance, initialBalance + amount);
-    }
-
-    function test_setClaimAddress_revertsIfNotCalledByOwner() public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        paymaster.setClaimAddress(address(0));
-    }
-
-    function test_setClaimAddress_revertsIfClaimAddressIsZeroAddress() public {
-        vm.prank(signer.addr);
-        vm.expectRevert(Paymaster.ZeroAddress.selector);
-        paymaster.setClaimAddress(address(0));
+        assertEq(withdrawAddress.balance, initialBalance + amount);
     }
 
     function test_setClaimAddress_setsClaimAddress(address newClaimAddress) public {
-        vm.assume(newClaimAddress != address(0));
-
-        address startClaimAddress = paymaster.claimAddress();
+        address startClaimAddress = paymaster.fulfillerClaimAddress(signer.addr);
 
         vm.prank(signer.addr);
         paymaster.setClaimAddress(newClaimAddress);
 
-        assertEq(startClaimAddress, signer.addr);
-        assertEq(paymaster.claimAddress(), newClaimAddress);
+        assertEq(startClaimAddress, address(0));
+        assertEq(paymaster.fulfillerClaimAddress(signer.addr), newClaimAddress);
     }
 
     function test_setClaimAddress_emitsClaimAddressSetEvent() public {
         address newClaimAddress = address(0x123);
 
-        vm.expectEmit(true, true, false, false);
-        emit ClaimAddressSet(newClaimAddress);
+        vm.expectEmit(true, true, true, false);
+        emit ClaimAddressSet(signer.addr, newClaimAddress);
 
         vm.prank(signer.addr);
         paymaster.setClaimAddress(newClaimAddress);
-    }
-
-    function test_entryPointAddStake_revertsIfNotCalledByOwner() public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        paymaster.entryPointAddStake(1);
-    }
-
-    function test_entryPointAddStake_addsStakeToEntryPoint(uint112 amount) public fundAccount(signer.addr, amount) {
-        vm.assume(amount > 0);
-
-        uint256 initialStake = entryPoint.getDepositInfo(address(paymaster)).stake;
-
-        vm.prank(signer.addr);
-        paymaster.entryPointAddStake{value: amount}(1);
-
-        assertEq(entryPoint.getDepositInfo(address(paymaster)).stake, initialStake + amount);
-    }
-
-    function test_entryPointUnlockStake_revertsIfNotCalledByOwner() public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        paymaster.entryPointUnlockStake();
-    }
-
-    function test_entryPointUnlockStake_unlocksStake(uint112 amount) public fundAccount(signer.addr, amount) {
-        vm.assume(amount > 0);
-
-        vm.prank(signer.addr);
-        paymaster.entryPointAddStake{value: 1}(1);
-
-        vm.prank(signer.addr);
-        paymaster.entryPointUnlockStake();
-
-        assertEq(entryPoint.getDepositInfo(address(paymaster)).withdrawTime, block.timestamp + 1);
-        assertEq(entryPoint.getDepositInfo(address(paymaster)).staked, false);
-    }
-
-    function test_entryPointWithdrawStake_revertsIfNotCalledByOwner() public {
-        vm.expectRevert(Ownable.Unauthorized.selector);
-        paymaster.entryPointWithdrawStake(payable(address(0)));
-    }
-
-    function test_entryPointWithdrawStake_withdrawsStake(uint112 amount) public fundAccount(signer.addr, amount) {
-        vm.assume(amount > 0);
-
-        vm.startPrank(signer.addr);
-        paymaster.entryPointAddStake{value: amount}(1);
-        paymaster.entryPointUnlockStake();
-
-        vm.warp(block.timestamp + 1);
-
-        paymaster.entryPointWithdrawStake(payable(ALICE));
-        vm.stopPrank();
-
-        assertEq(payable(ALICE).balance, amount);
     }
 
     function test_validatePaymasterUserOp_revertsIfNotCalledByEntryPoint(
@@ -224,31 +312,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         paymaster.validatePaymasterUserOp(userOp, userOpHash, maxCost);
     }
 
-    function test_validatePaymasterUserOp_revertsIfInvalidSignature(uint256 amount)
-        public
-        fundAccount(signer.addr, amount)
-        fundPaymaster(signer.addr, amount)
-    {
-        PackedUserOperation[] memory userOps = _generateUserOps(1000, amount, address(0));
-        uint256 maxCost = this.calculateMaxCost(userOps[0]);
-
-        vm.assume(maxCost <= amount && amount <= type(uint256).max - maxCost);
-        _deposit(maxCost);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IEntryPoint.FailedOpWithRevert.selector,
-                0,
-                "AA33 reverted",
-                abi.encodeWithSelector(
-                    Paymaster.InvalidSignature.selector, 0x7F1d642DbfD62aD4A8fA9810eA619707d09825D0, signer.addr
-                )
-            )
-        );
-        entryPoint.handleOps(userOps, payable(BUNDLER));
-    }
-
-    function test_validatePaymasterUserOp_revertsIfFulfillerDoesNotHaveEnoughBalance(uint256 amount)
+    function test_validatePaymasterUserOp_revertsIfFulfillerDoesNotHaveEnoughMagicSpendBalance(uint256 amount)
         public
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
@@ -265,7 +329,30 @@ contract PaymasterTest is BaseTest, MockEndpoint {
                 IEntryPoint.FailedOpWithRevert.selector,
                 0,
                 "AA33 reverted",
-                abi.encodeWithSelector(Paymaster.InsufficientBalance.selector, 0, amount)
+                abi.encodeWithSelector(Paymaster.InsufficientMagicSpendBalance.selector, signer.addr, 0, amount)
+            )
+        );
+        entryPoint.handleOps(userOps, payable(BUNDLER));
+    }
+
+    function test_validatePaymasterUserOp_revertsIfFulfillerHasInsufficientGasBalance(uint256 amount)
+        public
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        PackedUserOperation[] memory userOps = _generateUserOps(otherSigner.privateKey, amount, address(0));
+        uint256 maxCost = this.calculateMaxCost(userOps[0]);
+
+        vm.assume(maxCost <= amount && amount <= type(uint256).max - maxCost);
+
+        _deposit(maxCost);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IEntryPoint.FailedOpWithRevert.selector,
+                0,
+                "AA33 reverted",
+                abi.encodeWithSelector(Paymaster.InsufficientGasBalance.selector, otherSigner.addr, 0, maxCost)
             )
         );
         entryPoint.handleOps(userOps, payable(BUNDLER));
@@ -276,16 +363,33 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
     {
+        assertEq(paymaster.getGasBalance(signer.addr), address(entryPoint).balance);
         PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0));
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
-        uint256 initialBalance = address(paymaster).balance;
 
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
-        assertEq(address(paymaster).balance, initialBalance - ethAmount);
+        assertEq(paymaster.getGasBalance(signer.addr), address(entryPoint).balance);
+    }
+
+    function test_validatePaymasterUserOp_revertsIfPrecheckFails(uint256 amount, uint256 ethAmount)
+        public
+        fundAccount(signer.addr, amount)
+        fundPaymaster(signer.addr, amount)
+    {
+        vm.assume(ethAmount > 0);
+
+        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, precheckAddress);
+        uint256 maxCost = this.calculateMaxCost(userOps[0]);
+
+        vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
+        _deposit(maxCost);
+
+        vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOpWithRevert.selector, 0, "AA33 reverted", ""));
+        entryPoint.handleOps(userOps, payable(BUNDLER));
     }
 
     function test_validatePaymasterUserOp_storesExecutionReceipt(uint256 amount, uint256 ethAmount)
@@ -300,15 +404,11 @@ contract PaymasterTest is BaseTest, MockEndpoint {
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
-        uint256 initialBalance = address(paymaster).balance;
 
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo =
-            inbox.getFulfillmentInfo(entryPoint.getUserOpHash(userOps[0]));
-
-        assertEq(fulfillmentInfo.fulfiller, address(signer.addr));
-        assertNotEq(fulfillmentInfo.timestamp, 0);
+        assertEq(paymaster.requestHash(), entryPoint.getUserOpHash(userOps[0]));
+        assertEq(paymaster.fulfiller(), address(signer.addr));
     }
 
     function test_validatePaymasterUserOp_doesNotStoreExecutionReceiptIfOpFails(uint256 amount)
@@ -322,42 +422,40 @@ contract PaymasterTest is BaseTest, MockEndpoint {
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
-        uint256 initialBalance = address(paymaster).balance;
 
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo =
-            inbox.getFulfillmentInfo(entryPoint.getUserOpHash(userOps[0]));
-
-        assertEq(fulfillmentInfo.fulfiller, address(0));
-        assertEq(fulfillmentInfo.timestamp, 0);
+        assertEq(paymaster.requestHash(), bytes32(0));
+        assertEq(paymaster.fulfiller(), address(0));
     }
 
-    function test_validatePaymasterUserOp_revertsIfPrecheckFails(uint256 amount, uint256 ethAmount)
+    function test_validatePaymasterUserOp_decrementsMagicSpendBalance(uint256 amount, uint256 ethAmount)
         public
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
     {
         vm.assume(ethAmount > 0);
 
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, precheck);
+        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0));
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
-        uint256 initialBalance = address(paymaster).balance;
+        uint256 initialBalance = paymaster.getMagicSpendBalance(signer.addr);
 
-        vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOpWithRevert.selector, 0, "AA33 reverted", ""));
         entryPoint.handleOps(userOps, payable(BUNDLER));
+
+        assertEq(paymaster.getMagicSpendBalance(signer.addr), initialBalance - ethAmount);
     }
 
     function _generateUserOps(uint256 signerKey, uint256 ethAmount, address precheck)
         private
+        view
         returns (PackedUserOperation[] memory)
     {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = PackedUserOperation({
-            sender: address(account),
+            sender: address(mockAccount),
             nonce: 0,
             initCode: "",
             callData: abi.encodeWithSelector(MockAccount.executeUserOp.selector, address(paymaster)),
@@ -368,18 +466,18 @@ contract PaymasterTest is BaseTest, MockEndpoint {
             signature: abi.encode(0)
         });
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, _genDigest(userOps[0], ethAmount).toEthSignedMessageHash());
-        userOps[0].paymasterAndData =
-            _encodePaymasterAndData(address(paymaster), abi.encodePacked(r, s, v), ethAmount, precheck);
+        userOps[0].paymasterAndData = _encodePaymasterAndData(abi.encodePacked(r, s, v), ethAmount, precheck);
         return userOps;
     }
 
-    function _encodePaymasterAndData(address paymaster, bytes memory signature, uint256 ethAmount, address precheck)
+    function _encodePaymasterAndData(bytes memory signature, uint256 ethAmount, address precheck)
         private
-        pure
+        view
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(paymaster, uint128(1000000), uint128(1000000), abi.encode(ethAmount, signature, precheck));
+        return abi.encodePacked(
+            address(paymaster), uint128(1000000), uint128(1000000), abi.encode(ethAmount, signature, precheck)
+        );
     }
 
     function _genDigest(PackedUserOperation memory userOp, uint256 ethAmount) private view returns (bytes32) {
@@ -396,5 +494,9 @@ contract PaymasterTest is BaseTest, MockEndpoint {
     function _deposit(uint256 amount) private {
         vm.prank(signer.addr);
         paymaster.entryPointDeposit(amount);
+    }
+
+    function _isValidWithdrawAddress(address withdrawAddress) private view {
+        vm.assume(withdrawAddress.code.length == 0 && uint256(uint160(withdrawAddress)) > 65535);
     }
 }
