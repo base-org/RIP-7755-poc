@@ -96,4 +96,7 @@ contract HelperConfig is Script {
             entryPoint: address(entryPoint)
         });
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

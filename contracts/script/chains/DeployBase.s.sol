@@ -27,4 +27,7 @@ contract DeployBase is Script {
         new RIP7755OutboxToHashi();
         vm.stopBroadcast();
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

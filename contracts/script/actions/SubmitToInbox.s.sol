@@ -44,4 +44,7 @@ contract SubmitToInbox is Script, ERC7786Base {
 
         return (sourceChain, sender, calls, attributes);
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

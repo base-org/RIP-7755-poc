@@ -63,4 +63,7 @@ contract SubmitRequest is Script, ERC7786Base {
 
         return (destinationChain, calls, attributes);
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }
