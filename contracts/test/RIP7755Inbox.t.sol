@@ -111,6 +111,21 @@ contract RIP7755InboxTest is BaseTest {
         assertEq(ALICE.balance, amount);
     }
 
+    function test_executeMessages_doesntSendsEth(uint256 amount) external {
+        TestMessage memory m = _initMessage(false, false);
+
+        bytes[] memory attributes = new bytes[](1);
+        attributes[0] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
+
+        _appendMessage(m, Message({receiver: ALICE.toChecksumHexString(), payload: "", attributes: attributes}));
+
+        vm.deal(FILLER, amount);
+        vm.prank(FILLER);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
+
+        assertEq(ALICE.balance, 0);
+    }
+
     function test_executeMessages_reverts_ifTargetContractReverts() external {
         TestMessage memory m = _initMessage(false, false);
 
