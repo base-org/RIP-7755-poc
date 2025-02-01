@@ -177,7 +177,7 @@ library StateValidator {
     /// @param encodedAccount An RLP-encoded account object
     ///
     /// @return _ The account's storage root
-    function _extractStorageRoot(bytes memory encodedAccount) private pure returns (bytes32) {
+    function _extractStorageRoot(bytes memory encodedAccount) internal pure returns (bytes32) {
         RLPReader.RLPItem[] memory accountFields = encodedAccount.readList();
 
         if (accountFields.length != 4) {
