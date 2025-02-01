@@ -6,7 +6,7 @@ import {PackedUserOperation} from "account-abstraction/core/EntryPoint.sol";
 contract MockAccount {
     receive() external payable {}
 
-    function validateUserOp(PackedUserOperation calldata userOp, bytes32 userOpHash, uint256 missingAccountFunds)
+    function validateUserOp(PackedUserOperation calldata, bytes32, uint256)
         external
         pure
         returns (uint256 validationData)

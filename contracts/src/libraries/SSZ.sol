@@ -6,6 +6,7 @@ library SSZ {
     uint8 constant SHA256 = 0x02;
 
     /// @notice Modified version of `verifyProof` from https://github.com/madlabman/eip-4788-proof to support a proof in memory as opposed to calldata.
+    ///
     /// @dev Returns whether `leaf` exists in the Merkle tree with `root`, given `proof`.
     function verifyProof(bytes32[] memory proof, bytes32 root, bytes32 leaf, uint256 index)
         internal

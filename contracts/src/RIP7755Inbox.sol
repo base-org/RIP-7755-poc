@@ -16,7 +16,7 @@ import {Paymaster} from "./Paymaster.sol";
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
-/// destination chains and store record of their fulfillment.
+///         destination chains and store record of their fulfillment.
 contract RIP7755Inbox is ERC7786Base, Paymaster {
     using Address for address payable;
     using Strings for string;
@@ -45,12 +45,15 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     /// @param fulfilledBy The account that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
-    /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been fulfilled
+    /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been
+    ///         fulfilled
     error CallAlreadyFulfilled();
 
-    /// @notice This error is thrown if a fulfiller submits a `msg.value` greater than the total value needed for all the calls
+    /// @notice This error is thrown if a fulfiller submits a `msg.value` greater than the total value needed for all
+    ///         the calls
+    ///
     /// @param expected The total value needed for all the calls
-    /// @param actual The received `msg.value`
+    /// @param actual   The received `msg.value`
     error InvalidValue(uint256 expected, uint256 actual);
 
     /// @notice This error is thrown when an invalid caller is detected
@@ -66,9 +69,9 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
 
     /// @notice Delivery of a message sent from another chain.
     ///
-    /// @param sourceChain The CAIP-2 source chain identifier
-    /// @param sender The CAIP-10 account address of the sender
-    /// @param messages The messages to be included in the request
+    /// @param sourceChain      The CAIP-2 source chain identifier
+    /// @param sender           The CAIP-10 account address of the sender
+    /// @param messages         The messages to be included in the request
     /// @param globalAttributes The attributes to be included in the message
     ///
     /// @return selector The selector of the function
@@ -111,9 +114,9 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     /// @dev Filters out the fulfiller attribute from the attributes array
     ///
     /// @param sourceChain The CAIP-2 source chain identifier
-    /// @param sender The CAIP-10 account address of the sender
-    /// @param messages The messages to be included in the request
-    /// @param attributes The attributes to be included in the message
+    /// @param sender      The CAIP-10 account address of the sender
+    /// @param messages    The messages to be included in the request
+    /// @param attributes  The attributes to be included in the message
     ///
     /// @return _ The keccak256 hash of the message request
     function getRequestId(

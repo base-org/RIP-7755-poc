@@ -22,8 +22,10 @@ library BlockHeaders {
     error InvalidBlockFieldRLP();
 
     /// @notice Converts an RLP-encoded block header into a block hash
+    ///
     /// @param blockHeaders The RLP-encoded block headers
-    /// @return The block hash
+    ///
+    /// @return blockHash
     function toBlockHash(bytes memory blockHeaders) internal pure returns (bytes32) {
         return keccak256(blockHeaders);
     }
@@ -32,7 +34,12 @@ library BlockHeaders {
     ///
     /// @custom:reverts If the encoded block array has less than 9 elements
     ///
-    /// @dev The stateRoot should be the 4th element, the blockNumber the 9th and the timestamp should be the 12th element
+    /// @dev The stateRoot should be the 4th element, the blockNumber the 9th and the timestamp should be the 12th
+    ///      element
+    ///
+    /// @return stateRoot
+    /// @return blockNumber
+    /// @return timestamp
     function extractStateRootBlockNumberAndTimestamp(bytes memory blockHeaders)
         internal
         pure
@@ -52,8 +59,11 @@ library BlockHeaders {
     }
 
     /// @notice Extracts the state root and timestamp from an RLP-encoded block header
+    ///
     /// @param blockHeaders The RLP-encoded block headers
-    /// @return The state root and timestamp
+    ///
+    /// @return stateRoot
+    /// @return timestamp
     function extractStateRootAndTimestamp(bytes memory blockHeaders) internal pure returns (bytes32, uint256) {
         RLPReader.RLPItem[] memory blockFields = blockHeaders.readList();
 
@@ -65,8 +75,10 @@ library BlockHeaders {
     }
 
     /// @notice Converts a sequence of bytes into an uint256
+    ///
     /// @param b The bytes to convert
-    /// @return The uint256
+    ///
+    /// @return convertedValue
     function _bytesToUint256(bytes memory b) private pure returns (uint256) {
         if (b.length > 32) revert BytesLengthExceeds32();
         return abi.decode(abi.encodePacked(new bytes(32 - b.length), b), (uint256));

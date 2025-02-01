@@ -57,7 +57,8 @@ library ArbitrumProver {
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof with Arbitrum as the destination chain
     struct RIP7755Proof {
-        /// @dev The RLP-encoded array of block headers of Arbitrum's L2 block corresponding to the above RBlock. Hashing this bytes string should produce the blockhash.
+        /// @dev The RLP-encoded array of block headers of Arbitrum's L2 block corresponding to the above RBlock.
+        ///      Hashing this bytes string should produce the blockhash.
         bytes encodedBlockArray;
         /// @dev The state of the assertion node after the sequencer machine has finished
         AssertionState afterState;
@@ -68,23 +69,25 @@ library ArbitrumProver {
         /// @dev Parameters needed to validate the authenticity of Ethereum's execution client's state root
         StateValidator.StateProofParameters stateProofParams;
         /// @dev Parameters needed to validate the authenticity of the l2Oracle for the destination L2 chain on Eth
-        /// mainnet
+        ///      mainnet
         StateValidator.AccountProofParameters dstL2StateRootProofParams;
-        /// @dev Parameters needed to validate the authenticity of a specified storage location on the destination L2 chain
+        /// @dev Parameters needed to validate the authenticity of a specified storage location on the destination L2
+        ///      chain
         StateValidator.AccountProofParameters dstL2AccountProofParams;
     }
 
     /// @notice The storage key on L1 to validate
     bytes32 private constant _L1_STORAGE_KEY = 0x0000000000000000000000000000000000000000000000000000000000000075;
 
-    // mask of highest 56 bits of a uint256
+    /// @notice mask of highest 56 bits of a uint256
     uint256 private constant _MASK = type(uint256).max << 200;
 
     /// @notice This error is thrown when verification of the authenticity of the l2Oracle for the destination L2 chain
-    /// on Eth mainnet fails
+    ///         on Eth mainnet fails
     error InvalidStateRoot();
 
-    /// @notice This error is thrown when verification of the authenticity of the storage slot on the destination L2 chain fails
+    /// @notice This error is thrown when verification of the authenticity of the storage slot on the destination L2
+    ///         chain fails
     error InvalidL2Storage();
 
     /// @notice This error is thrown when the hashed block headers do not match Arbitrum's verified block hash
@@ -98,24 +101,23 @@ library ArbitrumProver {
     /// @custom:reverts If storage proof invalid.
     /// @custom:reverts If the L2 state root does not correspond to our validated L1 storage slot
     ///
-    /// @param proof The proof to validate
+    /// @param proof  The proof to validate
     /// @param target The proof target on L1 and dst L2
     ///
-    /// @return l2Timestamp The timestamp of the validated L2 state root
+    /// @return l2Timestamp    The timestamp of the validated L2 state root
     /// @return l2StorageValue The storage value of the destination L2 storage slot
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
-        RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
+        RIP7755Proof memory data = abi.decode(proof, (RIP7755Proof));
 
         // Set the expected storage key and value for the destination L2 storage slot
-        proofData.dstL2AccountProofParams.storageKey = target.l2StorageKey;
+        data.dstL2AccountProofParams.storageKey = target.l2StorageKey;
 
         // Derive the new assertion hash which is the mapping key in the Rollup contract's storage for the assertion node
-        bytes32 newAssertionHash =
-            _assertionHash(proofData.prevAssertionHash, proofData.afterState, proofData.sequencerBatchAcc);
+        bytes32 newAssertionHash = _assertionHash(data.prevAssertionHash, data.afterState, data.sequencerBatchAcc);
 
         // Derive the L1 storage key to use in the storage proof. For Arbitrum, we will use the storage slot containing
         // the assertion node
-        proofData.dstL2StateRootProofParams.storageKey = _deriveL1StorageKey(newAssertionHash);
+        data.dstL2StateRootProofParams.storageKey = _deriveL1StorageKey(newAssertionHash);
 
         // We first need to validate knowledge of the destination L2 chain's state root.
         // StateValidator.validateState will accomplish each of the following 4 steps:
@@ -123,46 +125,41 @@ library ArbitrumProver {
         //      2. Validate L1 state root
         //      3. Validate L1 account proof where `account` here is Arbitrum's Rollup contract
         //      4. Validate storage proof proving destination L2 root stored in Rollup contract
-        bool validState =
-            target.l1Address.validateState(proofData.stateProofParams, proofData.dstL2StateRootProofParams);
-
-        if (!validState) {
+        if (!target.l1Address.validateState(data.stateProofParams, data.dstL2StateRootProofParams)) {
             revert InvalidStateRoot();
         }
 
         // Extract the confirmation status of the assertion node
-        AssertionStatus confirmation =
-            _extractConfirmation(bytes32(_format(proofData.dstL2StateRootProofParams.storageValue)));
+        AssertionStatus conf = _extractConfirmation(bytes32(_format(data.dstL2StateRootProofParams.storageValue)));
 
-        if (confirmation != AssertionStatus.Confirmed) {
+        if (conf != AssertionStatus.Confirmed) {
             revert NodeNotConfirmed();
         }
 
-        // As an intermediate step, we need to prove that `proofData.dstL2StateRootProofParams.storageValue` is linked
-        // to the correct l2StateRoot before we can prove l2Storage
+        // As an intermediate step, we need to prove that `data.dstL2StateRootProofParams.storageValue` is linked to
+        // the correct l2StateRoot before we can prove l2Storage
 
         // Derive the L2 blockhash
-        bytes32 l2BlockHash = proofData.afterState.globalState.bytes32Vals[0];
+        bytes32 l2BlockHash = data.afterState.globalState.bytes32Vals[0];
 
-        if (l2BlockHash != proofData.encodedBlockArray.toBlockHash()) {
+        if (l2BlockHash != data.encodedBlockArray.toBlockHash()) {
             revert InvalidBlockHeaders();
         }
 
         // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
-        (bytes32 l2StateRoot, uint256 l2Timestamp) = proofData.encodedBlockArray.extractStateRootAndTimestamp();
+        (bytes32 l2StateRoot, uint256 l2Timestamp) = data.encodedBlockArray.extractStateRootAndTimestamp();
 
         // Because the previous step confirmed L1 state, we do not need to repeat steps 1 and 2 again
-        // We now just need to validate account storage on the destination L2 using StateValidator.validateAccountStorage
+        // We now just need to validate account storage on the destination L2 using
+        // StateValidator.validateAccountStorage
         // This library function will accomplish the following 2 steps:
         //      5. Validate L2 account proof where `account` here is the destination L2 contract
-        //      6. Validate storage proof proving the destination L2 storage slot
-        bool validL2Storage = target.l2Address.validateAccountStorage(l2StateRoot, proofData.dstL2AccountProofParams);
-
-        if (!validL2Storage) {
+        //      6. Validate storage proof proving the destination L2 storage slot;
+        if (!target.l2Address.validateAccountStorage(l2StateRoot, data.dstL2AccountProofParams)) {
             revert InvalidL2Storage();
         }
 
-        return (l2Timestamp, proofData.dstL2AccountProofParams.storageValue);
+        return (l2Timestamp, data.dstL2AccountProofParams.storageValue);
     }
 
     /// @notice Derives the L1 storageKey using the supplied `nodeIndex` and the `confirmData` storage slot offset
@@ -171,8 +168,9 @@ library ArbitrumProver {
     }
 
     /// @notice Extracts the confirmation status of the assertion node from bits 200-207 of the storage value
-    /// @dev Since the confirmation status is the final value stored in the first storage slot of the assertion node,
-    /// we can use a mask of the highest 56 bits to extract it
+    ///
+    /// @dev Since the confirmation status is the final value stored in the first storage slot of the assertion node, we
+    ///      can use a mask of the highest 56 bits to extract it
     function _extractConfirmation(bytes32 storageValue) private pure returns (AssertionStatus) {
         return AssertionStatus((uint256(storageValue) & _MASK) >> 200);
     }

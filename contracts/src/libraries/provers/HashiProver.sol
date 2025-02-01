@@ -38,7 +38,7 @@ library HashiProver {
     error InvalidBlockHeader();
 
     /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
-    /// destination chain fails
+    ///         destination chain fails
     error InvalidStorage();
 
     /// @notice Validates storage proofs and verifies fulfillment
@@ -46,31 +46,29 @@ library HashiProver {
     /// @custom:reverts If RLP-encoded block header does not correspond to the block hash stored in Hashi
     /// @custom:reverts If storage proof invalid.
     ///
-    /// @param proof The proof to validate
+    /// @param proof  The proof to validate
     /// @param target The proof target on L1 and dst L2
     ///
-    /// @return l2Timestamp The timestamp of the validated L2 state root
+    /// @return l2Timestamp    The timestamp of the validated L2 state root
     /// @return l2StorageValue The storage value of the `RIP7755Inbox` storage slot
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
-        RIP7755Proof memory proofData = abi.decode(proof, (RIP7755Proof));
+        RIP7755Proof memory data = abi.decode(proof, (RIP7755Proof));
 
-        proofData.dstAccountProofParams.storageKey = target.storageKey;
+        data.dstAccountProofParams.storageKey = target.storageKey;
 
         (bytes32 stateRoot, uint256 blockNumber, uint256 timestamp) =
-            proofData.rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
+            data.rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
         bytes32 blockHeaderHash =
             IShoyuBashi(target.shoyuBashi).getThresholdHash(target.destinationChainId, blockNumber);
 
-        if (blockHeaderHash != proofData.rlpEncodedBlockHeader.toBlockHash()) {
+        if (blockHeaderHash != data.rlpEncodedBlockHeader.toBlockHash()) {
             revert InvalidBlockHeader();
         }
 
-        bool validStorage = target.addr.validateAccountStorage(stateRoot, proofData.dstAccountProofParams);
-
-        if (!validStorage) {
+        if (!target.addr.validateAccountStorage(stateRoot, data.dstAccountProofParams)) {
             revert InvalidStorage();
         }
 
-        return (timestamp, proofData.dstAccountProofParams.storageValue);
+        return (timestamp, data.dstAccountProofParams.storageValue);
     }
 }
