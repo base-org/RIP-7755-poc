@@ -3,7 +3,6 @@ pragma solidity 0.8.24;
 
 import {EntryPoint, IEntryPoint, PackedUserOperation, UserOperationLib} from "account-abstraction/core/EntryPoint.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {ECDSA} from "solady/utils/ECDSA.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
 
 import {BaseTest} from "./BaseTest.t.sol";
@@ -15,7 +14,6 @@ import {MockUserOpPrecheck} from "./mocks/MockUserOpPrecheck.sol";
 
 contract PaymasterTest is BaseTest, MockEndpoint {
     using UserOperationLib for PackedUserOperation;
-    using ECDSA for bytes32;
 
     IEntryPoint entryPoint;
     MockAccount mockAccount;
@@ -317,7 +315,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
     {
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, amount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(amount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         _deposit(amount);
@@ -332,6 +330,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
                 abi.encodeWithSelector(Paymaster.InsufficientMagicSpendBalance.selector, signer.addr, 0, amount)
             )
         );
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
     }
 
@@ -340,7 +339,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         fundAccount(signer.addr, amount)
         fundPaymaster(signer.addr, amount)
     {
-        PackedUserOperation[] memory userOps = _generateUserOps(otherSigner.privateKey, amount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(amount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(maxCost <= amount && amount <= type(uint256).max - maxCost);
@@ -355,6 +354,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
                 abi.encodeWithSelector(Paymaster.InsufficientGasBalance.selector, otherSigner.addr, 0, maxCost)
             )
         );
+        vm.prank(otherSigner.addr, otherSigner.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
     }
 
@@ -362,15 +362,16 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         uint256 amount,
         uint256 ethAmount
     ) public fundAccount(signer.addr, amount) fundPaymaster(signer.addr, amount) {
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(ethAmount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost * 2 && ethAmount + maxCost * 2 < amount);
         _deposit(maxCost);
 
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
-        userOps = _generateUserOps(otherSigner.privateKey, ethAmount, address(0), 1);
+        userOps = _generateUserOps(ethAmount, address(0), 1);
         maxCost = this.calculateMaxCost(userOps[0]);
         _deposit(maxCost);
 
@@ -382,6 +383,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
                 abi.encodeWithSelector(Paymaster.InsufficientGasBalance.selector, otherSigner.addr, 0, maxCost)
             )
         );
+        vm.prank(otherSigner.addr, otherSigner.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
     }
 
@@ -391,12 +393,13 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         fundPaymaster(signer.addr, amount)
     {
         assertEq(paymaster.getGasBalance(signer.addr), address(entryPoint).balance);
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(ethAmount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
 
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
         assertEq(paymaster.getGasBalance(signer.addr), address(entryPoint).balance);
@@ -409,13 +412,14 @@ contract PaymasterTest is BaseTest, MockEndpoint {
     {
         vm.assume(ethAmount > 0);
 
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, precheckAddress, 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(ethAmount, precheckAddress, 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
 
         vm.expectRevert(abi.encodeWithSelector(IEntryPoint.FailedOpWithRevert.selector, 0, "AA33 reverted", ""));
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
     }
 
@@ -426,12 +430,13 @@ contract PaymasterTest is BaseTest, MockEndpoint {
     {
         vm.assume(ethAmount > 0);
 
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(ethAmount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
 
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
         assertEq(paymaster.requestHash(), entryPoint.getUserOpHash(userOps[0]));
@@ -444,12 +449,13 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         fundPaymaster(signer.addr, amount)
     {
         uint256 ethAmount = 0;
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(ethAmount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
 
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
         assertEq(paymaster.requestHash(), bytes32(0));
@@ -463,19 +469,20 @@ contract PaymasterTest is BaseTest, MockEndpoint {
     {
         vm.assume(ethAmount > 0);
 
-        PackedUserOperation[] memory userOps = _generateUserOps(signer.privateKey, ethAmount, address(0), 0);
+        PackedUserOperation[] memory userOps = _generateUserOps(ethAmount, address(0), 0);
         uint256 maxCost = this.calculateMaxCost(userOps[0]);
 
         vm.assume(ethAmount < type(uint256).max - maxCost && ethAmount + maxCost < amount);
         _deposit(maxCost);
         uint256 initialBalance = paymaster.getMagicSpendBalance(signer.addr);
 
+        vm.prank(signer.addr, signer.addr);
         entryPoint.handleOps(userOps, payable(BUNDLER));
 
         assertEq(paymaster.getMagicSpendBalance(signer.addr), initialBalance - ethAmount);
     }
 
-    function _generateUserOps(uint256 signerKey, uint256 ethAmount, address precheck, uint256 nonce)
+    function _generateUserOps(uint256 ethAmount, address precheck, uint256 nonce)
         private
         view
         returns (PackedUserOperation[] memory)
@@ -489,27 +496,14 @@ contract PaymasterTest is BaseTest, MockEndpoint {
             accountGasLimits: bytes32(abi.encodePacked(uint128(1000000), uint128(1000000))),
             preVerificationGas: 100000,
             gasFees: bytes32(abi.encodePacked(uint128(1000000), uint128(1000000))),
-            paymasterAndData: "",
+            paymasterAndData: _encodePaymasterAndData(ethAmount, precheck),
             signature: abi.encode(0)
         });
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, _genDigest(userOps[0], ethAmount).toEthSignedMessageHash());
-        userOps[0].paymasterAndData = _encodePaymasterAndData(abi.encodePacked(r, s, v), ethAmount, precheck);
         return userOps;
     }
 
-    function _encodePaymasterAndData(bytes memory signature, uint256 ethAmount, address precheck)
-        private
-        view
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            address(paymaster), uint128(1000000), uint128(1000000), abi.encode(ethAmount, signature, precheck)
-        );
-    }
-
-    function _genDigest(PackedUserOperation memory userOp, uint256 ethAmount) private view returns (bytes32) {
-        uint256 dstChainId = block.chainid;
-        return keccak256(abi.encode(userOp.sender, userOp.nonce, userOp.callData, ethAmount, dstChainId));
+    function _encodePaymasterAndData(uint256 ethAmount, address precheck) private view returns (bytes memory) {
+        return abi.encodePacked(address(paymaster), uint128(1000000), uint128(1000000), abi.encode(ethAmount, precheck));
     }
 
     function calculateMaxCost(PackedUserOperation calldata userOp) public view returns (uint256) {

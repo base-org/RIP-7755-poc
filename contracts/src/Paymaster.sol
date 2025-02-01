@@ -4,7 +4,6 @@ pragma solidity 0.8.24;
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 import {IPaymaster} from "account-abstraction/interfaces/IPaymaster.sol";
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
-import {ECDSA} from "solady/utils/ECDSA.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {IUserOpPrecheck} from "./interfaces/IUserOpPrecheck.sol";
@@ -16,7 +15,6 @@ import {IUserOpPrecheck} from "./interfaces/IUserOpPrecheck.sol";
 /// @notice This contract is used as a hook for fulfillers to provide funds for requested transactions when the
 ///         cross-chain call(s) are ERC-4337 User Operations
 abstract contract Paymaster is IPaymaster {
-    using ECDSA for bytes32;
     using SafeTransferLib for address payable;
 
     /// @notice The context structure returned by validatePaymasterUserOp
@@ -229,10 +227,9 @@ abstract contract Paymaster is IPaymaster {
         returns (bytes memory context, uint256 validationData)
     {
         _settleBalanceDiff(maxCost);
-        (uint256 ethAmount, bytes memory signature, address precheckContract) =
-            abi.decode(userOp.paymasterAndData[52:], (uint256, bytes, address));
+        (uint256 ethAmount, address precheckContract) = abi.decode(userOp.paymasterAndData[52:], (uint256, address));
 
-        address fulfiller = _genDigest(userOp, ethAmount).toEthSignedMessageHash().recover(signature);
+        address fulfiller = tx.origin;
         uint256 balance = _magicSpendBalance[fulfiller];
         uint256 gasBalance = _ethForGas[fulfiller];
 
@@ -396,16 +393,5 @@ abstract contract Paymaster is IPaymaster {
         uint256 entryPointBalance = ENTRY_POINT.balanceOf(address(this)) + maxCost;
 
         return totalTrackedEthBalance_ - entryPointBalance;
-    }
-
-    /// @notice A function that generates the digest that the fulfiller's signature is for
-    ///
-    /// @param userOp    The User Operation to generate a digest for
-    /// @param ethAmount The amount of eth in the User Operation
-    ///
-    /// @return digest The digest for the fulfiller's signature
-    function _genDigest(PackedUserOperation calldata userOp, uint256 ethAmount) private view returns (bytes32) {
-        uint256 dstChainId = block.chainid;
-        return keccak256(abi.encode(userOp.sender, userOp.nonce, userOp.callData, ethAmount, dstChainId));
     }
 }

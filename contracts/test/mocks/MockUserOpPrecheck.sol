@@ -7,7 +7,7 @@ import {IUserOpPrecheck} from "../../src/interfaces/IUserOpPrecheck.sol";
 
 contract MockUserOpPrecheck is IUserOpPrecheck {
     function precheckUserOp(PackedUserOperation calldata userOp, address fulfiller) external pure {
-        address expectedCaller = abi.decode(userOp.paymasterAndData[188:], (address));
+        address expectedCaller = abi.decode(userOp.paymasterAndData[104:], (address));
 
         if (expectedCaller != fulfiller) {
             revert();
