@@ -21,6 +21,7 @@ contract ArbitrumProverTest is BaseTest {
     using Strings for address;
 
     MockArbitrumProver prover;
+    string unconfirmedState;
 
     address private constant _INBOX_CONTRACT = 0xdac62f96404AB882F5a61CFCaFb0C470a19FC514;
 
@@ -35,11 +36,13 @@ contract ArbitrumProverTest is BaseTest {
             string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidBlockHeaders.json");
         string memory invalidL2StoragePath =
             string.concat(rootPath, "/test/data/invalids/ArbitrumInvalidL2Storage.json");
+        string memory unconfirmedStatePath = string.concat(rootPath, "/test/data/invalids/ArbitrumUnconfirmed.json");
 
         validProof = vm.readFile(path);
         invalidL1State = vm.readFile(invalidPath);
         invalidBlockHeaders = vm.readFile(invalidBlockHeadersPath);
         invalidL2Storage = vm.readFile(invalidL2StoragePath);
+        unconfirmedState = vm.readFile(unconfirmedStatePath);
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
@@ -66,6 +69,19 @@ contract ArbitrumProverTest is BaseTest {
 
         vm.prank(FILLER);
         vm.expectRevert(ArbitrumProver.InvalidStateRoot.selector);
+        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
+    }
+
+    function test_reverts_ifUnconfirmed() external fundAlice(_REWARD_AMOUNT) {
+        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+            _initMessage(_REWARD_AMOUNT);
+        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
+
+        ArbitrumProver.RIP7755Proof memory proof = _buildProof(unconfirmedState);
+        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
+
+        vm.prank(FILLER);
+        vm.expectRevert(ArbitrumProver.NodeNotConfirmed.selector);
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
