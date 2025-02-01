@@ -38,8 +38,6 @@ library SSZ {
                     // Call sha256 precompile
                     let result := staticcall(gas(), SHA256, 0x00, 0x40, 0x00, 0x20)
 
-                    if eq(result, 0) { revert(0, 0) }
-
                     // Reuse `leaf` to store the hash to reduce stack operations.
                     leaf := mload(0x00)
                     offset := add(offset, 0x20)
