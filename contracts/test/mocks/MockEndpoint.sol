@@ -18,6 +18,9 @@ contract MockEndpoint {
         uint256 maxPriorityFeePerGas;
     }
 
+    // Including to block from coverage report
+    function test_nest() external {}
+
     function _copyUserOpToMemory(PackedUserOperation calldata userOp, MemoryUserOp memory mUserOp) internal pure {
         mUserOp.sender = userOp.sender;
         mUserOp.nonce = userOp.nonce;

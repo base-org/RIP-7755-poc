@@ -10,4 +10,7 @@ contract MockArbitrumProver is RIP7755OutboxToArbitrum {
     {
         _validateProof(storageKey, inbox, attributes, proof);
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

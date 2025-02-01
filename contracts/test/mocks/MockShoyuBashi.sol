@@ -11,4 +11,7 @@ contract MockShoyuBashi {
     function setHash(uint256 domain, uint256 id, bytes32 hash) external {
         _hashes[domain][id] = hash;
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

@@ -10,4 +10,7 @@ contract MockOutbox is RIP7755Outbox {
         bytes[] calldata attributes,
         bytes calldata proofData
     ) internal view override {}
+
+    // Including to block from coverage report
+    function test() external {}
 }

@@ -10,4 +10,7 @@ contract MockOPStackProver is RIP7755OutboxToOPStack {
     {
         _validateProof(storageKey, inbox, attributes, proof);
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

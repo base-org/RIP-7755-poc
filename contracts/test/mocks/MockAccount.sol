@@ -19,4 +19,7 @@ contract MockAccount {
         (bool success,) = paymaster.call(abi.encodeWithSelector(selector));
         require(success, "Failed to call withdrawGasExcess");
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }

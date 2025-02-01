@@ -13,4 +13,7 @@ contract MockPaymaster is Paymaster {
         requestHash = _requestHash;
         fulfiller = _fulfiller;
     }
+
+    // Including to block from coverage report
+    function test() external {}
 }
