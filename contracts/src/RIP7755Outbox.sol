@@ -52,43 +52,50 @@ abstract contract RIP7755Outbox is ERC7786Base {
     uint256 private _nonce;
 
     /// @notice Event emitted when a user sends a message to the `RIP7755Inbox`
-    /// @param outboxId The keccak256 hash of the message request
+    ///
+    /// @param outboxId         The keccak256 hash of the message request
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param sender The CAIP-10 account address of the sender
-    /// @param messages The messages to be included in the request
+    /// @param sender           The CAIP-10 account address of the sender
+    /// @param messages         The messages to be included in the request
     /// @param globalAttributes The attributes to be included in the message
     event MessagesPosted(
         bytes32 indexed outboxId, string destinationChain, string sender, Message[] messages, bytes[] globalAttributes
     );
 
     /// @notice Event emitted when a cross chain call is successfully completed
+    ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
-    /// @param submitter The address of the fulfiller that successfully completed the cross chain call
+    /// @param submitter   The address of the fulfiller that successfully completed the cross chain call
     event CrossChainCallCompleted(bytes32 indexed requestHash, address submitter);
 
     /// @notice Event emitted when an expired cross chain call request is canceled
+    ///
     /// @param requestHash The keccak256 hash of a `CrossChainRequest`
     event CrossChainCallCanceled(bytes32 indexed requestHash);
 
     /// @notice This error is thrown when a cross chain request specifies the native currency as the reward type but
     ///         does not send the correct `msg.value`
+    ///
     /// @param expected The expected `msg.value` that should have been sent with the transaction
     /// @param received The actual `msg.value` that was sent with the transaction
     error InvalidValue(uint256 expected, uint256 received);
 
     /// @notice This error is thrown if a user attempts to cancel a request or a Filler attempts to claim a reward for
     ///         a request that is not in the `CrossChainCallStatus.Requested` state
+    ///
     /// @param expected The expected status during the transaction
-    /// @param actual The actual request status during the transaction
+    /// @param actual   The actual request status during the transaction
     error InvalidStatus(CrossChainCallStatus expected, CrossChainCallStatus actual);
 
     /// @notice This error is thrown if an attempt to cancel a request is made before the request's expiry timestamp
+    ///
     /// @param currentTimestamp The current block timestamp
-    /// @param expiry The timestamp at which the request expires
+    /// @param expiry           The timestamp at which the request expires
     error CannotCancelRequestBeforeExpiry(uint256 currentTimestamp, uint256 expiry);
 
     /// @notice This error is thrown if an account attempts to cancel a request that did not originate from that account
-    /// @param caller The account attempting the request cancellation
+    ///
+    /// @param caller         The account attempting the request cancellation
     /// @param expectedCaller The account that created the request
     error InvalidCaller(address caller, address expectedCaller);
 
@@ -96,17 +103,20 @@ abstract contract RIP7755Outbox is ERC7786Base {
     error ExpiryTooSoon();
 
     /// @notice This error is thrown if an unsupported attribute is provided
+    ///
     /// @param selector The selector of the unsupported attribute
     error UnsupportedAttribute(bytes4 selector);
 
     /// @notice This error is thrown if the attribute length supplied to `sendMessage` is not equal to the expected
     ///         length
+    ///
     /// @param expected The expected length of the attributes
-    /// @param actual The actual length of the attributes
+    /// @param actual   The actual length of the attributes
     error InvalidAttributeLength(uint256 expected, uint256 actual);
 
     /// @notice This error is thrown if a required attribute is missing from the global attributes array for a 7755
     ///         request
+    ///
     /// @param selector The selector of the missing attribute
     error MissingRequiredAttribute(bytes4 selector);
 
@@ -114,15 +124,15 @@ abstract contract RIP7755Outbox is ERC7786Base {
     ///
     /// @custom:reverts If the attributes array length is less than 3
     /// @custom:reverts If a required attribute is missing from the global attributes array. Required attributes are:
-    ///                 - Reward attribute
-    ///                 - Delay attribute
-    ///                 - Inbox attribute
+    ///                   - Reward attribute
+    ///                   - Delay attribute
+    ///                   - Inbox attribute
     /// @custom:reverts If an unsupported attribute is provided
     ///
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param receiver The CAIP-10 account address of the receiver (not including the chain identifier)
-    /// @param payload The encoded calls array
-    /// @param attributes The attributes to be included in the message
+    /// @param receiver         The CAIP-10 account address of the receiver (not including the chain identifier)
+    /// @param payload          The encoded calls array
+    /// @param attributes       The attributes to be included in the message
     ///
     /// @return messageId The generated request id
     function sendMessage(
@@ -140,13 +150,13 @@ abstract contract RIP7755Outbox is ERC7786Base {
     ///
     /// @custom:reverts If the attributes array length is less than 3
     /// @custom:reverts If a required attribute is missing from the global attributes array. Required attributes are:
-    ///                 - Reward attribute
-    ///                 - Delay attribute
-    ///                 - Inbox attribute
+    ///                   - Reward attribute
+    ///                   - Delay attribute
+    ///                   - Inbox attribute
     /// @custom:reverts If an unsupported attribute is provided
     ///
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param messages The messages to be included in the request
+    /// @param messages         The messages to be included in the request
     /// @param globalAttributes The attributes to be included in the message
     ///
     /// @return messageId The generated request id
@@ -166,13 +176,13 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @custom:reverts If finality delay seconds have not passed since the request was fulfilled on destination chain
     /// @custom:reverts If the reward attribute is not found in the attributes array
     ///
-    /// @param sender The CAIP-10 account address of the sender
-    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param messages The messages to be included in the request
+    /// @param sender             The CAIP-10 account address of the sender
+    /// @param destinationChain   The CAIP-2 chain identifier of the destination chain
+    /// @param messages           The messages to be included in the request
     /// @param expandedAttributes The attributes to be included in the message
-    /// @param proof A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in storage on
-    ///              the destination chain
-    /// @param payTo The address the Filler wants to receive the reward
+    /// @param proof              A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
+    ///                           storage on the destination chain
+    /// @param payTo              The address the Filler wants to receive the reward
     function claimReward(
         string calldata sender,
         string calldata destinationChain,
@@ -205,9 +215,9 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @custom:reverts If the current block timestamp is less than the expiry timestamp plus the cancel delay seconds
     /// @custom:reverts If the reward attribute is not found in the attributes array
     ///
-    /// @param sender The CAIP-10 account address of the sender
-    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param messages The messages to be included in the request
+    /// @param sender             The CAIP-10 account address of the sender
+    /// @param destinationChain   The CAIP-2 chain identifier of the destination chain
+    /// @param messages           The messages to be included in the request
     /// @param expandedAttributes The attributes to be included in the message
     function cancelMessage(
         string calldata sender,
@@ -262,10 +272,10 @@ abstract contract RIP7755Outbox is ERC7786Base {
 
     /// @notice Returns the keccak256 hash of a message request
     ///
-    /// @param sender The CAIP-10 account address of the sender
+    /// @param sender           The CAIP-10 account address of the sender
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param messages The messages to be included in the request
-    /// @param attributes The attributes to be included in the message
+    /// @param messages         The messages to be included in the request
+    /// @param attributes       The attributes to be included in the message
     ///
     /// @return _ The keccak256 hash of the message request
     function getRequestId(
@@ -279,10 +289,10 @@ abstract contract RIP7755Outbox is ERC7786Base {
 
     /// @notice Returns the keccak256 hash of a message request
     ///
-    /// @param sender The CAIP-10 account address of the sender
+    /// @param sender           The CAIP-10 account address of the sender
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param messages The messages to be included in the request
-    /// @param attributes The attributes to be included in the message
+    /// @param messages         The messages to be included in the request
+    /// @param attributes       The attributes to be included in the message
     ///
     /// @return _ The keccak256 hash of the message request
     function getRequestIdCalldata(
@@ -305,9 +315,9 @@ abstract contract RIP7755Outbox is ERC7786Base {
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
     ///                                `RIP7755Inbox` contract
-    /// @param inbox The address of the `RIP7755Inbox` contract
-    /// @param attributes The attributes to be included in the message
-    /// @param proofData The proof to validate
+    /// @param inbox                   The address of the `RIP7755Inbox` contract
+    /// @param attributes              The attributes to be included in the message
+    /// @param proofData               The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
         address inbox,

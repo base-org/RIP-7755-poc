@@ -506,7 +506,7 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         return abi.encodePacked(address(paymaster), uint128(1000000), uint128(1000000), abi.encode(ethAmount, precheck));
     }
 
-    function calculateMaxCost(PackedUserOperation calldata userOp) public view returns (uint256) {
+    function calculateMaxCost(PackedUserOperation calldata userOp) public pure returns (uint256) {
         MemoryUserOp memory mUserOp;
         _copyUserOpToMemory(userOp, mUserOp);
         return _getRequiredPrefund(mUserOp);

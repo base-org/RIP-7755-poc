@@ -14,20 +14,20 @@ contract RIP7755OutboxToOPStack is RIP7755Outbox {
     using OPStackProver for bytes;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
-    /// current destination chain block timestamp.
+    ///         current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
 
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
     /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
-    /// chain block timestamp.
+    ///                 chain block timestamp.
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Inbox` contract
-    /// @param inbox The address of the `RIP7755Inbox` contract
-    /// @param attributes The attributes of the request
-    /// @param proof The proof to validate
+    ///                                `RIP7755Inbox` contract
+    /// @param inbox                   The address of the `RIP7755Inbox` contract
+    /// @param attributes              The attributes of the request
+    /// @param proof                   The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
         address inbox,

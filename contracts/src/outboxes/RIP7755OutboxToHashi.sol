@@ -10,27 +10,28 @@ import {RIP7755Outbox} from "../RIP7755Outbox.sol";
 ///
 /// @author Crosschain Alliance
 ///
-/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM chain.
+/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM
+///         chain.
 contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
     using GlobalTypes for bytes32;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
-    /// current destination chain block timestamp.
+    ///         current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
 
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
     /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
-    /// chain block timestamp.
+    ///                 chain block timestamp.
     /// @custom:reverts If the L2StateRoot does not correspond to the validated L1 storage slot
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    /// `RIP7755Inbox` contract
-    /// @param inbox The address of the `RIP7755Inbox` contract
-    /// @param attributes The attributes of the message
-    /// @param proof The proof to validate
+    ///                                `RIP7755Inbox` contract
+    /// @param inbox                   The address of the `RIP7755Inbox` contract
+    /// @param attributes              The attributes of the message
+    /// @param proof                   The proof to validate
     function _validateProof(
         bytes memory inboxContractStorageKey,
         address inbox,
@@ -39,7 +40,6 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     ) internal view override {
         uint256 destinationChainId = _extractChainId(attributes);
 
-        /// @notice The ShoyuBashi check should be performed within the PrecheckContract to ensure the correct ShoyuBashi is being used.
         address shoyuBashi = _extractShoyuBashi(attributes);
         HashiProver.Target memory target = HashiProver.Target({
             addr: inbox,

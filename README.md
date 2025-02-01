@@ -4,7 +4,7 @@
 
 ## Overview
 
-RIP-7755 is a Rollup Improvement Proposal designed to establish a standardized, permissionless, and decentralized protocol for low-level cross-chain calls. By implementing immutable on-chain rules that incentivize off-chain participants, known as “fulfillers” in this context, to compete for transaction fees associated with cross-chain calls, we anticipate a significant enhancement in user experience without compromising on security or decentralization.
+RIP-7755 is a Rollup Improvement Proposal designed to establish a standardized, permissionless, and decentralized protocol for low-level cross-chain calls. By implementing immutable onchain rules that incentivize offchain participants, known as “fulfillers” in this context, to compete for transaction fees associated with cross-chain calls, we anticipate a significant enhancement in user experience without compromising on security or decentralization.
 
 When a user initiates a request for a cross-chain call, it is accompanied by a financial incentive for the first actor who can successfully execute the call. This reward is granted to the fulfiller only if they can provide cryptographic proof that the cross-chain call was executed successfully and correctly. One method to achieve this is through the use of storage proofs.
 

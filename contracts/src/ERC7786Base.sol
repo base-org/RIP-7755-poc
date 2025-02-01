@@ -55,6 +55,7 @@ contract ERC7786Base {
     bytes4 internal constant _USER_OP_ATTRIBUTE_SELECTOR = 0xd45448dd; // isUserOp(bool)
 
     /// @notice This error is thrown if an attribute is not found in the attributes array
+    ///
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);
 
@@ -63,7 +64,7 @@ contract ERC7786Base {
     /// @custom:reverts If the attribute is not found
     ///
     /// @param attributes The attributes array to search
-    /// @param selector The selector of the attribute to find
+    /// @param selector   The selector of the attribute to find
     ///
     /// @return attribute The attribute found
     function _locateAttribute(bytes[] calldata attributes, bytes4 selector) internal pure returns (bytes calldata) {
@@ -79,9 +80,9 @@ contract ERC7786Base {
     /// @notice Locates an attribute in the attributes array without checking if the attribute is found
     ///
     /// @param attributes The attributes array to search
-    /// @param selector The selector of the attribute to find
+    /// @param selector   The selector of the attribute to find
     ///
-    /// @return found Whether the attribute was found
+    /// @return found     Whether the attribute was found
     /// @return attribute The attribute found
     function _locateAttributeUnchecked(bytes[] calldata attributes, bytes4 selector)
         internal
@@ -99,7 +100,7 @@ contract ERC7786Base {
     /// @notice Locates an attribute value in the attributes array
     ///
     /// @param attributes The attributes array to search
-    /// @param selector The selector of the attribute to find
+    /// @param selector   The selector of the attribute to find
     ///
     /// @return value The value of the attribute found
     function _locateAttributeValue(bytes[] calldata attributes, bytes4 selector) internal pure returns (uint256) {

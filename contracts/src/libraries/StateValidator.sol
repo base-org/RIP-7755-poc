@@ -17,11 +17,12 @@ library StateValidator {
     using RLPReader for bytes;
 
     /// @notice The Beacon Roots Oracle contract on L2. Ethereum's Beacon Chain publishes beacon roots here as explained
-    /// by EIP-4788 (https://eips.ethereum.org/EIPS/eip-4788)
+    ///         by EIP-4788 (https://eips.ethereum.org/EIPS/eip-4788)
     address private constant BEACON_ROOTS_ORACLE = 0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02;
 
     /// @notice g-index stands for Generalized Index - a way to define the position of a node in a merkle tree. This
-    /// represents the position of the execution client's state root in the merkle tree producing the beacon root.
+    ///         represents the position of the execution client's state root in the merkle tree producing the beacon
+    ///         root.
     uint256 private constant STATE_ROOT_GINDEX = 6434;
 
     /// @notice Parameters needed to validate the authenticity of Ethereum's execution client's state root
@@ -49,32 +50,36 @@ library StateValidator {
     }
 
     /// @notice This error is thrown when the passed in beacon root does not match what is stored in
-    /// `BEACON_ROOTS_ORACLE` for the associated timestamp
+    ///         `BEACON_ROOTS_ORACLE` for the associated timestamp
+    ///
     /// @param expected The beacon root passed in by the fulfiller
-    /// @param actual The stored beacon root in `BEACON_ROOTS_ORACLE`
+    /// @param actual   The stored beacon root in `BEACON_ROOTS_ORACLE`
     error BeaconRootDoesNotMatch(bytes32 expected, bytes32 actual);
 
     /// @notice This error is thrown when the `staticcall` to `BEACON_ROOTS_ORACLE` does not complete successfully
-    /// @param callData The encoded timestamp that was passed in as the calldata in the staticcall to `BEACON_ROOTS_ORACLE`
+    ///
+    /// @param callData The encoded timestamp that was passed in as the calldata in the staticcall to
+    ///                 `BEACON_ROOTS_ORACLE`
     error BeaconRootsOracleCallFailed(bytes callData);
 
     /// @notice This error is thrown when validation of the execution client's state root fails
     error ExecutionStateRootMerkleProofFailed();
 
     /// @notice This error is thrown when the RLP-encoded account object returned from
-    /// `AccountProofParameters.accountProof` is formatted incorrectly
+    ///         `AccountProofParameters.accountProof` is formatted incorrectly
     error InvalidAccountRLP();
 
     /// @notice Validates the state of an EVM account at a specified storage location
     ///
     /// @dev First confirms a valid Beacon root and a valid execution state root
     ///
-    /// @param account An EVM account - in most cases, either an L2Oracle contract on Eth Mainnet or `RIP7755Inbox`
-    /// on a destination L2
-    /// @param stateProofParams Parameters needed to validate the authenticity of Ethereum's execution client's state root
+    /// @param account            An EVM account - in most cases, either an L2Oracle contract on Eth Mainnet or
+    ///                           `RIP7755Inbox` on a destination L2
+    /// @param stateProofParams   Parameters needed to validate the authenticity of Ethereum's execution client's
+    ///                           state root
     /// @param accountProofParams Parameters needed to validate the authenticity of an EVM account's storage
     ///
-    /// @return _ True if proof validation succeeds, else false
+    /// @return result True if proof validation succeeds, else false
     function validateState(
         address account,
         StateProofParameters memory stateProofParams,
@@ -95,11 +100,11 @@ library StateValidator {
     /// @notice Validates the state of an EVM account at a specified storage location
     ///
     /// @dev This is intended to ONLY be called if the authenticity of the beacon root and execution client state root
-    /// has already been verified
+    ///      has already been verified
     ///
-    /// @param account An EVM account - in most cases, either an L2Oracle contract on Eth Mainnet or `RIP7755Inbox`
-    /// on a destination L2
-    /// @param stateRoot The state root of an EVM chain's execution client
+    /// @param account            An EVM account - in most cases, either an L2Oracle contract on Eth Mainnet or
+    ///                           `RIP7755Inbox` on a destination L2
+    /// @param stateRoot          The state root of an EVM chain's execution client
     /// @param accountProofParams Parameters needed to validate the authenticity of an EVM account's storage
     ///
     /// @return _ True if proof validation succeeds, else false
@@ -128,9 +133,9 @@ library StateValidator {
     ///
     /// @custom:reverts If the staticcall to `BEACON_ROOTS_ORACLE` fails
     /// @custom:reverts If the beacon root associated with `timestamp` in `BEACON_ROOTS_ORACLE` does not match the
-    /// provided root
+    ///                 provided root
     ///
-    /// @param root The Beacon Chain root posted in `BEACON_ROOTS_ORACLE` on this L2
+    /// @param root      The Beacon Chain root posted in `BEACON_ROOTS_ORACLE` on this L2
     /// @param timestamp The timestamp associated with when the beacon root was posted
     function _checkValidBeaconRoot(bytes32 root, uint256 timestamp) private view {
         (bool success, bytes memory result) = BEACON_ROOTS_ORACLE.staticcall(abi.encode(timestamp));
@@ -150,9 +155,9 @@ library StateValidator {
     ///
     /// @custom:reverts If the proof does not successfully verify the execution state root
     ///
-    /// @param beaconRoot The Beacon Chain root posted in `BEACON_ROOTS_ORACLE` on this L2
+    /// @param beaconRoot         The Beacon Chain root posted in `BEACON_ROOTS_ORACLE` on this L2
     /// @param executionStateRoot The state root of Ethereum's execution client
-    /// @param proof A proof to verify the authenticity of `executionStateRoot`
+    /// @param proof              A proof to verify the authenticity of `executionStateRoot`
     function _checkValidStateRoot(bytes32 beaconRoot, bytes32 executionStateRoot, bytes32[] memory proof)
         private
         view
@@ -184,12 +189,12 @@ library StateValidator {
 
     /// @notice Verifies an account's storage value at a specified location
     ///
-    /// @param storageKey The storage location to validate
+    /// @param storageKey           The storage location to validate
     /// @param expectedStorageValue The expected value stored at `storageKey`
-    /// @param storageRoot The storage root for the account's merkle trie
-    /// @param storageProof The proof that validates the storage value
+    /// @param storageRoot          The storage root for the account's merkle trie
+    /// @param storageProof         The proof that validates the storage value
     ///
-    /// @return _ True if proof validation succeeds, else false
+    /// @return result True if proof validation succeeds, else false
     function _verifyStorageProof(
         bytes memory storageKey,
         bytes memory expectedStorageValue,
