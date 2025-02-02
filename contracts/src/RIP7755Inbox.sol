@@ -57,13 +57,6 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     ///         fulfilled
     error CallAlreadyFulfilled();
 
-    /// @notice This error is thrown if a fulfiller submits a `msg.value` greater than the total value needed for all
-    ///         the calls
-    ///
-    /// @param expected The total value needed for all the calls
-    /// @param actual   The received `msg.value`
-    error InvalidValue(uint256 expected, uint256 actual);
-
     /// @notice This error is thrown when an invalid caller is detected
     error InvalidCaller();
 
