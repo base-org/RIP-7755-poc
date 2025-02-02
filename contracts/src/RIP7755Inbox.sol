@@ -2,7 +2,6 @@
 pragma solidity 0.8.24;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
@@ -18,7 +17,6 @@ import {Paymaster} from "./Paymaster.sol";
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 ///         destination chains and store record of their fulfillment.
 contract RIP7755Inbox is ERC7786Base, Paymaster {
-    using Address for address payable;
     using Strings for string;
 
     struct MainStorage {
@@ -152,7 +150,7 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         uint256 valueSent;
 
         for (uint256 i; i < messages.length; i++) {
-            address payable to = payable(messages[i].receiver.parseAddress());
+            address to = messages[i].receiver.parseAddress();
             uint256 value = _locateAttributeValue(messages[i].attributes);
             _call(to, messages[i].payload, value);
 
@@ -166,11 +164,16 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         }
     }
 
-    function _call(address payable to, bytes memory data, uint256 value) private {
-        if (data.length == 0) {
-            to.sendValue(value);
-        } else {
-            to.functionCallWithValue(data, value);
+    function _call(address to, bytes memory data, uint256 value) private {
+        bytes memory result;
+        /// @solidity memory-safe-assembly
+        assembly {
+            result := mload(0x40)
+            if iszero(call(gas(), to, value, add(data, 0x20), mload(data), codesize(), 0x00)) {
+                // Bubble up the revert if the call reverts.
+                returndatacopy(result, 0x00, returndatasize())
+                revert(result, returndatasize())
+            }
         }
     }
 
