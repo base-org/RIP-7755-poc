@@ -59,6 +59,9 @@ contract ERC7786Base {
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);
 
+    /// @notice This error is thrown when the call attributes array contains more than one element
+    error MaxOneAttributeExpected();
+
     /// @notice Locates an attribute in the attributes array
     ///
     /// @custom:reverts If the attribute is not found
@@ -100,15 +103,19 @@ contract ERC7786Base {
     /// @notice Locates an attribute value in the attributes array
     ///
     /// @param attributes The attributes array to search
-    /// @param selector   The selector of the attribute to find
     ///
     /// @return value The value of the attribute found
-    function _locateAttributeValue(bytes[] calldata attributes, bytes4 selector) internal pure returns (uint256) {
-        for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) == selector) {
-                return abi.decode(attributes[i][4:], (uint256));
-            }
+    function _locateAttributeValue(bytes[] calldata attributes) internal pure returns (uint256) {
+        if (attributes.length > 1) {
+            revert MaxOneAttributeExpected();
         }
-        return 0;
+
+        uint256 value;
+
+        if (attributes.length == 1 && bytes4(attributes[0]) == _VALUE_ATTRIBUTE_SELECTOR) {
+            value = abi.decode(attributes[0][4:], (uint256));
+        }
+
+        return value;
     }
 }

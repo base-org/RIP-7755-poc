@@ -35,6 +35,16 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         address fulfiller;
     }
 
+    /// @notice A message structure used for internal processing
+    struct InternalMessage {
+        /// @dev The fulfiller address allowed to claim on source chain
+        address fulfiller;
+        /// @dev Boolean value specifying if the request represents an ERC-4337 UserOp
+        bool isUserOp;
+        /// @dev Address of the specified precheck contract. This is optional.
+        address precheckContract;
+    }
+
     /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. Derived from
     ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
@@ -81,21 +91,29 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         Message[] calldata messages,
         bytes[] calldata globalAttributes
     ) external payable returns (bytes4) {
-        address fulfiller = _getFulfiller(globalAttributes);
-        _revertIfUserOp(globalAttributes);
+        InternalMessage memory m = _processAttributes(globalAttributes);
+
+        if (m.fulfiller == address(0)) {
+            revert AttributeNotFound(_FULFILLER_ATTRIBUTE_SELECTOR);
+        }
+
+        if (m.isUserOp) {
+            revert UserOp();
+        }
+
         bytes32 messageId = getRequestId(sourceChain, sender, messages, globalAttributes);
 
-        _runPrecheck(sourceChain, sender, messages, globalAttributes);
+        _runPrecheck(sourceChain, sender, messages, globalAttributes, m.precheckContract);
 
         if (_getFulfillmentInfo(messageId).timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
 
-        _setFulfillmentInfo(messageId, fulfiller);
+        _setFulfillmentInfo(messageId, m.fulfiller);
 
         _sendCallsAndValidateMsgValue(messages);
 
-        emit CallFulfilled({requestHash: messageId, fulfilledBy: fulfiller});
+        emit CallFulfilled({requestHash: messageId, fulfilledBy: m.fulfiller});
 
         return 0x675b049b; // this function's sig
     }
@@ -135,7 +153,7 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
 
         for (uint256 i; i < messages.length; i++) {
             address payable to = payable(messages[i].receiver.parseAddress());
-            uint256 value = _locateAttributeValue(messages[i].attributes, _VALUE_ATTRIBUTE_SELECTOR);
+            uint256 value = _locateAttributeValue(messages[i].attributes);
             _call(to, messages[i].payload, value);
 
             unchecked {
@@ -167,17 +185,14 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         string calldata sourceChain, // [CAIP-2] chain identifier
         string calldata sender, // [CAIP-10] account address
         Message[] calldata messages,
-        bytes[] calldata attributes
+        bytes[] calldata attributes,
+        address precheck
     ) private view {
-        (bool found, bytes calldata precheckAttribute) =
-            _locateAttributeUnchecked(attributes, _PRECHECK_ATTRIBUTE_SELECTOR);
-
-        if (!found) {
+        if (precheck == address(0)) {
             return;
         }
 
-        address precheckContract = abi.decode(precheckAttribute[4:], (address));
-        IPrecheckContract(precheckContract).precheckCall(sourceChain, sender, messages, attributes, msg.sender);
+        IPrecheckContract(precheck).precheckCall(sourceChain, sender, messages, attributes, msg.sender);
     }
 
     function _getFulfillmentInfo(bytes32 requestHash) private view returns (FulfillmentInfo memory) {
@@ -185,21 +200,20 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         return $.fulfillmentInfo[requestHash];
     }
 
-    function _getFulfiller(bytes[] calldata attributes) private pure returns (address) {
-        bytes calldata fulfillerAttribute = _locateAttribute(attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
-        return abi.decode(fulfillerAttribute[4:], (address));
-    }
+    function _processAttributes(bytes[] calldata attributes) private pure returns (InternalMessage memory) {
+        InternalMessage memory message;
 
-    function _revertIfUserOp(bytes[] calldata attributes) private pure {
-        (bool found, bytes calldata userOpAttribute) =
-            _locateAttributeUnchecked(attributes, _USER_OP_ATTRIBUTE_SELECTOR);
-        if (found) {
-            bool isUserOp = abi.decode(userOpAttribute[4:], (bool));
-
-            if (isUserOp) {
-                revert UserOp();
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) == _FULFILLER_ATTRIBUTE_SELECTOR) {
+                message.fulfiller = abi.decode(attributes[i][4:], (address));
+            } else if (bytes4(attributes[i]) == _USER_OP_ATTRIBUTE_SELECTOR) {
+                message.isUserOp = abi.decode(attributes[i][4:], (bool));
+            } else if (bytes4(attributes[i]) == _PRECHECK_ATTRIBUTE_SELECTOR) {
+                message.precheckContract = abi.decode(attributes[i][4:], (address));
             }
         }
+
+        return message;
     }
 
     function _filterOutFulfiller(bytes[] calldata attributes) private pure returns (bytes[] memory) {
