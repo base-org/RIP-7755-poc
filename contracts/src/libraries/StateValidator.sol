@@ -2,7 +2,6 @@
 pragma solidity ^0.8.0;
 
 import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/RLPReader.sol";
-import {MerkleTrie} from "optimism/packages/contracts-bedrock/src/libraries/trie/MerkleTrie.sol";
 import {SecureMerkleTrie} from "optimism/packages/contracts-bedrock/src/libraries/trie/SecureMerkleTrie.sol";
 
 import {SSZ} from "./SSZ.sol";
@@ -113,10 +112,12 @@ library StateValidator {
         bytes32 stateRoot,
         AccountProofParameters memory accountProofParams
     ) internal pure returns (bool) {
-        // Derive the account key that shows up in the execution client's merkle trie
-        bytes memory accountKey = abi.encodePacked(keccak256(abi.encodePacked(account)));
         // Use the account proof to derive the RLP-encoded account metadata
-        bytes memory encodedAccount = MerkleTrie.get(accountKey, accountProofParams.accountProof, stateRoot);
+        bytes memory encodedAccount = SecureMerkleTrie.get({
+            _key: abi.encodePacked(account),
+            _proof: accountProofParams.accountProof,
+            _root: stateRoot
+        });
 
         // Extract storage root from account data
         bytes32 storageRoot = _extractStorageRoot(encodedAccount);

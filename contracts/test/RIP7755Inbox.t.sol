@@ -41,6 +41,13 @@ contract RIP7755InboxTest is BaseTest {
         _setUp();
     }
 
+    function test_executeMessages_reverts_ifNoFulfiller() external {
+        TestMessage memory m = _initMessage(false, true);
+
+        vm.expectRevert(abi.encodeWithSelector(AttributeNotFound.selector, _FULFILLER_ATTRIBUTE_SELECTOR));
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, _filterOutFulfiller(m.attributes));
+    }
+
     function test_executeMessages_reverts_userOp() external {
         TestMessage memory m = _initMessage(false, true);
 
@@ -121,6 +128,21 @@ contract RIP7755InboxTest is BaseTest {
 
         vm.deal(FILLER, amount);
         vm.prank(FILLER);
+        inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
+
+        assertEq(ALICE.balance, 0);
+    }
+
+    function test_executeMessages_reverts_tooManyAttributes(uint256 amount) external {
+        TestMessage memory m = _initMessage(false, false);
+
+        bytes[] memory attributes = new bytes[](2);
+
+        _appendMessage(m, Message({receiver: ALICE.toChecksumHexString(), payload: "", attributes: attributes}));
+
+        vm.deal(FILLER, amount);
+        vm.prank(FILLER);
+        vm.expectRevert(MaxOneAttributeExpected.selector);
         inbox.executeMessages(m.sourceChain, m.sender, m.messages, m.attributes);
 
         assertEq(ALICE.balance, 0);
