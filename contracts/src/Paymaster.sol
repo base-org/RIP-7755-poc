@@ -15,7 +15,7 @@ import {IUserOpPrecheck} from "./interfaces/IUserOpPrecheck.sol";
 /// @notice This contract is used as a hook for fulfillers to provide funds for requested transactions when the
 ///         cross-chain call(s) are ERC-4337 User Operations
 abstract contract Paymaster is IPaymaster {
-    using SafeTransferLib for address payable;
+    using SafeTransferLib for address;
 
     /// @notice The context structure returned by validatePaymasterUserOp
     struct Context {
@@ -25,11 +25,16 @@ abstract contract Paymaster is IPaymaster {
         address claimAddress;
         /// @dev The sender of the user operation
         address sender;
-        /// @dev The amount of eth that was spent as a magic spend
-        uint256 ethAmount;
+        /// @dev The token address for magic spend
+        address magicSpendToken;
+        /// @dev The amount that was spent as a magic spend (either native currency or ERC20 tokens)
+        uint256 magicSpendAmount;
         /// @dev The address of the fulfiller
         address fulfiller;
     }
+
+    /// @notice The address value to represent native currency
+    address private constant _ETH_ADDRESS = address(0);
 
     /// @notice The ERC-4337 EntryPoint contract
     IEntryPoint public immutable ENTRY_POINT;
@@ -53,15 +58,15 @@ abstract contract Paymaster is IPaymaster {
     ///         balance sits in the EntryPoint contract.
     mapping(address fulfiller => uint256 ethForGas) private _ethForGas;
 
-    /// @notice A mapping tracking the amount of eth that has been allocated for magic spend by a fulfiller. This
-    ///         balance sits in this contract and is used to provide funds for call execution. This is different from
-    ///         gas sponsorship. It is for any call sending an eth value with it.
-    mapping(address fulfiller => uint256 magicSpendBalance) private _magicSpendBalance;
+    /// @notice A mapping tracking the magic spend amount that has been allocated by a fulfiller. This balance sits in
+    ///         this contract and is used to provide funds for call execution. This is different from gas sponsorship.
+    ///         It is for any call sending an eth value or erc20 tokens with it.
+    mapping(address fulfiller => mapping(address token => uint256 magicSpendBalance)) private _magicSpendBalance;
 
-    /// @notice A mapping from an account's address to the amount of eth that can be withdrawn by the account. This is
-    ///         used to track the amount of eth that has been allocated by the paymaster but not yet withdrawn by the
-    ///         account
-    mapping(address account => uint256) private _withdrawable;
+    /// @notice A mapping from an account's address to the magic spend amount that can be withdrawn by the account.
+    ///         This is used to track the amount of currency (either eth or erc20 tokens) that has been allocated by
+    ///         the paymaster but not yet withdrawn by the account
+    mapping(address account => mapping(address token => uint256)) private _withdrawable;
 
     /// @notice This error is thrown when an address is the zero address
     error ZeroAddress();
@@ -87,6 +92,13 @@ abstract contract Paymaster is IPaymaster {
 
     /// @notice This error is thrown when the amount of eth to withdraw is zero
     error ZeroAmount();
+
+    /// @notice This error is thrown if a fulfiller submits a `msg.value` greater than the total value needed for all
+    ///         the calls
+    ///
+    /// @param expected The total value needed for all the calls
+    /// @param actual   The received `msg.value`
+    error InvalidValue(uint256 expected, uint256 actual);
 
     /// @notice This event is emitted when a fulfiller's claim address is set
     ///
@@ -134,6 +146,30 @@ abstract contract Paymaster is IPaymaster {
         _depositEth();
     }
 
+    /// @notice Deposits eth or any ERC20 token for magic spend support
+    ///
+    /// @custom:reverts If token address is representing eth and `amount` does not match `msg.value`
+    ///
+    /// @param token  Address representing ERC20 token or eth to deposit
+    /// @param amount Amount of magic spend currency to deposit
+    function magicSpendDeposit(address token, uint256 amount) external payable {
+        if (token == _ETH_ADDRESS) {
+            if (amount != msg.value) {
+                revert InvalidValue(amount, msg.value);
+            }
+
+            _depositEth();
+        } else {
+            if (msg.value != 0) {
+                revert InvalidValue(0, msg.value);
+            }
+
+            // ERC20 deposit
+            _magicSpendBalance[msg.sender][token] += amount;
+            token.safeTransferFrom(msg.sender, address(this), amount);
+        }
+    }
+
     /// @notice Transfers ETH from this contract into the EntryPoint.
     ///
     /// @dev Reverts if caller's magic spend balance is insufficient
@@ -149,24 +185,25 @@ abstract contract Paymaster is IPaymaster {
     /// @custom:reverts If the withdraw address is the zero address
     /// @custom:reverts If caller's magic spend balance is insufficient
     ///
+    /// @param token           Token address to withdraw
     /// @param withdrawAddress The address to withdraw the eth to
     /// @param amount          The amount of eth to withdraw
-    function withdrawTo(address payable withdrawAddress, uint256 amount) external {
+    function withdrawTo(address token, address withdrawAddress, uint256 amount) external {
         if (withdrawAddress == address(0)) {
             revert ZeroAddress();
         }
 
-        uint256 balance = _magicSpendBalance[msg.sender];
+        uint256 balance = _magicSpendBalance[msg.sender][token];
 
         if (amount > balance) {
             revert InsufficientMagicSpendBalance(msg.sender, balance, amount);
         }
 
         unchecked {
-            _magicSpendBalance[msg.sender] -= amount;
+            _magicSpendBalance[msg.sender][token] -= amount;
         }
 
-        withdrawAddress.safeTransferETH(amount);
+        _sendTokens({token: token, to: withdrawAddress, amount: amount});
 
         emit MagicSpendWithdrawal(msg.sender, withdrawAddress, amount);
     }
@@ -227,25 +264,26 @@ abstract contract Paymaster is IPaymaster {
         returns (bytes memory context, uint256 validationData)
     {
         _settleBalanceDiff(maxCost);
-        (uint256 ethAmount, address precheckContract) = abi.decode(userOp.paymasterAndData[52:], (uint256, address));
+        (address magicSpendToken, uint256 magicSpendAmount, address precheckContract) =
+            abi.decode(userOp.paymasterAndData[52:], (address, uint256, address));
 
         address fulfiller = tx.origin;
-        uint256 balance = _magicSpendBalance[fulfiller];
+        uint256 balance = _magicSpendBalance[fulfiller][magicSpendToken];
         uint256 gasBalance = _ethForGas[fulfiller];
 
         if (maxCost > gasBalance) {
             revert InsufficientGasBalance(fulfiller, gasBalance, maxCost);
         }
 
-        if (ethAmount > balance) {
-            revert InsufficientMagicSpendBalance(fulfiller, balance, ethAmount);
+        if (magicSpendAmount > balance) {
+            revert InsufficientMagicSpendBalance(fulfiller, balance, magicSpendAmount);
         }
 
         if (precheckContract != address(0)) {
             IUserOpPrecheck(precheckContract).precheckUserOp(userOp, fulfiller);
         }
 
-        _withdrawable[userOp.sender] += ethAmount;
+        _withdrawable[userOp.sender][magicSpendToken] += magicSpendAmount;
         prevFulfiller = fulfiller;
         address storedClaimAddress = fulfillerClaimAddress[fulfiller];
 
@@ -253,7 +291,8 @@ abstract contract Paymaster is IPaymaster {
             userOpHash: userOpHash,
             claimAddress: storedClaimAddress == address(0) ? fulfiller : storedClaimAddress,
             sender: userOp.sender,
-            ethAmount: ethAmount,
+            magicSpendToken: magicSpendToken,
+            magicSpendAmount: magicSpendAmount,
             fulfiller: fulfiller
         });
 
@@ -264,15 +303,17 @@ abstract contract Paymaster is IPaymaster {
     ///         execution
     ///
     /// @custom:reverts If the withdrawable amount is 0
-    function withdrawGasExcess() external {
-        uint256 ethAmount = _withdrawable[msg.sender];
+    ///
+    /// @param token Token address to withdraw
+    function withdrawGasExcess(address token) external {
+        uint256 amount = _withdrawable[msg.sender][token];
 
-        if (ethAmount == 0) {
+        if (amount == 0) {
             revert ZeroAmount();
         }
 
-        delete _withdrawable[msg.sender];
-        payable(msg.sender).safeTransferETH(ethAmount);
+        delete _withdrawable[msg.sender][token];
+        _sendTokens({token: token, to: msg.sender, amount: amount});
     }
 
     /// @notice A function that is called after a User Operation is executed. This function is used to update the
@@ -292,11 +333,11 @@ abstract contract Paymaster is IPaymaster {
 
         // If the sender's withdrawable balance is not equal to the eth amount, it means that the sender's balance was
         // spent as a magic spend balance. Thus the fulfiller's magic spend balance should be reduced by the eth amount
-        if (_withdrawable[ctx.sender] != ctx.ethAmount) {
-            _magicSpendBalance[ctx.fulfiller] -= ctx.ethAmount;
+        if (_withdrawable[ctx.sender][ctx.magicSpendToken] != ctx.magicSpendAmount) {
+            _magicSpendBalance[ctx.fulfiller][ctx.magicSpendToken] -= ctx.magicSpendAmount;
         }
 
-        delete _withdrawable[ctx.sender];
+        delete _withdrawable[ctx.sender][ctx.magicSpendToken];
     }
 
     /// @notice A function that returns the balance of gas eth for a fulfiller
@@ -318,10 +359,11 @@ abstract contract Paymaster is IPaymaster {
     /// @notice A function that returns the balance of magic spend eth for a fulfiller
     ///
     /// @param account The address of the fulfiller
+    /// @param token   Currency address
     ///
     /// @return balance The balance of magic spend eth for the fulfiller
-    function getMagicSpendBalance(address account) external view returns (uint256) {
-        return _magicSpendBalance[account];
+    function getMagicSpendBalance(address account, address token) external view returns (uint256) {
+        return _magicSpendBalance[account][token];
     }
 
     /// @notice A function that sets the fulfillment info for a User Operation
@@ -333,7 +375,7 @@ abstract contract Paymaster is IPaymaster {
     /// @notice A function that deposits eth into the paymaster
     function _depositEth() private {
         unchecked {
-            _magicSpendBalance[msg.sender] += msg.value;
+            _magicSpendBalance[msg.sender][_ETH_ADDRESS] += msg.value;
         }
     }
 
@@ -344,19 +386,19 @@ abstract contract Paymaster is IPaymaster {
     /// @param fulfiller The address of the fulfiller
     /// @param amount    The amount of eth to convert for gas
     function _convertEthForGas(address fulfiller, uint256 amount) private {
-        uint256 balance = _magicSpendBalance[fulfiller];
+        uint256 balance = _magicSpendBalance[fulfiller][_ETH_ADDRESS];
 
         if (amount > balance) {
             revert InsufficientMagicSpendBalance(fulfiller, balance, amount);
         }
 
         unchecked {
-            _magicSpendBalance[fulfiller] -= amount;
+            _magicSpendBalance[fulfiller][_ETH_ADDRESS] -= amount;
             _ethForGas[fulfiller] += amount;
             totalTrackedGasBalance += amount;
         }
 
-        payable(address(ENTRY_POINT)).safeTransferETH(amount);
+        address(ENTRY_POINT).safeTransferETH(amount);
     }
 
     /// @notice A function that settles the balance difference between the paymaster and the EntryPoint
@@ -377,6 +419,19 @@ abstract contract Paymaster is IPaymaster {
         }
 
         prevFulfiller = address(0);
+    }
+
+    /// @notice Sends `amount` tokens of type `token` to `to` address
+    ///
+    /// @param token  Address of currency
+    /// @param to     Address to send tokens to
+    /// @param amount Amount of tokens to send
+    function _sendTokens(address token, address to, uint256 amount) private {
+        if (token == _ETH_ADDRESS) {
+            to.safeTransferETH(amount);
+        } else {
+            token.safeTransfer(to, amount);
+        }
     }
 
     /// @notice A function that calculates the difference between the total tracked gas balance in the paymaster and

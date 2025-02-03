@@ -6,6 +6,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
+import {Paymaster} from "../src/Paymaster.sol";
 import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
@@ -182,7 +183,7 @@ contract RIP7755InboxTest is BaseTest {
 
         vm.deal(FILLER, 1);
         vm.prank(FILLER);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Inbox.InvalidValue.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(Paymaster.InvalidValue.selector, 0, 1));
         inbox.executeMessages{value: 1}(m.sourceChain, m.sender, m.messages, m.attributes);
     }
 
