@@ -170,7 +170,9 @@ contract RIP7755InboxTest is BaseTest {
         }
 
         return TestMessage({
-            messageId: inbox.getRequestId(sourceChain, sender, payload, attributes),
+            messageId: inbox.getRequestId(
+                sourceChain, sender, bytes32(block.chainid), address(inbox).addressToBytes32(), payload, attributes
+            ),
             sourceChain: sourceChain,
             sender: sender,
             payload: payload,

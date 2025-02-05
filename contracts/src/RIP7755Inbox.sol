@@ -74,7 +74,9 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
             revert UserOp();
         }
 
-        bytes32 messageId = getRequestId(sourceChain, sender, payload, attributes);
+        bytes32 messageId = getRequestId(
+            sourceChain, sender, bytes32(block.chainid), address(this).addressToBytes32(), payload, attributes
+        );
 
         _runPrecheck(sourceChain, sender, payload, attributes, precheckContract);
 
@@ -96,28 +98,6 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     /// @return _ Fulfillment info stored for the call hash
     function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
         return _getFulfillmentInfo(requestHash);
-    }
-
-    /// @notice Returns the keccak256 hash of a message request
-    ///
-    /// @dev Filters out the fulfiller attribute from the attributes array
-    ///
-    /// @param sourceChain The source chain identifier
-    /// @param sender      The account address of the sender
-    /// @param payload     The encoded calls to be included in the request
-    /// @param attributes  The attributes to be included in the message
-    ///
-    /// @return _ The keccak256 hash of the message request
-    function getRequestId(bytes32 sourceChain, bytes32 sender, bytes calldata payload, bytes[] calldata attributes)
-        public
-        view
-        returns (bytes32)
-    {
-        return keccak256(
-            abi.encode(
-                sourceChain, sender, bytes32(block.chainid), address(this).addressToBytes32(), payload, attributes
-            )
-        );
     }
 
     function _sendCallsAndValidateMsgValue(bytes calldata payload) private {

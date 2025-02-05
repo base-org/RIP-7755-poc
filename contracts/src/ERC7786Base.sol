@@ -63,6 +63,29 @@ contract ERC7786Base {
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);
 
+    /// @notice Returns the keccak256 hash of a message request
+    ///
+    /// @dev Filters out the fulfiller attribute from the attributes array
+    ///
+    /// @param sourceChain      The source chain identifier
+    /// @param sender           The account address of the sender
+    /// @param destinationChain The destination chain identifier
+    /// @param receiver         The account address of the receiver
+    /// @param payload          The encoded calls to be included in the request
+    /// @param attributes       The attributes to be included in the message
+    ///
+    /// @return _ The keccak256 hash of the message request
+    function getRequestId(
+        bytes32 sourceChain,
+        bytes32 sender,
+        bytes32 destinationChain,
+        bytes32 receiver,
+        bytes calldata payload,
+        bytes[] calldata attributes
+    ) public pure returns (bytes32) {
+        return keccak256(abi.encode(sourceChain, sender, destinationChain, receiver, payload, attributes));
+    }
+
     /// @notice Locates an attribute in the attributes array
     ///
     /// @custom:reverts If the attribute is not found
