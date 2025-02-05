@@ -2,10 +2,8 @@
 pragma solidity 0.8.24;
 
 import {stdJson} from "forge-std/StdJson.sol";
-import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
-import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
 import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
 
@@ -14,7 +12,6 @@ import {BaseTest} from "./BaseTest.t.sol";
 
 contract OPStackProverTest is BaseTest {
     using stdJson for string;
-    using GlobalTypes for address;
 
     MockOPStackProver prover;
 
@@ -36,7 +33,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1735681520);
@@ -50,7 +47,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -65,7 +62,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidBeaconRoot() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -80,7 +77,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL1StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -95,7 +92,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL1Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -108,7 +105,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL2StateRoot() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -121,7 +118,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -134,7 +131,7 @@ contract OPStackProverTest is BaseTest {
     }
 
     function test_validate_proveOptimismSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -183,13 +180,13 @@ contract OPStackProverTest is BaseTest {
 
     function _initMessage(uint256 rewardAmount)
         private
-        view
-        returns (string memory, string memory, Message[] memory, bytes[] memory)
+        pure
+        returns (string memory, string memory, Call[] memory, bytes[] memory)
     {
         string memory sourceChain = _remote(31337);
         string memory sender = "0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496";
-        Message[] memory calls = new Message[](0);
-        bytes[] memory attributes = new bytes[](6);
+        Call[] memory calls = new Call[](0);
+        bytes[] memory attributes = new bytes[](5);
 
         attributes[0] = abi.encodeWithSelector(
             _REWARD_ATTRIBUTE_SELECTOR, 0x000000000000000000000000f62849f9a0b5bf2913b396098f7c7019b51a820a, rewardAmount
@@ -199,8 +196,7 @@ contract OPStackProverTest is BaseTest {
         attributes[3] = abi.encodeWithSelector(
             _REQUESTER_ATTRIBUTE_SELECTOR, 0x000000000000000000000000328809bc894f92807417d2dad6b7c998c1afdac6
         );
-        attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
-        attributes[5] =
+        attributes[4] =
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512);
 
         return (sourceChain, sender, calls, attributes);

@@ -11,6 +11,10 @@ contract MockHashiProver is RIP7755OutboxToHashi {
         _validateProof(storageKey, inbox, attributes, proof);
     }
 
+    function isOptionalAttribute(bytes4 selector) external pure returns (bool) {
+        return _isOptionalAttribute(selector);
+    }
+
     // Including to block from coverage report
     function test() external {}
 }

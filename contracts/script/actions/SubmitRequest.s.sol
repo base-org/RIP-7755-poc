@@ -2,19 +2,21 @@
 pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
-import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import {ERC7786Base} from "../../src/ERC7786Base.sol";
+import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
+import {RIP7755Base} from "../../src/RIP7755Base.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
-contract SubmitRequest is Script, ERC7786Base {
-    using Strings for uint256;
+contract SubmitRequest is Script, RIP7755Base {
+    using GlobalTypes for address;
+
+    bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
+    bytes4 internal constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
+    bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
+    bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     HelperConfig public helperConfig;
-
-    bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     constructor() {
         helperConfig = new HelperConfig();
@@ -29,31 +31,27 @@ contract SubmitRequest is Script, ERC7786Base {
 
         RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
 
-        (string memory destinationChain, Message[] memory messages, bytes[] memory attributes) =
+        (bytes32 destinationChain, bytes32 receiver, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(destinationChainId, duration);
 
         vm.startBroadcast(config.deployerKey);
-        outbox.sendMessages{value: 0.0002 ether}(destinationChain, messages, attributes);
+        outbox.sendMessage{value: 0.0002 ether}(destinationChain, receiver, abi.encode(calls), attributes);
         vm.stopBroadcast();
     }
 
     function _initMessage(uint256 destinationChainId, uint256 duration)
         private
-        returns (string memory, Message[] memory, bytes[] memory)
+        returns (bytes32, bytes32, Call[] memory, bytes[] memory)
     {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
         // HelperConfig.NetworkConfig memory srcConfig = helperConfig.getConfig(block.chainid);
 
-        Message[] memory calls = new Message[](1);
-        bytes[] memory messageAttributes = new bytes[](1);
-        messageAttributes[0] = abi.encodeWithSelector(_VALUE_ATTRIBUTE_SELECTOR, 0.0001 ether);
-        calls[0] = Message({
-            receiver: Strings.toChecksumHexString(0x8C1a617BdB47342F9C17Ac8750E0b070c372C721),
-            payload: "",
-            attributes: messageAttributes
-        });
+        Call[] memory calls = new Call[](1);
+        calls[0] =
+            Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
-        string memory destinationChain = CAIP2.format("eip155", destinationChainId.toString());
+        bytes32 destinationChain = bytes32(destinationChainId);
+        bytes32 receiver = dstConfig.inbox.addressToBytes32();
         bytes[] memory attributes = new bytes[](3);
 
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, 0.0002 ether);
@@ -61,7 +59,7 @@ contract SubmitRequest is Script, ERC7786Base {
         attributes[2] = abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, dstConfig.l2Oracle);
         // attributes[2] = abi.encodeWithSelector(_SHOYU_BASHI_ATTRIBUTE_SELECTOR, srcConfig.shoyuBashi);
 
-        return (destinationChain, calls, attributes);
+        return (destinationChain, receiver, calls, attributes);
     }
 
     // Including to block from coverage report

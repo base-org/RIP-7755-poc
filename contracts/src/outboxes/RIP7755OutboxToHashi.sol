@@ -16,6 +16,12 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     using HashiProver for bytes;
     using GlobalTypes for bytes32;
 
+    /// @notice The selector for the shoyuBashi attribute
+    bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
+
+    /// @notice The selector for the destinationChain attribute
+    bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
+
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
     ///         current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
@@ -71,5 +77,10 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         bytes calldata shoyuBashiBytes = _locateAttribute(attributes, _SHOYU_BASHI_ATTRIBUTE_SELECTOR);
         bytes32 shoyuBashiBytes32 = abi.decode(shoyuBashiBytes[4:], (bytes32));
         return shoyuBashiBytes32.bytes32ToAddress();
+    }
+
+    function _isOptionalAttribute(bytes4 selector) internal pure override returns (bool) {
+        return selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR || selector == _DESTINATION_CHAIN_SELECTOR
+            || super._isOptionalAttribute(selector);
     }
 }

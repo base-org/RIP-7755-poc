@@ -7,11 +7,11 @@ import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import {ERC7786Base} from "../src/ERC7786Base.sol";
+import {RIP7755Base} from "../src/RIP7755Base.sol";
 
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
-contract BaseTest is Test, ERC7786Base {
+contract BaseTest is Test, RIP7755Base {
     ERC20Mock mockErc20;
     MockBeaconOracle mockBeaconOracle;
 
@@ -29,6 +29,30 @@ contract BaseTest is Test, ERC7786Base {
 
     uint256 constant _REWARD_AMOUNT = 1 ether;
     bytes32 constant _VERIFIER_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
+
+    /// @notice The selector for the nonce attribute
+    bytes4 internal constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
+
+    /// @notice The selector for the reward attribute
+    bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
+
+    /// @notice The selector for the delay attribute
+    bytes4 internal constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
+
+    /// @notice The selector for the requester attribute
+    bytes4 internal constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
+
+    /// @notice The selector for the l2Oracle attribute
+    bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
+
+    /// @notice The selector for the shoyuBashi attribute
+    bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
+
+    /// @notice The selector for the inbox attribute
+    bytes4 internal constant _INBOX_ATTRIBUTE_SELECTOR = 0xbd362374; // inbox(bytes32)
+
+    /// @notice The selector for the destinationChain attribute
+    bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
 
     function _setUp() internal {
         mockErc20 = new ERC20Mock();
@@ -67,28 +91,14 @@ contract BaseTest is Test, ERC7786Base {
         return CAIP2.format("eip155", Strings.toString(chainId));
     }
 
-    function _filterOutFulfiller(bytes[] memory attributes) internal pure returns (bytes[] memory) {
-        bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
-        uint256 filteredIndex;
-        for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
-                filteredAttributes[filteredIndex] = attributes[i];
-                unchecked {
-                    filteredIndex++;
-                }
-            }
-        }
-        return filteredAttributes;
-    }
-
     function _getMessageId(
         string memory sourceChain,
         string memory sender,
-        Message[] memory calls,
+        Call[] memory calls,
         bytes[] memory attributes
     ) internal pure returns (bytes32) {
         string memory combinedSender = CAIP10.format(sourceChain, sender);
-        return keccak256(abi.encode(combinedSender, _remote(111112), calls, _filterOutFulfiller(attributes)));
+        return keccak256(abi.encode(combinedSender, _remote(111112), calls, attributes));
     }
 
     // Including to block from coverage report

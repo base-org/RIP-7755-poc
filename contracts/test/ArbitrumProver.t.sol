@@ -2,8 +2,6 @@
 pragma solidity 0.8.24;
 
 import {stdJson} from "forge-std/StdJson.sol";
-import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
-import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
@@ -17,7 +15,6 @@ import {BaseTest} from "./BaseTest.t.sol";
 contract ArbitrumProverTest is BaseTest {
     using stdJson for string;
     using GlobalTypes for address;
-    using CAIP10 for address;
     using Strings for address;
 
     MockArbitrumProver prover;
@@ -46,7 +43,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
@@ -60,7 +57,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -73,7 +70,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifUnconfirmed() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -86,7 +83,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -99,7 +96,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -112,7 +109,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -174,20 +171,19 @@ contract ArbitrumProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, Message[] memory, bytes[] memory)
+        returns (string memory, string memory, Call[] memory, bytes[] memory)
     {
         string memory sourceChain = _remote(31337);
         string memory sender = address(this).toChecksumHexString();
-        Message[] memory calls = new Message[](0);
-        bytes[] memory attributes = new bytes[](6);
+        Call[] memory calls = new Call[](0);
+        bytes[] memory attributes = new bytes[](5);
 
         attributes[0] =
             abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, 1828828574);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
-        attributes[4] = abi.encodeWithSelector(_FULFILLER_ATTRIBUTE_SELECTOR, FILLER);
-        attributes[5] =
+        attributes[4] =
             abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4); // Arbitrum Rollup on Sepolia
 
         return (sourceChain, sender, calls, attributes);
