@@ -145,20 +145,6 @@ contract RIP7755OutboxTest is BaseTest {
         assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
     }
 
-    function test_sendMessage_setMetadata_withOptionalShoyuBashiAttribute(uint256 rewardAmount)
-        external
-        fundAlice(rewardAmount)
-    {
-        TestMessage memory m = _initMessage(rewardAmount, false);
-        m.attributes = _addAttribute(m.attributes, _SHOYU_BASHI_ATTRIBUTE_SELECTOR);
-
-        vm.prank(ALICE);
-        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
-
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
-    }
-
     function test_sendMessage_reverts_ifUnsupportedAttribute(uint256 rewardAmount) external fundAlice(rewardAmount) {
         bytes4 selector = 0x11111111;
         TestMessage memory m = _initMessage(rewardAmount, false);

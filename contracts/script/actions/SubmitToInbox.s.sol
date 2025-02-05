@@ -10,6 +10,12 @@ import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
 contract SubmitToInbox is Script, RIP7755Base {
     using GlobalTypes for address;
 
+    bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
+    bytes4 internal constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
+    bytes4 internal constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
+    bytes4 internal constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
+    bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
+
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
         RIP7755Inbox inbox = RIP7755Inbox(payable(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512));

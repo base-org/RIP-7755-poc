@@ -36,6 +36,18 @@ contract HashiProverTest is BaseTest {
         validProof = vm.readFile(path);
     }
 
+    function test_isOptionalAttribute_shoyuBashi() external view {
+        assert(prover.isOptionalAttribute(_SHOYU_BASHI_ATTRIBUTE_SELECTOR));
+    }
+
+    function test_isOptionalAttribute_destinationChain() external view {
+        assert(prover.isOptionalAttribute(_DESTINATION_CHAIN_SELECTOR));
+    }
+
+    function test_isOptionalAttribute_precheck() external view {
+        assert(prover.isOptionalAttribute(_PRECHECK_ATTRIBUTE_SELECTOR));
+    }
+
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);

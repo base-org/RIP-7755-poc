@@ -28,6 +28,24 @@ abstract contract RIP7755Outbox is RIP7755Base {
         Completed
     }
 
+    /// @notice The selector for the nonce attribute
+    bytes4 internal constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
+
+    /// @notice The selector for the reward attribute
+    bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
+
+    /// @notice The selector for the delay attribute
+    bytes4 internal constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
+
+    /// @notice The selector for the requester attribute
+    bytes4 internal constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
+
+    /// @notice The selector for the l2Oracle attribute
+    bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
+
+    /// @notice The selector for the inbox attribute
+    bytes4 internal constant _INBOX_ATTRIBUTE_SELECTOR = 0xbd362374; // inbox(bytes32)
+
     /// @notice A mapping from the keccak256 hash of a message request to its current status
     mapping(bytes32 messageId => CrossChainCallStatus status) private _messageStatus;
 
@@ -418,9 +436,9 @@ abstract contract RIP7755Outbox is RIP7755Base {
         }
     }
 
-    function _isOptionalAttribute(bytes4 selector) private pure returns (bool) {
+    function _isOptionalAttribute(bytes4 selector) internal pure virtual returns (bool) {
         return selector == _PRECHECK_ATTRIBUTE_SELECTOR || selector == _L2_ORACLE_ATTRIBUTE_SELECTOR
-            || selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR || selector == _DESTINATION_CHAIN_SELECTOR;
+            || selector == _USER_OP_ATTRIBUTE_SELECTOR;
     }
 
     function _getInboxAndReward(bytes[] calldata attributes) private pure returns (address, bytes32, uint256) {

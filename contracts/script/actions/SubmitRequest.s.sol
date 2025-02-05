@@ -11,9 +11,12 @@ import {HelperConfig} from "../HelperConfig.s.sol";
 contract SubmitRequest is Script, RIP7755Base {
     using GlobalTypes for address;
 
-    HelperConfig public helperConfig;
-
+    bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
+    bytes4 internal constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
+    bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
+
+    HelperConfig public helperConfig;
 
     constructor() {
         helperConfig = new HelperConfig();

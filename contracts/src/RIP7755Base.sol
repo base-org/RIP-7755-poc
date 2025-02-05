@@ -20,30 +20,6 @@ contract RIP7755Base {
     /// @notice The selector for the precheck attribute
     bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xfa1e5831; // precheck(address)
 
-    /// @notice The selector for the nonce attribute
-    bytes4 internal constant _NONCE_ATTRIBUTE_SELECTOR = 0xce03fdab; // nonce(uint256)
-
-    /// @notice The selector for the reward attribute
-    bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
-
-    /// @notice The selector for the delay attribute
-    bytes4 internal constant _DELAY_ATTRIBUTE_SELECTOR = 0x84f550e0; // delay(uint256,uint256) finalityDelaySeconds, expiry
-
-    /// @notice The selector for the requester attribute
-    bytes4 internal constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
-
-    /// @notice The selector for the l2Oracle attribute
-    bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
-
-    /// @notice The selector for the shoyuBashi attribute
-    bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
-
-    /// @notice The selector for the inbox attribute
-    bytes4 internal constant _INBOX_ATTRIBUTE_SELECTOR = 0xbd362374; // inbox(bytes32)
-
-    /// @notice The selector for the destinationChain attribute
-    bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
-
     /// @notice The selector for the isUserOp attribute. Used to designate a request designated to be a destination
     ///         chain ERC-4337 User Operation
     bytes4 internal constant _USER_OP_ATTRIBUTE_SELECTOR = 0xd45448dd; // isUserOp(bool)
