@@ -56,10 +56,10 @@ abstract contract RIP7755Outbox is ERC7786Base {
     /// @param outboxId         The keccak256 hash of the message request
     /// @param destinationChain The CAIP-2 chain identifier of the destination chain
     /// @param sender           The CAIP-10 account address of the sender
-    /// @param messages         The messages to be included in the request
-    /// @param globalAttributes The attributes to be included in the message
+    /// @param payload          The messages to be included in the request
+    /// @param attributes       The attributes to be included in the message
     event MessagesPosted(
-        bytes32 indexed outboxId, string destinationChain, string sender, Message[] messages, bytes[] globalAttributes
+        bytes32 indexed outboxId, string destinationChain, string sender, bytes payload, bytes[] attributes
     );
 
     /// @notice Event emitted when a cross chain call is successfully completed
@@ -352,7 +352,7 @@ abstract contract RIP7755Outbox is ERC7786Base {
         bytes32 messageId = getRequestId(sender, destinationChain, messages, expandedAttributes);
         _messageStatus[messageId] = CrossChainCallStatus.Requested;
 
-        emit MessagesPosted(messageId, destinationChain, sender, messages, expandedAttributes);
+        emit MessagesPosted(messageId, destinationChain, sender, abi.encode(messages), expandedAttributes);
 
         return messageId;
     }

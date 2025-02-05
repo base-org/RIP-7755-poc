@@ -28,7 +28,7 @@ contract RIP7755OutboxTest is BaseTest {
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     event MessagesPosted(
-        bytes32 indexed outboxId, string destinationChain, string sender, Message[] messages, bytes[] globalAttributes
+        bytes32 indexed outboxId, string destinationChain, string sender, bytes payload, bytes[] attributes
     );
     event CrossChainCallCompleted(bytes32 indexed requestHash, address submitter);
     event CrossChainCallCanceled(bytes32 indexed callHash);
@@ -47,7 +47,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
-        emit MessagesPosted(messageId, m.destinationChain, m.sender, m.messages, adjustedAttributes);
+        emit MessagesPosted(messageId, m.destinationChain, m.sender, abi.encode(m.messages), adjustedAttributes);
         outbox.sendMessage(m.destinationChain, m.messages[0].receiver, m.messages[0].payload, m.attributes);
 
         adjustedAttributes[3] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
@@ -55,7 +55,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
-        emit MessagesPosted(messageId, m.destinationChain, m.sender, m.messages, adjustedAttributes);
+        emit MessagesPosted(messageId, m.destinationChain, m.sender, abi.encode(m.messages), adjustedAttributes);
         outbox.sendMessage(m.destinationChain, m.messages[0].receiver, m.messages[0].payload, m.attributes);
     }
 
@@ -67,7 +67,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
-        emit MessagesPosted(messageId, m.destinationChain, m.sender, m.messages, adjustedAttributes);
+        emit MessagesPosted(messageId, m.destinationChain, m.sender, abi.encode(m.messages), adjustedAttributes);
         outbox.sendMessages(m.destinationChain, m.messages, m.attributes);
 
         adjustedAttributes[3] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
@@ -75,7 +75,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
-        emit MessagesPosted(messageId, m.destinationChain, m.sender, m.messages, adjustedAttributes);
+        emit MessagesPosted(messageId, m.destinationChain, m.sender, abi.encode(m.messages), adjustedAttributes);
         outbox.sendMessages(m.destinationChain, m.messages, m.attributes);
     }
 
@@ -264,24 +264,22 @@ contract RIP7755OutboxTest is BaseTest {
     }
 
     function test_sendMessage_reverts_ifUnsupportedAttribute(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        bytes4 selector = 0x11111111;
         TestMessage memory m = _initMessage(rewardAmount, false);
-        m.attributes = _addAttribute(m.attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+        m.attributes = _addAttribute(m.attributes, selector);
 
         vm.prank(ALICE);
-        vm.expectRevert(
-            abi.encodeWithSelector(RIP7755Outbox.UnsupportedAttribute.selector, _FULFILLER_ATTRIBUTE_SELECTOR)
-        );
+        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.UnsupportedAttribute.selector, selector));
         outbox.sendMessage(m.destinationChain, m.messages[0].receiver, m.messages[0].payload, m.attributes);
     }
 
     function test_sendMessages_reverts_ifUnsupportedAttribute(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        bytes4 selector = 0x11111111;
         TestMessage memory m = _initMessage(rewardAmount, false);
-        m.attributes = _addAttribute(m.attributes, _FULFILLER_ATTRIBUTE_SELECTOR);
+        m.attributes = _addAttribute(m.attributes, selector);
 
         vm.prank(ALICE);
-        vm.expectRevert(
-            abi.encodeWithSelector(RIP7755Outbox.UnsupportedAttribute.selector, _FULFILLER_ATTRIBUTE_SELECTOR)
-        );
+        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.UnsupportedAttribute.selector, selector));
         outbox.sendMessages(m.destinationChain, m.messages, m.attributes);
     }
 
@@ -388,7 +386,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
-        emit MessagesPosted(messageId, m.destinationChain, m.sender, m.messages, _getAdjustedAttributes(m));
+        emit MessagesPosted(messageId, m.destinationChain, m.sender, abi.encode(m.messages), _getAdjustedAttributes(m));
         outbox.sendMessage(m.destinationChain, m.messages[0].receiver, m.messages[0].payload, m.attributes);
     }
 
@@ -398,7 +396,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
-        emit MessagesPosted(messageId, m.destinationChain, m.sender, m.messages, _getAdjustedAttributes(m));
+        emit MessagesPosted(messageId, m.destinationChain, m.sender, abi.encode(m.messages), _getAdjustedAttributes(m));
         outbox.sendMessages(m.destinationChain, m.messages, m.attributes);
     }
 

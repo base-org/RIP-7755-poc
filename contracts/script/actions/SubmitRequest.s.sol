@@ -5,12 +5,14 @@ import {Script} from "forge-std/Script.sol";
 import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
+import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
 import {ERC7786Base} from "../../src/ERC7786Base.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
 contract SubmitRequest is Script, ERC7786Base {
     using Strings for uint256;
+    using GlobalTypes for address;
 
     HelperConfig public helperConfig;
 
@@ -29,29 +31,24 @@ contract SubmitRequest is Script, ERC7786Base {
 
         RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
 
-        (string memory destinationChain, Message[] memory messages, bytes[] memory attributes) =
+        (string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(destinationChainId, duration);
 
         vm.startBroadcast(config.deployerKey);
-        outbox.sendMessages{value: 0.0002 ether}(destinationChain, messages, attributes);
+        outbox.sendMessage{value: 0.0002 ether}(destinationChain, "receiver", abi.encode(calls), attributes);
         vm.stopBroadcast();
     }
 
     function _initMessage(uint256 destinationChainId, uint256 duration)
         private
-        returns (string memory, Message[] memory, bytes[] memory)
+        returns (string memory, Call[] memory, bytes[] memory)
     {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
         // HelperConfig.NetworkConfig memory srcConfig = helperConfig.getConfig(block.chainid);
 
-        Message[] memory calls = new Message[](1);
-        bytes[] memory messageAttributes = new bytes[](1);
-        messageAttributes[0] = abi.encodeWithSelector(_VALUE_ATTRIBUTE_SELECTOR, 0.0001 ether);
-        calls[0] = Message({
-            receiver: Strings.toChecksumHexString(0x8C1a617BdB47342F9C17Ac8750E0b070c372C721),
-            payload: "",
-            attributes: messageAttributes
-        });
+        Call[] memory calls = new Call[](1);
+        calls[0] =
+            Call({to: 0x8C1a617BdB47342F9C17Ac8750E0b070c372C721.addressToBytes32(), data: "", value: 0.0001 ether});
 
         string memory destinationChain = CAIP2.format("eip155", destinationChainId.toString());
         bytes[] memory attributes = new bytes[](3);

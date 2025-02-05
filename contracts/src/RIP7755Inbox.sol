@@ -2,11 +2,9 @@
 pragma solidity 0.8.24;
 
 import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
-import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
-import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
-import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
+import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {ERC7786Base} from "./ERC7786Base.sol";
 import {Paymaster} from "./Paymaster.sol";
 
@@ -17,11 +15,12 @@ import {Paymaster} from "./Paymaster.sol";
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 ///         destination chains and store record of their fulfillment.
 contract RIP7755Inbox is ERC7786Base, Paymaster {
-    using Strings for string;
+    using GlobalTypes for bytes32;
+    using GlobalTypes for address;
 
     struct MainStorage {
-        /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only
-        ///         be set once per call
+        /// @notice A mapping from the keccak256 hash of a 7755 request to its `FulfillmentInfo`. This can only be set
+        ///         once per call
         mapping(bytes32 requestHash => FulfillmentInfo) fulfillmentInfo;
     }
 
@@ -33,32 +32,19 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         address fulfiller;
     }
 
-    /// @notice A message structure used for internal processing
-    struct InternalMessage {
-        /// @dev The fulfiller address allowed to claim on source chain
-        address fulfiller;
-        /// @dev Boolean value specifying if the request represents an ERC-4337 UserOp
-        bool isUserOp;
-        /// @dev Address of the specified precheck contract. This is optional.
-        address precheckContract;
-    }
-
     /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. Derived from
     ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
 
     /// @notice Event emitted when a cross chain call is fulfilled
     ///
-    /// @param requestHash The keccak256 hash of a `CrossChainRequest`
+    /// @param requestHash The keccak256 hash of a 7755 request
     /// @param fulfilledBy The account that fulfilled the cross chain call
     event CallFulfilled(bytes32 indexed requestHash, address indexed fulfilledBy);
 
     /// @notice This error is thrown when an account attempts to submit a cross chain call that has already been
     ///         fulfilled
     error CallAlreadyFulfilled();
-
-    /// @notice This error is thrown when an invalid caller is detected
-    error InvalidCaller();
 
     /// @notice This error is thrown when a User Operation is detected during an `executeMessages` call
     error UserOp();
@@ -70,48 +56,42 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
 
     /// @notice Delivery of a message sent from another chain.
     ///
-    /// @param sourceChain      The CAIP-2 source chain identifier
-    /// @param sender           The CAIP-10 account address of the sender
-    /// @param messages         The messages to be included in the request
-    /// @param globalAttributes The attributes to be included in the message
-    ///
-    /// @return selector The selector of the function
-    function executeMessages(
-        string calldata sourceChain,
-        string calldata sender,
-        Message[] calldata messages,
-        bytes[] calldata globalAttributes
-    ) external payable returns (bytes4) {
-        InternalMessage memory m = _processAttributes(globalAttributes);
+    /// @param sourceChain The source chain identifier
+    /// @param sender      The account address of the sender
+    /// @param payload     The encoded calls to be included in the request
+    /// @param attributes  The attributes to be included in the message
+    /// @param fulfiller   The account address of the fulfiller
+    function fulfill(
+        bytes32 sourceChain,
+        bytes32 sender,
+        bytes calldata payload,
+        bytes[] calldata attributes,
+        address fulfiller
+    ) external payable {
+        (bool isUserOp, address precheckContract) = _processAttributes(attributes);
 
-        if (m.fulfiller == address(0)) {
-            revert AttributeNotFound(_FULFILLER_ATTRIBUTE_SELECTOR);
-        }
-
-        if (m.isUserOp) {
+        if (isUserOp) {
             revert UserOp();
         }
 
-        bytes32 messageId = getRequestId(sourceChain, sender, messages, globalAttributes);
+        bytes32 messageId = getRequestId(sourceChain, sender, payload, attributes);
 
-        _runPrecheck(sourceChain, sender, messages, globalAttributes, m.precheckContract);
+        _runPrecheck(sourceChain, sender, payload, attributes, precheckContract);
 
         if (_getFulfillmentInfo(messageId).timestamp != 0) {
             revert CallAlreadyFulfilled();
         }
 
-        _setFulfillmentInfo(messageId, m.fulfiller);
+        _setFulfillmentInfo(messageId, fulfiller);
 
-        _sendCallsAndValidateMsgValue(messages);
+        _sendCallsAndValidateMsgValue(payload);
 
-        emit CallFulfilled({requestHash: messageId, fulfilledBy: m.fulfiller});
-
-        return 0x675b049b; // this function's sig
+        emit CallFulfilled({requestHash: messageId, fulfilledBy: fulfiller});
     }
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
     ///
-    /// @param requestHash A keccak256 hash of a CrossChainRequest
+    /// @param requestHash A keccak256 hash of a 7755 request
     ///
     /// @return _ Fulfillment info stored for the call hash
     function getFulfillmentInfo(bytes32 requestHash) external view returns (FulfillmentInfo memory) {
@@ -122,33 +102,34 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     ///
     /// @dev Filters out the fulfiller attribute from the attributes array
     ///
-    /// @param sourceChain The CAIP-2 source chain identifier
-    /// @param sender      The CAIP-10 account address of the sender
-    /// @param messages    The messages to be included in the request
+    /// @param sourceChain The source chain identifier
+    /// @param sender      The account address of the sender
+    /// @param payload     The encoded calls to be included in the request
     /// @param attributes  The attributes to be included in the message
     ///
     /// @return _ The keccak256 hash of the message request
-    function getRequestId(
-        string calldata sourceChain,
-        string calldata sender,
-        Message[] calldata messages,
-        bytes[] calldata attributes
-    ) public view returns (bytes32) {
-        string memory combinedSender = CAIP10.format(sourceChain, sender);
-        string memory destinationChain = CAIP2.local();
-        return keccak256(abi.encode(combinedSender, destinationChain, messages, _filterOutFulfiller(attributes)));
+    function getRequestId(bytes32 sourceChain, bytes32 sender, bytes calldata payload, bytes[] calldata attributes)
+        public
+        view
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encode(
+                sourceChain, sender, bytes32(block.chainid), address(this).addressToBytes32(), payload, attributes
+            )
+        );
     }
 
-    function _sendCallsAndValidateMsgValue(Message[] calldata messages) private {
+    function _sendCallsAndValidateMsgValue(bytes calldata payload) private {
+        Call[] memory calls = abi.decode(payload, (Call[]));
         uint256 valueSent;
 
-        for (uint256 i; i < messages.length; i++) {
-            address to = messages[i].receiver.parseAddress();
-            uint256 value = _locateAttributeValue(messages[i].attributes);
-            _call(to, messages[i].payload, value);
+        for (uint256 i; i < calls.length; i++) {
+            address to = calls[i].to.bytes32ToAddress();
+            _call(to, calls[i].data, calls[i].value);
 
             unchecked {
-                valueSent += value;
+                valueSent += calls[i].value;
             }
         }
 
@@ -158,14 +139,10 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     }
 
     function _call(address to, bytes memory data, uint256 value) private {
-        bytes memory result;
-        /// @solidity memory-safe-assembly
-        assembly {
-            result := mload(0x40)
-            if iszero(call(gas(), to, value, add(data, 0x20), mload(data), codesize(), 0x00)) {
-                // Bubble up the revert if the call reverts.
-                returndatacopy(result, 0x00, returndatasize())
-                revert(result, returndatasize())
+        (bool success, bytes memory result) = to.call{value: value}(data);
+        if (!success) {
+            assembly ("memory-safe") {
+                revert(add(result, 32), mload(result))
             }
         }
     }
@@ -178,9 +155,9 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
     }
 
     function _runPrecheck(
-        string calldata sourceChain, // [CAIP-2] chain identifier
-        string calldata sender, // [CAIP-10] account address
-        Message[] calldata messages,
+        bytes32 sourceChain,
+        bytes32 sender,
+        bytes calldata payload,
         bytes[] calldata attributes,
         address precheck
     ) private view {
@@ -188,7 +165,7 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
             return;
         }
 
-        IPrecheckContract(precheck).precheckCall(sourceChain, sender, messages, attributes, msg.sender);
+        IPrecheckContract(precheck).precheckCall(sourceChain, sender, payload, attributes, msg.sender);
     }
 
     function _getFulfillmentInfo(bytes32 requestHash) private view returns (FulfillmentInfo memory) {
@@ -196,34 +173,19 @@ contract RIP7755Inbox is ERC7786Base, Paymaster {
         return $.fulfillmentInfo[requestHash];
     }
 
-    function _processAttributes(bytes[] calldata attributes) private pure returns (InternalMessage memory) {
-        InternalMessage memory message;
+    function _processAttributes(bytes[] calldata attributes) private pure returns (bool, address) {
+        bool isUserOp;
+        address precheckContract;
 
         for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) == _FULFILLER_ATTRIBUTE_SELECTOR) {
-                message.fulfiller = abi.decode(attributes[i][4:], (address));
-            } else if (bytes4(attributes[i]) == _USER_OP_ATTRIBUTE_SELECTOR) {
-                message.isUserOp = abi.decode(attributes[i][4:], (bool));
+            if (bytes4(attributes[i]) == _USER_OP_ATTRIBUTE_SELECTOR) {
+                isUserOp = abi.decode(attributes[i][4:], (bool));
             } else if (bytes4(attributes[i]) == _PRECHECK_ATTRIBUTE_SELECTOR) {
-                message.precheckContract = abi.decode(attributes[i][4:], (address));
+                precheckContract = abi.decode(attributes[i][4:], (address));
             }
         }
 
-        return message;
-    }
-
-    function _filterOutFulfiller(bytes[] calldata attributes) private pure returns (bytes[] memory) {
-        bytes[] memory filteredAttributes = new bytes[](attributes.length - 1);
-        uint256 filteredIndex;
-        for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) != _FULFILLER_ATTRIBUTE_SELECTOR) {
-                filteredAttributes[filteredIndex] = attributes[i];
-                unchecked {
-                    filteredIndex++;
-                }
-            }
-        }
-        return filteredAttributes;
+        return (isUserOp, precheckContract);
     }
 
     function _getMainStorage() private pure returns (MainStorage storage $) {

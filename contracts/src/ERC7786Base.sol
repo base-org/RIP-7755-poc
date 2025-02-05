@@ -17,6 +17,16 @@ contract ERC7786Base {
         bytes[] attributes;
     }
 
+    /// @notice Low-level call specs representing the desired transaction on destination chain
+    struct Call {
+        /// @dev The address to call
+        bytes32 to;
+        /// @dev The calldata to call with
+        bytes data;
+        /// @dev The native asset value of the call
+        uint256 value;
+    }
+
     /// @notice The selector for the precheck attribute
     bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xfa1e5831; // precheck(address)
 
@@ -32,9 +42,6 @@ contract ERC7786Base {
     /// @notice The selector for the requester attribute
     bytes4 internal constant _REQUESTER_ATTRIBUTE_SELECTOR = 0x3bd94e4c; // requester(bytes32)
 
-    /// @notice The selector for the fulfiller attribute
-    bytes4 internal constant _FULFILLER_ATTRIBUTE_SELECTOR = 0x138a03fc; // fulfiller(address)
-
     /// @notice The selector for the l2Oracle attribute
     bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
 
@@ -47,9 +54,6 @@ contract ERC7786Base {
     /// @notice The selector for the destinationChain attribute
     bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
 
-    /// @notice The selector for the value attribute
-    bytes4 internal constant _VALUE_ATTRIBUTE_SELECTOR = 0xc5a46ee6; // value(uint256)
-
     /// @notice The selector for the isUserOp attribute. Used to designate a request designated to be a destination
     ///         chain ERC-4337 User Operation
     bytes4 internal constant _USER_OP_ATTRIBUTE_SELECTOR = 0xd45448dd; // isUserOp(bool)
@@ -58,9 +62,6 @@ contract ERC7786Base {
     ///
     /// @param selector The selector of the attribute that was not found
     error AttributeNotFound(bytes4 selector);
-
-    /// @notice This error is thrown when the call attributes array contains more than one element
-    error MaxOneAttributeExpected();
 
     /// @notice Locates an attribute in the attributes array
     ///
@@ -98,24 +99,5 @@ contract ERC7786Base {
             }
         }
         return (false, attributes[0]);
-    }
-
-    /// @notice Locates an attribute value in the attributes array
-    ///
-    /// @param attributes The attributes array to search
-    ///
-    /// @return value The value of the attribute found
-    function _locateAttributeValue(bytes[] calldata attributes) internal pure returns (uint256) {
-        if (attributes.length > 1) {
-            revert MaxOneAttributeExpected();
-        }
-
-        uint256 value;
-
-        if (attributes.length == 1 && bytes4(attributes[0]) == _VALUE_ATTRIBUTE_SELECTOR) {
-            value = abi.decode(attributes[0][4:], (uint256));
-        }
-
-        return value;
     }
 }
