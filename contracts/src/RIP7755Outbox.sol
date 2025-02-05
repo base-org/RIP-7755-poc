@@ -191,7 +191,7 @@ abstract contract RIP7755Outbox is RIP7755Base {
         bytes32 sourceChain = bytes32(block.chainid);
         bytes32 messageId = getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes);
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
-        address inbox = _getInboxAddress(expandedAttributes);
+        (address inbox, bytes32 rewardAsset, uint256 rewardAmount) = _getInboxAndReward(expandedAttributes);
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
@@ -199,7 +199,7 @@ abstract contract RIP7755Outbox is RIP7755Base {
 
         _messageStatus[messageId] = CrossChainCallStatus.Completed;
 
-        _sendReward(expandedAttributes, payTo);
+        _sendReward(payTo, rewardAsset, rewardAmount);
 
         emit CrossChainCallCompleted(messageId, msg.sender);
     }
@@ -229,10 +229,8 @@ abstract contract RIP7755Outbox is RIP7755Base {
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
-        bytes calldata requesterAttribute = _locateAttribute(expandedAttributes, _REQUESTER_ATTRIBUTE_SELECTOR);
-        bytes calldata delayAttribute = _locateAttribute(expandedAttributes, _DELAY_ATTRIBUTE_SELECTOR);
-        (, uint256 expiry) = abi.decode(delayAttribute[4:], (uint256, uint256));
-        bytes32 requester = abi.decode(requesterAttribute[4:], (bytes32));
+        (bytes32 requester, uint256 expiry, bytes32 rewardAsset, uint256 rewardAmount) =
+            _getRequesterAndExpiryAndReward(expandedAttributes);
 
         if (msg.sender.addressToBytes32() != requester) {
             revert InvalidCaller({caller: msg.sender, expectedCaller: requester.bytes32ToAddress()});
@@ -247,7 +245,7 @@ abstract contract RIP7755Outbox is RIP7755Base {
         _messageStatus[messageId] = CrossChainCallStatus.Canceled;
 
         // Return the stored reward back to the original requester
-        _sendReward(expandedAttributes, requester.bytes32ToAddress());
+        _sendReward(requester.bytes32ToAddress(), rewardAsset, rewardAmount);
 
         emit CrossChainCallCanceled(messageId);
     }
@@ -396,10 +394,7 @@ abstract contract RIP7755Outbox is RIP7755Base {
         }
     }
 
-    function _sendReward(bytes[] calldata attributes, address to) private {
-        bytes calldata rewardAttribute = _locateAttribute(attributes, _REWARD_ATTRIBUTE_SELECTOR);
-        (bytes32 rewardAsset, uint256 rewardAmount) = abi.decode(rewardAttribute[4:], (bytes32, uint256));
-
+    function _sendReward(address to, bytes32 rewardAsset, uint256 rewardAmount) private {
         if (rewardAsset == _NATIVE_ASSET) {
             payable(to).sendValue(rewardAmount);
         } else {
@@ -428,9 +423,42 @@ abstract contract RIP7755Outbox is RIP7755Base {
             || selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR || selector == _DESTINATION_CHAIN_SELECTOR;
     }
 
-    function _getInboxAddress(bytes[] calldata attributes) private pure returns (address) {
-        bytes calldata inboxAttribute = _locateAttribute(attributes, _INBOX_ATTRIBUTE_SELECTOR);
-        bytes32 inbox = abi.decode(inboxAttribute[4:], (bytes32));
-        return inbox.bytes32ToAddress();
+    function _getInboxAndReward(bytes[] calldata attributes) private pure returns (address, bytes32, uint256) {
+        bytes32 inbox;
+        bytes32 rewardAsset;
+        uint256 rewardAmount;
+
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) == _INBOX_ATTRIBUTE_SELECTOR) {
+                inbox = abi.decode(attributes[i][4:], (bytes32));
+            } else if (bytes4(attributes[i]) == _REWARD_ATTRIBUTE_SELECTOR) {
+                (rewardAsset, rewardAmount) = abi.decode(attributes[i][4:], (bytes32, uint256));
+            }
+        }
+
+        return (inbox.bytes32ToAddress(), rewardAsset, rewardAmount);
+    }
+
+    function _getRequesterAndExpiryAndReward(bytes[] calldata attributes)
+        private
+        pure
+        returns (bytes32, uint256, bytes32, uint256)
+    {
+        bytes32 requester;
+        uint256 expiry;
+        bytes32 rewardAsset;
+        uint256 rewardAmount;
+
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) == _REQUESTER_ATTRIBUTE_SELECTOR) {
+                requester = abi.decode(attributes[i][4:], (bytes32));
+            } else if (bytes4(attributes[i]) == _DELAY_ATTRIBUTE_SELECTOR) {
+                (, expiry) = abi.decode(attributes[i][4:], (uint256, uint256));
+            } else if (bytes4(attributes[i]) == _REWARD_ATTRIBUTE_SELECTOR) {
+                (rewardAsset, rewardAmount) = abi.decode(attributes[i][4:], (bytes32, uint256));
+            }
+        }
+
+        return (requester, expiry, rewardAsset, rewardAmount);
     }
 }
