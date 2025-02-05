@@ -5,7 +5,7 @@ import {SafeERC20, IERC20} from "openzeppelin-contracts/contracts/token/ERC20/ut
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
-import {ERC7786Base} from "./ERC7786Base.sol";
+import {RIP7755Base} from "./RIP7755Base.sol";
 import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 
 /// @title RIP7755Outbox
@@ -14,7 +14,7 @@ import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 ///
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
 ///         that submit the cross chain calls to destination chains.
-abstract contract RIP7755Outbox is ERC7786Base {
+abstract contract RIP7755Outbox is RIP7755Base {
     using Address for address payable;
     using SafeERC20 for IERC20;
     using GlobalTypes for address;

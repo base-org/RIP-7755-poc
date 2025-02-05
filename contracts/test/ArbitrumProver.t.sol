@@ -43,7 +43,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
@@ -57,7 +57,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -70,7 +70,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifUnconfirmed() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -83,7 +83,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidRLPHeaders() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -96,7 +96,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_reverts_ifInvalidL2Storage() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -109,7 +109,7 @@ contract ArbitrumProverTest is BaseTest {
     }
 
     function test_proveArbitrumSepoliaStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
@@ -171,11 +171,11 @@ contract ArbitrumProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, Message[] memory, bytes[] memory)
+        returns (string memory, string memory, Call[] memory, bytes[] memory)
     {
         string memory sourceChain = _remote(31337);
         string memory sender = address(this).toChecksumHexString();
-        Message[] memory calls = new Message[](0);
+        Call[] memory calls = new Call[](0);
         bytes[] memory attributes = new bytes[](5);
 
         attributes[0] =

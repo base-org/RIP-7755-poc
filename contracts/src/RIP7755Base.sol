@@ -6,17 +6,7 @@ pragma solidity ^0.8.24;
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
 /// @notice This contract contains the selectors for the RIP-7755-supported attributes of the ERC7786 standard
-contract ERC7786Base {
-    /// @notice A struct representing an individual call within a 7755 request
-    struct Message {
-        /// @dev The CAIP-10 account address of the receiver (not including the chain identifier)
-        string receiver;
-        /// @dev The calldata for the call to be made to the receiver
-        bytes payload;
-        /// @dev The attributes to be included in the message (should be empty)
-        bytes[] attributes;
-    }
-
+contract RIP7755Base {
     /// @notice Low-level call specs representing the desired transaction on destination chain
     struct Call {
         /// @dev The address to call

@@ -4,11 +4,11 @@ pragma solidity 0.8.24;
 import {Script} from "forge-std/Script.sol";
 
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
-import {ERC7786Base} from "../../src/ERC7786Base.sol";
+import {RIP7755Base} from "../../src/RIP7755Base.sol";
 import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
-contract SubmitRequest is Script, ERC7786Base {
+contract SubmitRequest is Script, RIP7755Base {
     using GlobalTypes for address;
 
     HelperConfig public helperConfig;

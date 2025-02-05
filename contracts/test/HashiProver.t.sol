@@ -37,7 +37,7 @@ contract HashiProverTest is BaseTest {
     }
 
     function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
 
@@ -51,7 +51,7 @@ contract HashiProverTest is BaseTest {
     }
 
     function test_reverts_ifInvaldBlockHeader() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
         HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
@@ -70,7 +70,7 @@ contract HashiProverTest is BaseTest {
 
     function test_reverts_ifInvalidStorage() external fundAlice(_REWARD_AMOUNT) {
         bytes memory wrongStorageValue = "0x23214a0864fc0014cab6030267738f01affdd547000000000000000067444860";
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
 
@@ -84,7 +84,7 @@ contract HashiProverTest is BaseTest {
     }
 
     function test_proveGnosisChiadoStateFromBaseSepolia() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sender, string memory destinationChain, Message[] memory calls, bytes[] memory attributes) =
+        (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
 
@@ -117,11 +117,11 @@ contract HashiProverTest is BaseTest {
     function _initMessage(uint256 rewardAmount)
         private
         view
-        returns (string memory, string memory, Message[] memory, bytes[] memory)
+        returns (string memory, string memory, Call[] memory, bytes[] memory)
     {
         string memory sender = address(this).local();
         string memory destinationChain = _remote(HASHI_DOMAIN_DST_CHAIN_ID);
-        Message[] memory calls = new Message[](0);
+        Call[] memory calls = new Call[](0);
         bytes[] memory attributes = new bytes[](6);
 
         attributes[0] =

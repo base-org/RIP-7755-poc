@@ -7,11 +7,11 @@ import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import {ERC7786Base} from "../src/ERC7786Base.sol";
+import {RIP7755Base} from "../src/RIP7755Base.sol";
 
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
-contract BaseTest is Test, ERC7786Base {
+contract BaseTest is Test, RIP7755Base {
     ERC20Mock mockErc20;
     MockBeaconOracle mockBeaconOracle;
 
@@ -70,7 +70,7 @@ contract BaseTest is Test, ERC7786Base {
     function _getMessageId(
         string memory sourceChain,
         string memory sender,
-        Message[] memory calls,
+        Call[] memory calls,
         bytes[] memory attributes
     ) internal pure returns (bytes32) {
         string memory combinedSender = CAIP10.format(sourceChain, sender);

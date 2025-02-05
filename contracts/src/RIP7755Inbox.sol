@@ -5,7 +5,7 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
-import {ERC7786Base} from "./ERC7786Base.sol";
+import {RIP7755Base} from "./RIP7755Base.sol";
 import {Paymaster} from "./Paymaster.sol";
 
 /// @title RIP7755Inbox
@@ -14,7 +14,7 @@ import {Paymaster} from "./Paymaster.sol";
 ///
 /// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
 ///         destination chains and store record of their fulfillment.
-contract RIP7755Inbox is ERC7786Base, Paymaster {
+contract RIP7755Inbox is RIP7755Base, Paymaster {
     using GlobalTypes for bytes32;
     using GlobalTypes for address;
 
