@@ -11,7 +11,7 @@ import {RRC7755Inbox} from "./RRC7755Inbox.sol";
 
 /// @title RRC7755Outbox
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice A source contract for initiating RRC-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
 ///         that submit the cross chain calls to destination chains.

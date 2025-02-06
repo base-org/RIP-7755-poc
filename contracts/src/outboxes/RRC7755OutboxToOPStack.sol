@@ -7,7 +7,7 @@ import {RRC7755Outbox} from "../RRC7755Outbox.sol";
 
 /// @title RRC7755OutboxToOPStack
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an OP Stack chain
 contract RRC7755OutboxToOPStack is RRC7755Outbox {

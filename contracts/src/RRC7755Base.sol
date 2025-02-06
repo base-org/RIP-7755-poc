@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @title ERC7786Base
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This contract contains the selectors for the RRC-7755-supported attributes of the ERC7786 standard
 contract RRC7755Base {

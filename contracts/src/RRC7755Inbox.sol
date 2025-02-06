@@ -10,7 +10,7 @@ import {Paymaster} from "./Paymaster.sol";
 
 /// @title RRC7755Inbox
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice An inbox contract within RRC-7755. This contract's sole purpose is to route requested transactions on
 ///         destination chains and store record of their fulfillment.

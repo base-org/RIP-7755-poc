@@ -8,7 +8,7 @@ import {SSZ} from "./SSZ.sol";
 
 /// @title StateValidator
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice A library for validating EVM storage proofs.
 library StateValidator {

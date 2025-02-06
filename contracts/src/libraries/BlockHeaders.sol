@@ -5,7 +5,7 @@ import {RLPReader} from "optimism/packages/contracts-bedrock/src/libraries/rlp/R
 
 /// @title BlockHeaders
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This library contains utility functions for interacting with RLP-encoded block headers
 library BlockHeaders {
