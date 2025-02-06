@@ -6,22 +6,22 @@ import {UserOperationLib} from "account-abstraction/core/UserOperationLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
-import {RIP7755Base} from "./RIP7755Base.sol";
-import {RIP7755Inbox} from "./RIP7755Inbox.sol";
+import {RRC7755Base} from "./RRC7755Base.sol";
+import {RRC7755Inbox} from "./RRC7755Inbox.sol";
 
-/// @title RIP7755Outbox
+/// @title RRC7755Outbox
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
-/// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
+/// @notice A source contract for initiating RRC-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
 ///         that submit the cross chain calls to destination chains.
-abstract contract RIP7755Outbox is RIP7755Base {
+abstract contract RRC7755Outbox is RRC7755Base {
     using GlobalTypes for address;
     using GlobalTypes for bytes32;
     using UserOperationLib for PackedUserOperation;
     using SafeTransferLib for address;
 
-    /// @notice An enum representing the status of an RIP-7755 cross chain call
+    /// @notice An enum representing the status of an RRC-7755 cross chain call
     enum CrossChainCallStatus {
         None,
         Requested,
@@ -54,10 +54,10 @@ abstract contract RIP7755Outbox is RIP7755Base {
     ///         contract is deployed on following ERC-7528
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
-    /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. Derived from
-    ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
+    /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201.
+    ///         keccak256(abi.encode(uint256(keccak256(bytes("RRC-7755"))) - 1)) & ~bytes32(uint256(0xff))
     bytes32 private constant _VERIFIER_STORAGE_LOCATION =
-        0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
+        0x40f2eef6aad3cb0e74d3b59b45d3d5f2d5fc8dc382e739617b693cdd4bc30c00;
 
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
@@ -68,7 +68,7 @@ abstract contract RIP7755Outbox is RIP7755Base {
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
 
-    /// @notice Event emitted when a user sends a message to the `RIP7755Inbox`
+    /// @notice Event emitted when a user sends a message to the `RRC7755Inbox`
     ///
     /// @param outboxId         The keccak256 hash of the message request
     /// @param sourceChain      The chain identifier of the source chain
@@ -336,8 +336,8 @@ abstract contract RIP7755Outbox is RIP7755Base {
     /// @dev Implementation will vary by L2
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    ///                                `RIP7755Inbox` contract
-    /// @param inbox                   The address of the `RIP7755Inbox` contract
+    ///                                `RRC7755Inbox` contract
+    /// @param inbox                   The address of the `RRC7755Inbox` contract
     /// @param attributes              The attributes to be included in the message
     /// @param proofData               The proof to validate
     function _validateProof(
@@ -347,17 +347,17 @@ abstract contract RIP7755Outbox is RIP7755Base {
         bytes calldata proofData
     ) internal view virtual;
 
-    /// @notice Decodes the `FulfillmentInfo` struct from the `RIP7755Inbox` storage slot
+    /// @notice Decodes the `FulfillmentInfo` struct from the `RRC7755Inbox` storage slot
     ///
-    /// @param inboxContractStorageValue The storage value of the `RIP7755Inbox` storage slot
+    /// @param inboxContractStorageValue The storage value of the `RRC7755Inbox` storage slot
     ///
     /// @return fulfillmentInfo The decoded `FulfillmentInfo` struct
     function _decodeFulfillmentInfo(bytes32 inboxContractStorageValue)
         internal
         pure
-        returns (RIP7755Inbox.FulfillmentInfo memory)
+        returns (RRC7755Inbox.FulfillmentInfo memory)
     {
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo;
+        RRC7755Inbox.FulfillmentInfo memory fulfillmentInfo;
         fulfillmentInfo.fulfiller = address(uint160((uint256(inboxContractStorageValue) >> 96) & type(uint160).max));
         fulfillmentInfo.timestamp = uint96(uint256(inboxContractStorageValue));
         return fulfillmentInfo;

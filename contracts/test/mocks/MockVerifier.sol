@@ -16,8 +16,8 @@ contract MockVerifier {
     }
 
     // Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201.
-    // keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
+    // keccak256(abi.encode(uint256(keccak256(bytes("RRC-7755"))) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _MAIN_STORAGE_LOCATION = 0x40f2eef6aad3cb0e74d3b59b45d3d5f2d5fc8dc382e739617b693cdd4bc30c00;
 
     function storeFulfillmentInfo(bytes32 requestHash, address fulfiller) external {
         _setFulfillmentInfo(requestHash, FulfillmentInfo({timestamp: uint96(block.timestamp), filler: fulfiller}));

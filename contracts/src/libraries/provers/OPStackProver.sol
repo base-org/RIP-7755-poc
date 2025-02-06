@@ -6,7 +6,7 @@ import {BlockHeaders} from "../BlockHeaders.sol";
 
 /// @title OPStackProver
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This is a utility library for validating OP Stack storage proofs.
 library OPStackProver {
@@ -24,7 +24,7 @@ library OPStackProver {
     }
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof
-    struct RIP7755Proof {
+    struct RRC7755Proof {
         /// @dev The storage root of Optimism's MessagePasser contract - used to compute our L1 storage value
         bytes32 l2MessagePasserStorageRoot;
         /// @dev The RLP-encoded array of block headers of the chain's L2 block used for the proof. Hashing this bytes
@@ -67,7 +67,7 @@ library OPStackProver {
     /// @return l2Timestamp    The timestamp of the validated L2 state root
     /// @return l2StorageValue The storage value of the destination L2 storage slot
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
-        RIP7755Proof memory data = abi.decode(proof, (RIP7755Proof));
+        RRC7755Proof memory data = abi.decode(proof, (RRC7755Proof));
 
         // Set the expected storage key for the L1 storage slot
         data.dstL2StateRootProofParams.storageKey = _L1_STORAGE_KEY;

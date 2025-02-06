@@ -7,11 +7,11 @@ import {CAIP2} from "openzeppelin-contracts/contracts/utils/CAIP2.sol";
 import {CAIP10} from "openzeppelin-contracts/contracts/utils/CAIP10.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import {RIP7755Base} from "../src/RIP7755Base.sol";
+import {RRC7755Base} from "../src/RRC7755Base.sol";
 
 import {MockBeaconOracle} from "./mocks/MockBeaconOracle.sol";
 
-contract BaseTest is Test, RIP7755Base {
+contract BaseTest is Test, RRC7755Base {
     ERC20Mock mockErc20;
     MockBeaconOracle mockBeaconOracle;
 

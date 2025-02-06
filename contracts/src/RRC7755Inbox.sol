@@ -5,16 +5,16 @@ import {IEntryPoint} from "account-abstraction/interfaces/IEntryPoint.sol";
 
 import {IPrecheckContract} from "./interfaces/IPrecheckContract.sol";
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
-import {RIP7755Base} from "./RIP7755Base.sol";
+import {RRC7755Base} from "./RRC7755Base.sol";
 import {Paymaster} from "./Paymaster.sol";
 
-/// @title RIP7755Inbox
+/// @title RRC7755Inbox
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
-/// @notice An inbox contract within RIP-7755. This contract's sole purpose is to route requested transactions on
+/// @notice An inbox contract within RRC-7755. This contract's sole purpose is to route requested transactions on
 ///         destination chains and store record of their fulfillment.
-contract RIP7755Inbox is RIP7755Base, Paymaster {
+contract RRC7755Inbox is RRC7755Base, Paymaster {
     using GlobalTypes for bytes32;
     using GlobalTypes for address;
 
@@ -32,9 +32,9 @@ contract RIP7755Inbox is RIP7755Base, Paymaster {
         address fulfiller;
     }
 
-    /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201. Derived from
-    ///         the equation keccak256(abi.encode(uint256(keccak256(bytes("RIP-7755"))) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _MAIN_STORAGE_LOCATION = 0xfd1017d80ffe8da8a74488ee7408c9efa1877e094afa95857de95797c1228500;
+    /// @notice Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201.
+    ///         keccak256(abi.encode(uint256(keccak256(bytes("RRC-7755"))) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _MAIN_STORAGE_LOCATION = 0x40f2eef6aad3cb0e74d3b59b45d3d5f2d5fc8dc382e739617b693cdd4bc30c00;
 
     /// @notice Event emitted when a cross chain call is fulfilled
     ///

@@ -3,16 +3,16 @@ pragma solidity 0.8.24;
 
 import {HashiProver} from "../libraries/provers/HashiProver.sol";
 import {GlobalTypes} from "../libraries/GlobalTypes.sol";
-import {RIP7755Inbox} from "../RIP7755Inbox.sol";
-import {RIP7755Outbox} from "../RIP7755Outbox.sol";
+import {RRC7755Inbox} from "../RRC7755Inbox.sol";
+import {RRC7755Outbox} from "../RRC7755Outbox.sol";
 
-/// @title RIP7755OutboxToHashi
+/// @title RRC7755OutboxToHashi
 ///
 /// @author Crosschain Alliance
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM
 ///         chain.
-contract RIP7755OutboxToHashi is RIP7755Outbox {
+contract RRC7755OutboxToHashi is RRC7755Outbox {
     using HashiProver for bytes;
     using GlobalTypes for bytes32;
 
@@ -34,8 +34,8 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
     /// @custom:reverts If the L2StateRoot does not correspond to the validated L1 storage slot
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    ///                                `RIP7755Inbox` contract
-    /// @param inbox                   The address of the `RIP7755Inbox` contract
+    ///                                `RRC7755Inbox` contract
+    /// @param inbox                   The address of the `RRC7755Inbox` contract
     /// @param attributes              The attributes of the message
     /// @param proof                   The proof to validate
     function _validateProof(
@@ -55,7 +55,7 @@ contract RIP7755OutboxToHashi is RIP7755Outbox {
         });
         (uint256 timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
 
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
+        RRC7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
 
         bytes calldata delayAttribute = _locateAttribute(attributes, _DELAY_ATTRIBUTE_SELECTOR);
         (uint256 delaySeconds,) = abi.decode(delayAttribute[4:], (uint256, uint256));

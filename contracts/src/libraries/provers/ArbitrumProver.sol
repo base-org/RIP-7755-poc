@@ -6,7 +6,7 @@ import {StateValidator} from "../StateValidator.sol";
 
 /// @title ArbitrumProver
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This is a utility library for validating Arbitrum storage proofs.
 library ArbitrumProver {
@@ -56,7 +56,7 @@ library ArbitrumProver {
     }
 
     /// @notice Parameters needed for a full nested cross-L2 storage proof with Arbitrum as the destination chain
-    struct RIP7755Proof {
+    struct RRC7755Proof {
         /// @dev The RLP-encoded array of block headers of Arbitrum's L2 block corresponding to the above RBlock.
         ///      Hashing this bytes string should produce the blockhash.
         bytes encodedBlockArray;
@@ -107,7 +107,7 @@ library ArbitrumProver {
     /// @return l2Timestamp    The timestamp of the validated L2 state root
     /// @return l2StorageValue The storage value of the destination L2 storage slot
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
-        RIP7755Proof memory data = abi.decode(proof, (RIP7755Proof));
+        RRC7755Proof memory data = abi.decode(proof, (RRC7755Proof));
 
         // Set the expected storage key and value for the destination L2 storage slot
         data.dstL2AccountProofParams.storageKey = target.l2StorageKey;

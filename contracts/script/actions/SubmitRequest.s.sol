@@ -4,11 +4,11 @@ pragma solidity 0.8.24;
 import {Script} from "forge-std/Script.sol";
 
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
-import {RIP7755Base} from "../../src/RIP7755Base.sol";
-import {RIP7755Outbox} from "../../src/RIP7755Outbox.sol";
+import {RRC7755Base} from "../../src/RRC7755Base.sol";
+import {RRC7755Outbox} from "../../src/RRC7755Outbox.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
-contract SubmitRequest is Script, RIP7755Base {
+contract SubmitRequest is Script, RRC7755Base {
     using GlobalTypes for address;
 
     bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
@@ -29,7 +29,7 @@ contract SubmitRequest is Script, RIP7755Base {
         uint256 destinationChainId = helperConfig.BASE_SEPOLIA_CHAIN_ID();
         uint256 duration = 1 weeks;
 
-        RIP7755Outbox outbox = RIP7755Outbox(outboxAddr);
+        RRC7755Outbox outbox = RRC7755Outbox(outboxAddr);
 
         (bytes32 destinationChain, bytes32 receiver, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(destinationChainId, duration);

@@ -4,10 +4,10 @@ pragma solidity 0.8.24;
 import {Script} from "forge-std/Script.sol";
 
 import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
-import {RIP7755Base} from "../../src/RIP7755Base.sol";
-import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
+import {RRC7755Base} from "../../src/RRC7755Base.sol";
+import {RRC7755Inbox} from "../../src/RRC7755Inbox.sol";
 
-contract SubmitToInbox is Script, RIP7755Base {
+contract SubmitToInbox is Script, RRC7755Base {
     using GlobalTypes for address;
 
     bytes4 internal constant _REWARD_ATTRIBUTE_SELECTOR = 0xa362e5db; // reward(bytes32,uint256) rewardAsset, rewardAmount
@@ -18,7 +18,7 @@ contract SubmitToInbox is Script, RIP7755Base {
 
     function run() external {
         uint256 pk = vm.envUint("PRIVATE_KEY");
-        RIP7755Inbox inbox = RIP7755Inbox(payable(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512));
+        RRC7755Inbox inbox = RRC7755Inbox(payable(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512));
         address fulfiller = 0x23214A0864FC0014CAb6030267738F01AFfdd547;
 
         (bytes32 sourceChain, bytes32 sender, bytes memory payload, bytes[] memory attributes) = _initMessage();

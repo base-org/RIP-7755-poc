@@ -2,7 +2,7 @@
 
 ## Overview
 
-This application demonstrates a fundamental use-case empowered by the RIP-7755 protocol. It serves as an Ethereum bridge between the Arbitrum Sepolia and Base Sepolia networks. The bridge facilitates fast and permissionless transfers of ETH between these two networks, showcasing the potential of RIP-7755 in real-world applications.
+This application demonstrates a fundamental use-case empowered by the RRC-7755 protocol. It serves as an Ethereum bridge between the Arbitrum Sepolia and Base Sepolia networks. The bridge facilitates fast and permissionless transfers of ETH between these two networks, showcasing the potential of RRC-7755 in real-world applications.
 
 ## Key Features
 

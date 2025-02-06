@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 /// @title GlobalTypes
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This library contains utility functions for converting addresses to bytes32 and vice versa.
 library GlobalTypes {

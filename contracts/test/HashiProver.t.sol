@@ -8,7 +8,7 @@ import {HashiProver} from "../src/libraries/provers/HashiProver.sol";
 import {BlockHeaders} from "../src/libraries/BlockHeaders.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToHashi} from "../src/outboxes/RIP7755OutboxToHashi.sol";
+import {RRC7755OutboxToHashi} from "../src/outboxes/RRC7755OutboxToHashi.sol";
 
 import {MockShoyuBashi} from "./mocks/MockShoyuBashi.sol";
 import {MockHashiProver} from "./mocks/MockHashiProver.sol";
@@ -53,12 +53,12 @@ contract HashiProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
 
-        HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
+        HashiProver.RRC7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToHashi.FinalityDelaySecondsInProgress.selector);
+        vm.expectRevert(RRC7755OutboxToHashi.FinalityDelaySecondsInProgress.selector);
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
@@ -66,7 +66,7 @@ contract HashiProverTest is BaseTest {
         (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
-        HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
+        HashiProver.RRC7755Proof memory proof = _buildProof(validProof);
 
         (, uint256 blockNumber,) = proof.rlpEncodedBlockHeader.extractStateRootBlockNumberAndTimestamp();
 
@@ -86,7 +86,7 @@ contract HashiProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
 
-        HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
+        HashiProver.RRC7755Proof memory proof = _buildProof(validProof);
         proof.dstAccountProofParams.storageValue = wrongStorageValue;
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
@@ -100,14 +100,14 @@ contract HashiProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
 
-        HashiProver.RIP7755Proof memory proof = _buildProof(validProof);
+        HashiProver.RRC7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
-    function _buildProof(string memory json) private returns (HashiProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (HashiProver.RRC7755Proof memory) {
         StateValidator.AccountProofParameters memory dstAccountProofParams = StateValidator.AccountProofParameters({
             storageKey: json.readBytes(".dstAccountProofParams.storageKey"),
             storageValue: json.readBytes(".dstAccountProofParams.storageValue"),
@@ -120,7 +120,7 @@ contract HashiProverTest is BaseTest {
 
         shoyuBashi.setHash(HASHI_DOMAIN_DST_CHAIN_ID, blockNumber, rlpEncodedBlockHeader.toBlockHash());
 
-        return HashiProver.RIP7755Proof({
+        return HashiProver.RRC7755Proof({
             rlpEncodedBlockHeader: rlpEncodedBlockHeader,
             dstAccountProofParams: dstAccountProofParams
         });

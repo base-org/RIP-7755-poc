@@ -7,7 +7,7 @@ import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {ArbitrumProver} from "../src/libraries/provers/ArbitrumProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToArbitrum} from "../src/outboxes/RIP7755OutboxToArbitrum.sol";
+import {RRC7755OutboxToArbitrum} from "../src/outboxes/RRC7755OutboxToArbitrum.sol";
 
 import {MockArbitrumProver} from "./mocks/MockArbitrumProver.sol";
 import {BaseTest} from "./BaseTest.t.sol";
@@ -48,11 +48,11 @@ contract ArbitrumProverTest is BaseTest {
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
 
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
+        ArbitrumProver.RRC7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToArbitrum.FinalityDelaySecondsInProgress.selector);
+        vm.expectRevert(RRC7755OutboxToArbitrum.FinalityDelaySecondsInProgress.selector);
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
@@ -61,7 +61,7 @@ contract ArbitrumProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL1State);
+        ArbitrumProver.RRC7755Proof memory proof = _buildProof(invalidL1State);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
@@ -74,7 +74,7 @@ contract ArbitrumProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(unconfirmedState);
+        ArbitrumProver.RRC7755Proof memory proof = _buildProof(unconfirmedState);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
@@ -87,7 +87,7 @@ contract ArbitrumProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidBlockHeaders);
+        ArbitrumProver.RRC7755Proof memory proof = _buildProof(invalidBlockHeaders);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
@@ -100,7 +100,7 @@ contract ArbitrumProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(invalidL2Storage);
+        ArbitrumProver.RRC7755Proof memory proof = _buildProof(invalidL2Storage);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
@@ -113,14 +113,14 @@ contract ArbitrumProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        ArbitrumProver.RIP7755Proof memory proof = _buildProof(validProof);
+        ArbitrumProver.RRC7755Proof memory proof = _buildProof(validProof);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
-    function _buildProof(string memory json) private returns (ArbitrumProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (ArbitrumProver.RRC7755Proof memory) {
         ArbitrumProver.GlobalState memory afterStateGlobalState = ArbitrumProver.GlobalState({
             bytes32Vals: abi.decode(json.parseRaw(".afterState.globalState.bytes32Vals"), (bytes32[2])),
             u64Vals: abi.decode(json.parseRaw(".afterState.globalState.u64Vals"), (uint64[2]))
@@ -157,7 +157,7 @@ contract ArbitrumProverTest is BaseTest {
 
         mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
 
-        return ArbitrumProver.RIP7755Proof({
+        return ArbitrumProver.RRC7755Proof({
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
             afterState: afterState,
             prevAssertionHash: json.readBytes32(".prevAssertionHash"),

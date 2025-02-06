@@ -2,16 +2,16 @@
 pragma solidity 0.8.24;
 
 import {ArbitrumProver} from "../libraries/provers/ArbitrumProver.sol";
-import {RIP7755Inbox} from "../RIP7755Inbox.sol";
-import {RIP7755Outbox} from "../RIP7755Outbox.sol";
+import {RRC7755Inbox} from "../RRC7755Inbox.sol";
+import {RRC7755Outbox} from "../RRC7755Outbox.sol";
 
-/// @title RIP7755OutboxToArbitrum
+/// @title RRC7755OutboxToArbitrum
 ///
-/// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
+/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
 ///
 /// @notice This contract implements storage proof validation to ensure that requested calls actually happened on
 ///         Arbitrum
-contract RIP7755OutboxToArbitrum is RIP7755Outbox {
+contract RRC7755OutboxToArbitrum is RRC7755Outbox {
     using ArbitrumProver for bytes;
 
     /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
@@ -27,8 +27,8 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
     /// @custom:reverts If the L2StorageRoot does not correspond to our validated L1 storage slot
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
-    ///                                `RIP7755Inbox` contract
-    /// @param inbox                   The address of the `RIP7755Inbox` contract
+    ///                                `RRC7755Inbox` contract
+    /// @param inbox                   The address of the `RRC7755Inbox` contract
     /// @param attributes              The attributes of the request
     /// @param proof                   The proof to validate
     function _validateProof(
@@ -44,7 +44,7 @@ contract RIP7755OutboxToArbitrum is RIP7755Outbox {
             ArbitrumProver.Target({l1Address: l2Oracle, l2Address: inbox, l2StorageKey: inboxContractStorageKey});
         (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
 
-        RIP7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
+        RRC7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
 
         bytes calldata delayAttribute = _locateAttribute(attributes, _DELAY_ATTRIBUTE_SELECTOR);
         (uint256 delaySeconds,) = abi.decode(delayAttribute[4:], (uint256, uint256));

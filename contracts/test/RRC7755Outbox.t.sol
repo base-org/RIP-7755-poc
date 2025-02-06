@@ -4,12 +4,12 @@ pragma solidity 0.8.24;
 import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
 
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
-import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
+import {RRC7755Outbox} from "../src/RRC7755Outbox.sol";
 
 import {MockOutbox} from "./mocks/MockOutbox.sol";
 import {BaseTest} from "./BaseTest.t.sol";
 
-contract RIP7755OutboxTest is BaseTest {
+contract RRC7755OutboxTest is BaseTest {
     using GlobalTypes for address;
 
     struct TestMessage {
@@ -74,7 +74,7 @@ contract RIP7755OutboxTest is BaseTest {
         TestMessage memory m = _initMessage(rewardAmount, true);
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.InvalidValue.selector, rewardAmount, 0));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidValue.selector, rewardAmount, 0));
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
@@ -83,7 +83,7 @@ contract RIP7755OutboxTest is BaseTest {
         TestMessage memory m = _initMessage(rewardAmount, false);
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.InvalidAttributeLength.selector, 3, 0));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidAttributeLength.selector, 3, 0));
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, new bytes[](0));
     }
 
@@ -96,7 +96,7 @@ contract RIP7755OutboxTest is BaseTest {
         TestMessage memory m = _initMessage(rewardAmount, false);
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.InvalidValue.selector, 0, 1));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidValue.selector, 0, 1));
         outbox.sendMessage{value: 1}(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
@@ -105,7 +105,7 @@ contract RIP7755OutboxTest is BaseTest {
         m.attributes = _setDelay(m.attributes, 10, block.timestamp + 10 - 1);
 
         vm.prank(ALICE);
-        vm.expectRevert(RIP7755Outbox.ExpiryTooSoon.selector);
+        vm.expectRevert(RRC7755Outbox.ExpiryTooSoon.selector);
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
@@ -115,8 +115,8 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Requested);
     }
 
     function test_sendMessage_setMetadata_withOptionalPrecheckAttribute(uint256 rewardAmount)
@@ -129,8 +129,8 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Requested);
     }
 
     function test_sendMessage_setMetadata_withOptionalL2OracleAttribute(uint256 rewardAmount)
@@ -143,8 +143,8 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Requested);
     }
 
     function test_sendMessage_setMetadata_userOp(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -154,8 +154,8 @@ contract RIP7755OutboxTest is BaseTest {
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Requested);
     }
 
     function test_sendMessage_reverts_ifUnsupportedAttribute(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -164,7 +164,7 @@ contract RIP7755OutboxTest is BaseTest {
         m.attributes = _addAttribute(m.attributes, selector);
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.UnsupportedAttribute.selector, selector));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.UnsupportedAttribute.selector, selector));
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
@@ -174,7 +174,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectRevert(
-            abi.encodeWithSelector(RIP7755Outbox.MissingRequiredAttribute.selector, _REWARD_ATTRIBUTE_SELECTOR)
+            abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _REWARD_ATTRIBUTE_SELECTOR)
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
@@ -185,7 +185,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectRevert(
-            abi.encodeWithSelector(RIP7755Outbox.MissingRequiredAttribute.selector, _DELAY_ATTRIBUTE_SELECTOR)
+            abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _DELAY_ATTRIBUTE_SELECTOR)
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
@@ -196,7 +196,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.prank(ALICE);
         vm.expectRevert(
-            abi.encodeWithSelector(RIP7755Outbox.MissingRequiredAttribute.selector, _INBOX_ATTRIBUTE_SELECTOR)
+            abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _INBOX_ATTRIBUTE_SELECTOR)
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
@@ -210,8 +210,8 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         outbox.sendMessage{value: rewardAmount}(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Requested);
     }
 
     function test_sendMessage_emitsEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -259,9 +259,9 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(FILLER);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.InvalidStatus.selector,
-                RIP7755Outbox.CrossChainCallStatus.Requested,
-                RIP7755Outbox.CrossChainCallStatus.None
+                RRC7755Outbox.InvalidStatus.selector,
+                RRC7755Outbox.CrossChainCallStatus.Requested,
+                RRC7755Outbox.CrossChainCallStatus.None
             )
         );
         outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
@@ -279,9 +279,9 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(FILLER);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.InvalidStatus.selector,
-                RIP7755Outbox.CrossChainCallStatus.Requested,
-                RIP7755Outbox.CrossChainCallStatus.Completed
+                RRC7755Outbox.InvalidStatus.selector,
+                RRC7755Outbox.CrossChainCallStatus.Requested,
+                RRC7755Outbox.CrossChainCallStatus.Completed
             )
         );
         outbox.claimReward(
@@ -300,9 +300,9 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(FILLER);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.InvalidStatus.selector,
-                RIP7755Outbox.CrossChainCallStatus.Requested,
-                RIP7755Outbox.CrossChainCallStatus.Canceled
+                RRC7755Outbox.InvalidStatus.selector,
+                RRC7755Outbox.CrossChainCallStatus.Requested,
+                RRC7755Outbox.CrossChainCallStatus.Canceled
             )
         );
         outbox.claimReward(
@@ -334,8 +334,8 @@ contract RIP7755OutboxTest is BaseTest {
             m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
         );
 
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Completed);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Completed);
     }
 
     function test_claimReward_storesCompletedStatus_pendingStateUserOp(uint256 rewardAmount)
@@ -351,8 +351,8 @@ contract RIP7755OutboxTest is BaseTest {
         );
 
         bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Completed);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Completed);
     }
 
     function test_claimReward_sendsNativeAssetRewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -433,9 +433,9 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.InvalidStatus.selector,
-                RIP7755Outbox.CrossChainCallStatus.Requested,
-                RIP7755Outbox.CrossChainCallStatus.None
+                RRC7755Outbox.InvalidStatus.selector,
+                RRC7755Outbox.CrossChainCallStatus.Requested,
+                RRC7755Outbox.CrossChainCallStatus.None
             )
         );
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
@@ -450,9 +450,9 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.InvalidStatus.selector,
-                RIP7755Outbox.CrossChainCallStatus.Requested,
-                RIP7755Outbox.CrossChainCallStatus.Canceled
+                RRC7755Outbox.InvalidStatus.selector,
+                RRC7755Outbox.CrossChainCallStatus.Requested,
+                RRC7755Outbox.CrossChainCallStatus.Canceled
             )
         );
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
@@ -472,9 +472,9 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.InvalidStatus.selector,
-                RIP7755Outbox.CrossChainCallStatus.Requested,
-                RIP7755Outbox.CrossChainCallStatus.Completed
+                RRC7755Outbox.InvalidStatus.selector,
+                RRC7755Outbox.CrossChainCallStatus.Requested,
+                RRC7755Outbox.CrossChainCallStatus.Completed
             )
         );
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
@@ -484,7 +484,7 @@ contract RIP7755OutboxTest is BaseTest {
         TestMessage memory m = _submitRequest(rewardAmount);
 
         vm.prank(FILLER);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.InvalidCaller.selector, FILLER, ALICE));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidCaller.selector, FILLER, ALICE));
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
     }
 
@@ -495,7 +495,7 @@ contract RIP7755OutboxTest is BaseTest {
         vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + cancelDelaySeconds - 1);
         vm.expectRevert(
             abi.encodeWithSelector(
-                RIP7755Outbox.CannotCancelRequestBeforeExpiry.selector,
+                RRC7755Outbox.CannotCancelRequestBeforeExpiry.selector,
                 block.timestamp,
                 this.extractExpiry(_getAdjustedAttributes(m)) + cancelDelaySeconds
             )
@@ -509,7 +509,7 @@ contract RIP7755OutboxTest is BaseTest {
 
         vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(FILLER);
-        vm.expectRevert(abi.encodeWithSelector(RIP7755Outbox.InvalidCaller.selector, FILLER, ALICE));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidCaller.selector, FILLER, ALICE));
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
     }
 
@@ -520,8 +520,8 @@ contract RIP7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
 
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Canceled);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Canceled);
     }
 
     function test_cancelMessage_setsStatusAsCanceled_userOp(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -532,8 +532,8 @@ contract RIP7755OutboxTest is BaseTest {
         outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
 
         bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
-        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
-        assert(status == RIP7755Outbox.CrossChainCallStatus.Canceled);
+        RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
+        assert(status == RRC7755Outbox.CrossChainCallStatus.Canceled);
     }
 
     function test_cancelMessage_emitsCanceledEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
