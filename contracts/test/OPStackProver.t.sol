@@ -5,7 +5,7 @@ import {stdJson} from "forge-std/StdJson.sol";
 
 import {OPStackProver} from "../src/libraries/provers/OPStackProver.sol";
 import {StateValidator} from "../src/libraries/StateValidator.sol";
-import {RIP7755OutboxToOPStack} from "../src/outboxes/RIP7755OutboxToOPStack.sol";
+import {RRC7755OutboxToOPStack} from "../src/outboxes/RRC7755OutboxToOPStack.sol";
 
 import {MockOPStackProver} from "./mocks/MockOPStackProver.sol";
 import {BaseTest} from "./BaseTest.t.sol";
@@ -42,7 +42,7 @@ contract OPStackProverTest is BaseTest {
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
+        vm.expectRevert(RRC7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
     }
 
@@ -51,7 +51,7 @@ contract OPStackProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        OPStackProver.RRC7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconOracleTimestamp++;
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -66,7 +66,7 @@ contract OPStackProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        OPStackProver.RRC7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.beaconRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -81,7 +81,7 @@ contract OPStackProverTest is BaseTest {
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
 
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(validProof);
+        OPStackProver.RRC7755Proof memory proofData = _buildProof(validProof);
         proofData.stateProofParams.executionStateRoot = keccak256("invalidRoot");
         bytes memory storageProofData = abi.encode(proofData);
         bytes memory inboxStorageKey = _deriveStorageKey(messageId);
@@ -143,11 +143,11 @@ contract OPStackProverTest is BaseTest {
     }
 
     function _buildProofAndEncodeProof(string memory json) private returns (bytes memory) {
-        OPStackProver.RIP7755Proof memory proofData = _buildProof(json);
+        OPStackProver.RRC7755Proof memory proofData = _buildProof(json);
         return abi.encode(proofData);
     }
 
-    function _buildProof(string memory json) private returns (OPStackProver.RIP7755Proof memory) {
+    function _buildProof(string memory json) private returns (OPStackProver.RRC7755Proof memory) {
         StateValidator.StateProofParameters memory stateProofParams = StateValidator.StateProofParameters({
             beaconRoot: json.readBytes32(".stateProofParams.beaconRoot"),
             beaconOracleTimestamp: json.readUint(".stateProofParams.beaconOracleTimestamp"),
@@ -169,7 +169,7 @@ contract OPStackProverTest is BaseTest {
 
         mockBeaconOracle.commitBeaconRoot(1, stateProofParams.beaconOracleTimestamp, stateProofParams.beaconRoot);
 
-        return OPStackProver.RIP7755Proof({
+        return OPStackProver.RRC7755Proof({
             l2MessagePasserStorageRoot: json.readBytes32(".l2MessagePasserStorageRoot"),
             encodedBlockArray: json.readBytes(".encodedBlockArray"),
             stateProofParams: stateProofParams,

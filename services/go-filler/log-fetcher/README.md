@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Log Fetcher is the initial component in the RIP-7755 Fulfiller architecture. Its primary function is to monitor events emitted by `RIP7755Outbox` contracts across supported blockchain networks. Upon detecting an event that signifies a cross-chain call request, the Log Fetcher parses the log into a format suitable for further processing.
+The Log Fetcher is the initial component in the RRC-7755 Fulfiller architecture. Its primary function is to monitor events emitted by `RRC7755Outbox` contracts across supported blockchain networks. Upon detecting an event that signifies a cross-chain call request, the Log Fetcher parses the log into a format suitable for further processing.
 
 Next, it performs a validation of the request by checking that all routing information aligns with the pre-defined configurations for both the source and destination chains. Additionally, it ensures that the specified reward asset and amount are sufficient to guarantee a profit if the request is processed by the system.
 

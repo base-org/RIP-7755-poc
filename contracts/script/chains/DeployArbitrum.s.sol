@@ -3,8 +3,8 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
-import {RIP7755OutboxToHashi} from "../../src/outboxes/RIP7755OutboxToHashi.sol";
-import {RIP7755Inbox} from "../../src/RIP7755Inbox.sol";
+import {RRC7755OutboxToHashi} from "../../src/outboxes/RRC7755OutboxToHashi.sol";
+import {RRC7755Inbox} from "../../src/RRC7755Inbox.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
 
 contract DeployArbitrum is Script {
@@ -19,8 +19,8 @@ contract DeployArbitrum is Script {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
 
         vm.startBroadcast(deployerPrivateKey);
-        new RIP7755Inbox(config.entryPoint);
-        new RIP7755OutboxToHashi();
+        new RRC7755Inbox(config.entryPoint);
+        new RRC7755OutboxToHashi();
         vm.stopBroadcast();
     }
 

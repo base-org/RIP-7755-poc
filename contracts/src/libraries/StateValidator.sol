@@ -73,7 +73,7 @@ library StateValidator {
     /// @dev First confirms a valid Beacon root and a valid execution state root
     ///
     /// @param account            An EVM account - in most cases, either an L2Oracle contract on Eth Mainnet or
-    ///                           `RIP7755Inbox` on a destination L2
+    ///                           `RRC7755Inbox` on a destination L2
     /// @param stateProofParams   Parameters needed to validate the authenticity of Ethereum's execution client's
     ///                           state root
     /// @param accountProofParams Parameters needed to validate the authenticity of an EVM account's storage
@@ -102,7 +102,7 @@ library StateValidator {
     ///      has already been verified
     ///
     /// @param account            An EVM account - in most cases, either an L2Oracle contract on Eth Mainnet or
-    ///                           `RIP7755Inbox` on a destination L2
+    ///                           `RRC7755Inbox` on a destination L2
     /// @param stateRoot          The state root of an EVM chain's execution client
     /// @param accountProofParams Parameters needed to validate the authenticity of an EVM account's storage
     ///

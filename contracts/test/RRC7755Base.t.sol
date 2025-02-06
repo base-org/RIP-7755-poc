@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import {BaseTest} from "./BaseTest.t.sol";
 
-contract ERC7786BaseTest is BaseTest {
+contract RRC7755BaseTest is BaseTest {
     function test_locateAttribute_returnsAttribute() external view {
         bytes[] memory attributes = new bytes[](1);
         attributes[0] = abi.encodeWithSelector(_DESTINATION_CHAIN_SELECTOR, FILLER);

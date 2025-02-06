@@ -27,7 +27,7 @@ library HashiProver {
     }
 
     /// @notice Parameters needed for a full nested cross-chain storage proof
-    struct RIP7755Proof {
+    struct RRC7755Proof {
         /// @dev The RLP-encoded block from which we want to retrieve its hash from Hashi
         bytes rlpEncodedBlockHeader;
         /// @dev Parameters needed to validate the authenticity of a specified storage location on the destination chain
@@ -37,7 +37,7 @@ library HashiProver {
     /// @notice This error is thrown when verification of proof.blockHash against the one stored in Hashi fails
     error InvalidBlockHeader();
 
-    /// @notice This error is thrown when verification of the authenticity of the `RIP7755Inbox` storage on the
+    /// @notice This error is thrown when verification of the authenticity of the `RRC7755Inbox` storage on the
     ///         destination chain fails
     error InvalidStorage();
 
@@ -50,9 +50,9 @@ library HashiProver {
     /// @param target The proof target on L1 and dst L2
     ///
     /// @return l2Timestamp    The timestamp of the validated L2 state root
-    /// @return l2StorageValue The storage value of the `RIP7755Inbox` storage slot
+    /// @return l2StorageValue The storage value of the `RRC7755Inbox` storage slot
     function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
-        RIP7755Proof memory data = abi.decode(proof, (RIP7755Proof));
+        RRC7755Proof memory data = abi.decode(proof, (RRC7755Proof));
 
         data.dstAccountProofParams.storageKey = target.storageKey;
 

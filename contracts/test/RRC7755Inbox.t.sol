@@ -5,13 +5,13 @@ import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {Paymaster} from "../src/Paymaster.sol";
-import {RIP7755Inbox} from "../src/RIP7755Inbox.sol";
+import {RRC7755Inbox} from "../src/RRC7755Inbox.sol";
 
 import {MockPrecheck} from "./mocks/MockPrecheck.sol";
 import {MockTarget} from "./mocks/MockTarget.sol";
 import {BaseTest} from "./BaseTest.t.sol";
 
-contract RIP7755InboxTest is BaseTest {
+contract RRC7755InboxTest is BaseTest {
     using GlobalTypes for address;
 
     struct TestMessage {
@@ -22,7 +22,7 @@ contract RIP7755InboxTest is BaseTest {
         bytes[] attributes;
     }
 
-    RIP7755Inbox inbox;
+    RRC7755Inbox inbox;
     MockPrecheck precheck;
     MockTarget target;
     EntryPoint entryPoint;
@@ -32,7 +32,7 @@ contract RIP7755InboxTest is BaseTest {
 
     function setUp() public {
         entryPoint = new EntryPoint();
-        inbox = new RIP7755Inbox(address(entryPoint));
+        inbox = new RRC7755Inbox(address(entryPoint));
         precheck = new MockPrecheck();
         target = new MockTarget();
         approveAddr = address(inbox);
@@ -42,7 +42,7 @@ contract RIP7755InboxTest is BaseTest {
     function test_fulfill_reverts_userOp() external {
         TestMessage memory m = _initMessage(false, true);
 
-        vm.expectRevert(RIP7755Inbox.UserOp.selector);
+        vm.expectRevert(RRC7755Inbox.UserOp.selector);
         inbox.fulfill(m.sourceChain, m.sender, m.payload, m.attributes, FILLER);
     }
 
@@ -52,7 +52,7 @@ contract RIP7755InboxTest is BaseTest {
         vm.prank(FILLER, FILLER);
         inbox.fulfill(m.sourceChain, m.sender, m.payload, m.attributes, FILLER);
 
-        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
+        RRC7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
 
         assertEq(info.fulfiller, FILLER);
         assertEq(info.timestamp, block.timestamp);
@@ -72,7 +72,7 @@ contract RIP7755InboxTest is BaseTest {
         inbox.fulfill(m.sourceChain, m.sender, m.payload, m.attributes, FILLER);
 
         vm.prank(FILLER);
-        vm.expectRevert(RIP7755Inbox.CallAlreadyFulfilled.selector);
+        vm.expectRevert(RRC7755Inbox.CallAlreadyFulfilled.selector);
         inbox.fulfill(m.sourceChain, m.sender, m.payload, m.attributes, FILLER);
     }
 
@@ -129,7 +129,7 @@ contract RIP7755InboxTest is BaseTest {
         vm.prank(FILLER);
         inbox.fulfill(m.sourceChain, m.sender, m.payload, m.attributes, FILLER);
 
-        RIP7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
+        RRC7755Inbox.FulfillmentInfo memory info = inbox.getFulfillmentInfo(m.messageId);
 
         assertEq(info.fulfiller, FILLER);
         assertEq(info.timestamp, block.timestamp);

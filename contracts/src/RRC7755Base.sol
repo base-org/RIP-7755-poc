@@ -5,8 +5,8 @@ pragma solidity ^0.8.24;
 ///
 /// @author Coinbase (https://github.com/base-org/RIP-7755-poc)
 ///
-/// @notice This contract contains the selectors for the RIP-7755-supported attributes of the ERC7786 standard
-contract RIP7755Base {
+/// @notice This contract contains the selectors for the RRC-7755-supported attributes of the ERC7786 standard
+contract RRC7755Base {
     /// @notice Low-level call specs representing the desired transaction on destination chain
     struct Call {
         /// @dev The address to call

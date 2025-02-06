@@ -2,9 +2,9 @@
 
 ## Overview
 
-`ts-filler` is a backend service built with the Bun JavaScript runtime. It is designed to manage backend operations for RIP-7755 cross-chain call requests between any two blockchains that post state roots to L1. This project serves as an example of how an off-chain "Fulfiller" app might function. Anyone can run a fulfiller app and earn money with RIP-7755!
+`ts-filler` is a backend service built with the Bun JavaScript runtime. It is designed to manage backend operations for RRC-7755 cross-chain call requests between any two blockchains that post state roots to L1. This project serves as an example of how an off-chain "Fulfiller" app might function. Anyone can run a fulfiller app and earn money with RRC-7755!
 
-The role of an RIP-7755 Fulfiller is to listen for cross-chain call requests and submit them to the `RIP7755Inbox` contract on the destination chain on behalf of the user who submitted the request. In return for fulfilling this duty, your fulfiller signer can claim a reward that gets locked in the source chain `RIP7755Outbox` contract after a defined delay specified in the `CrossChainRequest`. To claim the reward, the fulfiller must generate and submit a proof that verifies the existence of a record of the call having been made in `RIP7755Inbox` on the destination chain. The exact proof mechanics depend on the destination chain. Currently, only Arbitrum and OP Stack chains are supported.
+The role of an RRC-7755 Fulfiller is to listen for cross-chain call requests and submit them to the `RRC7755Inbox` contract on the destination chain on behalf of the user who submitted the request. In return for fulfilling this duty, your fulfiller signer can claim a reward that gets locked in the source chain `RRC7755Outbox` contract after a defined delay specified in the `CrossChainRequest`. To claim the reward, the fulfiller must generate and submit a proof that verifies the existence of a record of the call having been made in `RRC7755Inbox` on the destination chain. The exact proof mechanics depend on the destination chain. Currently, only Arbitrum and OP Stack chains are supported.
 
 ## Prerequisites
 
@@ -71,12 +71,12 @@ To build and run the Docker container, use the following command:
 
 ## Fulfiller App Requirements
 
-Running a Fulfiller app in the RIP-7755 ecosystem has minimal requirements, but there are essential guidelines to ensure security and proper functionality:
+Running a Fulfiller app in the RRC-7755 ecosystem has minimal requirements, but there are essential guidelines to ensure security and proper functionality:
 
 - **Funded Signer**: Ensure the signer used to broadcast transactions is funded with the native currency of the blockchains you intend to support.
 - **Address Validation**: Do not trust addresses in the `Request` structure from `CrossChainCallRequested` events without validating them against the configured chain [settings](./src/chain/chains.ts).
 - **Reward Verification**: Verify that the `rewardAsset` and `rewardAmount` are appropriate given the requested transaction.
-- **Robust Monitoring**: Implement robust monitoring to track successfully submitted calls. After a call is successfully submitted, wait for `request.finalityDelaySeconds` before claiming your reward from the source chain `RIP7755Outbox` contract. If you do not claim the reward, the user can reclaim it after a 1-day delay.
+- **Robust Monitoring**: Implement robust monitoring to track successfully submitted calls. After a call is successfully submitted, wait for `request.finalityDelaySeconds` before claiming your reward from the source chain `RRC7755Outbox` contract. If you do not claim the reward, the user can reclaim it after a 1-day delay.
 
 ## License
 
