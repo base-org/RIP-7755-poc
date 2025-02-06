@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import {SafeERC20, IERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+import {UserOperationLib} from "account-abstraction/core/UserOperationLib.sol";
+import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 import {RIP7755Base} from "./RIP7755Base.sol";
@@ -15,10 +16,10 @@ import {RIP7755Inbox} from "./RIP7755Inbox.sol";
 /// @notice A source contract for initiating RIP-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
 ///         that submit the cross chain calls to destination chains.
 abstract contract RIP7755Outbox is RIP7755Base {
-    using Address for address payable;
-    using SafeERC20 for IERC20;
     using GlobalTypes for address;
     using GlobalTypes for bytes32;
+    using UserOperationLib for PackedUserOperation;
+    using SafeTransferLib for address;
 
     /// @notice An enum representing the status of an RIP-7755 cross chain call
     enum CrossChainCallStatus {
@@ -155,8 +156,8 @@ abstract contract RIP7755Outbox is RIP7755Base {
     ///                   - Inbox attribute
     /// @custom:reverts If an unsupported attribute is provided
     ///
-    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
-    /// @param receiver         The CAIP-10 account address of the receiver (not including the chain identifier)
+    /// @param destinationChain The chain identifier of the destination chain
+    /// @param receiver         The account address of the receiver
     /// @param payload          The encoded calls array
     /// @param attributes       The attributes to be included in the message
     ///
@@ -167,12 +168,12 @@ abstract contract RIP7755Outbox is RIP7755Base {
         bytes calldata payload,
         bytes[] calldata attributes
     ) external payable returns (bytes32) {
-        bytes[] memory expandedAttributes = _processAttributes(attributes);
+        (bytes[] memory expandedAttributes, bool isUserOp) = _processAttributes(attributes);
         bytes32 sender = address(this).addressToBytes32();
         bytes32 sourceChain = bytes32(block.chainid);
 
         bytes32 messageId =
-            getRequestIdMemory(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes);
+            this.getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes, isUserOp);
         _messageStatus[messageId] = CrossChainCallStatus.Requested;
 
         emit MessagePosted(
@@ -207,7 +208,9 @@ abstract contract RIP7755Outbox is RIP7755Base {
     ) external {
         bytes32 sender = address(this).addressToBytes32();
         bytes32 sourceChain = bytes32(block.chainid);
-        bytes32 messageId = getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes);
+        bool isUserOp = _isUserOp(expandedAttributes);
+        bytes32 messageId =
+            getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes, isUserOp);
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
         (address inbox, bytes32 rewardAsset, uint256 rewardAmount) = _getInboxAndReward(expandedAttributes);
 
@@ -243,7 +246,9 @@ abstract contract RIP7755Outbox is RIP7755Base {
     ) external {
         bytes32 sender = address(this).addressToBytes32();
         bytes32 sourceChain = bytes32(block.chainid);
-        bytes32 messageId = getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes);
+        bool isUserOp = _isUserOp(expandedAttributes);
+        bytes32 messageId =
+            getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes, isUserOp);
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
@@ -286,25 +291,39 @@ abstract contract RIP7755Outbox is RIP7755Base {
         return selector == _REWARD_ATTRIBUTE_SELECTOR || selector == _DELAY_ATTRIBUTE_SELECTOR;
     }
 
-    /// @notice Returns the keccak256 hash of a message request
+    /// @notice Returns the keccak256 hash of a message request or the user op hash if the request is an ERC-4337 User
+    ///         Operation
     ///
     /// @param sourceChain      The source chain identifier
-    /// @param sender           The CAIP-10 account address of the sender
-    /// @param destinationChain The CAIP-2 chain identifier of the destination chain
+    /// @param sender           The account address of the sender
+    /// @param destinationChain The chain identifier of the destination chain
     /// @param receiver         The account address of the receiver
     /// @param payload          The messages to be included in the request
     /// @param attributes       The attributes to be included in the message
+    /// @param isUserOp         Whether the request is an ERC-4337 User Operation
     ///
     /// @return _ The keccak256 hash of the message request
-    function getRequestIdMemory(
+    function getRequestId(
         bytes32 sourceChain,
         bytes32 sender,
         bytes32 destinationChain,
         bytes32 receiver,
         bytes calldata payload,
-        bytes[] memory attributes
-    ) public pure returns (bytes32) {
-        return keccak256(abi.encode(sourceChain, sender, destinationChain, receiver, payload, attributes));
+        bytes[] calldata attributes,
+        bool isUserOp
+    ) public view returns (bytes32) {
+        return isUserOp
+            ? this.getUserOpHash(abi.decode(payload, (PackedUserOperation)))
+            : getRequestId(sourceChain, sender, destinationChain, receiver, payload, attributes);
+    }
+
+    /// @notice Returns the hash of an ERC-4337 User Operation
+    ///
+    /// @param userOp The ERC-4337 User Operation
+    ///
+    /// @return _ The hash of the ERC-4337 User Operation
+    function getUserOpHash(PackedUserOperation calldata userOp) public pure returns (bytes32) {
+        return userOp.hash();
     }
 
     /// @notice Validates storage proofs and verifies fill
@@ -344,13 +363,14 @@ abstract contract RIP7755Outbox is RIP7755Base {
         return fulfillmentInfo;
     }
 
-    function _processAttributes(bytes[] calldata attributes) private returns (bytes[] memory) {
+    function _processAttributes(bytes[] calldata attributes) private returns (bytes[] memory, bool) {
         if (attributes.length < _EXPECTED_ATTRIBUTE_LENGTH) {
             revert InvalidAttributeLength(_EXPECTED_ATTRIBUTE_LENGTH, attributes.length);
         }
 
         bytes[] memory adjustedAttributes = new bytes[](attributes.length + 2);
         bool[3] memory attributeProcessed = [false, false, false];
+        bool isUserOp;
 
         for (uint256 i; i < attributes.length; i++) {
             bytes4 attributeSelector = bytes4(attributes[i]);
@@ -365,6 +385,10 @@ abstract contract RIP7755Outbox is RIP7755Base {
                 attributeProcessed[2] = true;
             } else if (!_isOptionalAttribute(attributeSelector)) {
                 revert UnsupportedAttribute(attributeSelector);
+            }
+
+            if (attributeSelector == _USER_OP_ATTRIBUTE_SELECTOR) {
+                isUserOp = abi.decode(attributes[i][4:], (bool));
             }
 
             adjustedAttributes[i] = attributes[i];
@@ -386,7 +410,17 @@ abstract contract RIP7755Outbox is RIP7755Base {
         adjustedAttributes[attributes.length + 1] =
             abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, msg.sender.addressToBytes32());
 
-        return adjustedAttributes;
+        return (adjustedAttributes, isUserOp);
+    }
+
+    function _isUserOp(bytes[] calldata attributes) private pure returns (bool) {
+        for (uint256 i; i < attributes.length; i++) {
+            if (bytes4(attributes[i]) == _USER_OP_ATTRIBUTE_SELECTOR) {
+                return abi.decode(attributes[i][4:], (bool));
+            }
+        }
+
+        return false;
     }
 
     function _handleRewardAttribute(bytes calldata attribute) private {
@@ -400,7 +434,7 @@ abstract contract RIP7755Outbox is RIP7755Base {
         }
 
         if (!usingNativeCurrency) {
-            IERC20(rewardAsset.bytes32ToAddress()).safeTransferFrom(msg.sender, address(this), rewardAmount);
+            rewardAsset.bytes32ToAddress().safeTransferFrom(msg.sender, address(this), rewardAmount);
         }
     }
 
@@ -414,9 +448,9 @@ abstract contract RIP7755Outbox is RIP7755Base {
 
     function _sendReward(address to, bytes32 rewardAsset, uint256 rewardAmount) private {
         if (rewardAsset == _NATIVE_ASSET) {
-            payable(to).sendValue(rewardAmount);
+            to.safeTransferETH(rewardAmount);
         } else {
-            IERC20(rewardAsset.bytes32ToAddress()).safeTransfer(to, rewardAmount);
+            rewardAsset.bytes32ToAddress().safeTransfer(to, rewardAmount);
         }
     }
 
