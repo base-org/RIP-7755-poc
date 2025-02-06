@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOperation.sol";
+
 import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 import {RIP7755Outbox} from "../src/RIP7755Outbox.sol";
 
@@ -142,6 +144,17 @@ contract RIP7755OutboxTest is BaseTest {
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
+        assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
+    }
+
+    function test_sendMessage_setMetadata_userOp(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        TestMessage memory m = _initUserOpMessage(rewardAmount);
+
+        vm.prank(ALICE);
+        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+
+        bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
+        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
         assert(status == RIP7755Outbox.CrossChainCallStatus.Requested);
     }
 
@@ -325,6 +338,23 @@ contract RIP7755OutboxTest is BaseTest {
         assert(status == RIP7755Outbox.CrossChainCallStatus.Completed);
     }
 
+    function test_claimReward_storesCompletedStatus_pendingStateUserOp(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        TestMessage memory m = _submitUserOp(rewardAmount);
+        bytes memory storageProofData = abi.encode(true);
+
+        vm.prank(FILLER);
+        outbox.claimReward(
+            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
+        );
+
+        bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
+        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
+        assert(status == RIP7755Outbox.CrossChainCallStatus.Completed);
+    }
+
     function test_claimReward_sendsNativeAssetRewardToFiller(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _initMessage(rewardAmount, true);
         bytes memory storageProofData = abi.encode(true);
@@ -494,6 +524,18 @@ contract RIP7755OutboxTest is BaseTest {
         assert(status == RIP7755Outbox.CrossChainCallStatus.Canceled);
     }
 
+    function test_cancelMessage_setsStatusAsCanceled_userOp(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        TestMessage memory m = _submitUserOp(rewardAmount);
+
+        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.prank(ALICE);
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+
+        bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
+        RIP7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
+        assert(status == RIP7755Outbox.CrossChainCallStatus.Canceled);
+    }
+
     function test_cancelMessage_emitsCanceledEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
 
@@ -582,17 +624,17 @@ contract RIP7755OutboxTest is BaseTest {
         assertTrue(supportsReward);
     }
 
-    function test_getMessageId_returnsSameValue_asGetMessageIdCalldata() external view {
-        TestMessage memory m = _initMessage(100, false);
-        bytes32 messageId =
-            outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, m.attributes);
-        bytes32 messageIdCalldata =
-            outbox.getRequestIdMemory(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, m.attributes);
-        assertEq(messageId, messageIdCalldata);
-    }
-
     function _submitRequest(uint256 rewardAmount) private returns (TestMessage memory) {
         TestMessage memory m = _initMessage(rewardAmount, false);
+
+        vm.prank(ALICE);
+        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+
+        return m;
+    }
+
+    function _submitUserOp(uint256 rewardAmount) private returns (TestMessage memory) {
+        TestMessage memory m = _initUserOpMessage(rewardAmount);
 
         vm.prank(ALICE);
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
@@ -623,6 +665,39 @@ contract RIP7755OutboxTest is BaseTest {
             sender: sender,
             receiver: sender,
             payload: abi.encode(calls),
+            attributes: attributes
+        });
+    }
+
+    function _initUserOpMessage(uint256 rewardAmount) private view returns (TestMessage memory) {
+        bytes32 destinationChain = bytes32(block.chainid);
+        bytes32 sender = address(outbox).addressToBytes32();
+        PackedUserOperation memory userOp = PackedUserOperation({
+            sender: address(0),
+            nonce: 1,
+            initCode: "",
+            callData: "",
+            accountGasLimits: 0,
+            preVerificationGas: 0,
+            gasFees: 0,
+            paymasterAndData: "",
+            signature: ""
+        });
+        bytes[] memory attributes = new bytes[](4);
+
+        attributes[0] =
+            abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
+
+        attributes = _setDelay(attributes, 10, block.timestamp + 11);
+        attributes[2] = abi.encodeWithSelector(_INBOX_ATTRIBUTE_SELECTOR, bytes32(0));
+        attributes[3] = abi.encodeWithSelector(_USER_OP_ATTRIBUTE_SELECTOR, true);
+
+        return TestMessage({
+            sourceChain: bytes32(block.chainid),
+            destinationChain: destinationChain,
+            sender: sender,
+            receiver: sender,
+            payload: abi.encode(userOp),
             attributes: attributes
         });
     }
