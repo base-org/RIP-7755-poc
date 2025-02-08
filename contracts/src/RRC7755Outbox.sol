@@ -44,9 +44,6 @@ abstract contract RRC7755Outbox is RRC7755Base {
     /// @notice The selector for the l2Oracle attribute
     bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
 
-    /// @notice The selector for the inbox attribute
-    bytes4 internal constant _INBOX_ATTRIBUTE_SELECTOR = 0xbd362374; // inbox(bytes32)
-
     /// @notice A mapping from the keccak256 hash of a message request to its current status
     mapping(bytes32 messageId => CrossChainCallStatus status) private _messageStatus;
 
@@ -62,8 +59,8 @@ abstract contract RRC7755Outbox is RRC7755Base {
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
 
-    /// @notice The expected length of the attributes array supplied to `sendMessage`
-    uint256 private constant _EXPECTED_ATTRIBUTE_LENGTH = 3;
+    /// @notice The expected minimum length of the attributes array supplied to `sendMessage`
+    uint256 private constant _EXPECTED_ATTRIBUTE_LENGTH = 2;
 
     /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
     uint256 private _nonce;
@@ -206,20 +203,23 @@ abstract contract RRC7755Outbox is RRC7755Base {
         bytes calldata proof,
         address payTo
     ) external {
-        bytes32 sender = address(this).addressToBytes32();
-        bytes32 sourceChain = bytes32(block.chainid);
-        bool isUserOp = _isUserOp(expandedAttributes);
-        bytes32 messageId =
-            getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes, isUserOp);
-        bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
-        (address inbox, bytes32 rewardAsset, uint256 rewardAmount) = _getInboxAndReward(expandedAttributes);
+        bytes32 messageId;
+        {
+            bytes32 sender = address(this).addressToBytes32();
+            bytes32 sourceChain = bytes32(block.chainid);
+            bool isUserOp = _isUserOp(expandedAttributes);
+            messageId =
+                getRequestId(sourceChain, sender, destinationChain, receiver, payload, expandedAttributes, isUserOp);
+        }
 
         _checkValidStatus({requestHash: messageId, expectedStatus: CrossChainCallStatus.Requested});
 
-        _validateProof(storageKey, inbox, expandedAttributes, proof);
+        bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
+        _validateProof(storageKey, receiver.bytes32ToAddress(), expandedAttributes, proof);
 
         _messageStatus[messageId] = CrossChainCallStatus.Completed;
 
+        (bytes32 rewardAsset, uint256 rewardAmount) = _getReward(expandedAttributes);
         _sendReward(payTo, rewardAsset, rewardAmount);
 
         emit CrossChainCallCompleted(messageId, msg.sender);
@@ -369,7 +369,7 @@ abstract contract RRC7755Outbox is RRC7755Base {
         }
 
         bytes[] memory adjustedAttributes = new bytes[](attributes.length + 2);
-        bool[3] memory attributeProcessed = [false, false, false];
+        bool[2] memory attributeProcessed = [false, false];
         bool isUserOp;
 
         for (uint256 i; i < attributes.length; i++) {
@@ -381,8 +381,6 @@ abstract contract RRC7755Outbox is RRC7755Base {
             } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
                 _handleDelayAttribute(attributes[i]);
                 attributeProcessed[1] = true;
-            } else if (attributeSelector == _INBOX_ATTRIBUTE_SELECTOR && !attributeProcessed[2]) {
-                attributeProcessed[2] = true;
             } else if (!_isOptionalAttribute(attributeSelector)) {
                 revert UnsupportedAttribute(attributeSelector);
             }
@@ -400,10 +398,6 @@ abstract contract RRC7755Outbox is RRC7755Base {
 
         if (!attributeProcessed[1]) {
             revert MissingRequiredAttribute(_DELAY_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[2]) {
-            revert MissingRequiredAttribute(_INBOX_ATTRIBUTE_SELECTOR);
         }
 
         adjustedAttributes[attributes.length] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, _getNextNonce());
@@ -475,20 +469,17 @@ abstract contract RRC7755Outbox is RRC7755Base {
             || selector == _USER_OP_ATTRIBUTE_SELECTOR;
     }
 
-    function _getInboxAndReward(bytes[] calldata attributes) private pure returns (address, bytes32, uint256) {
-        bytes32 inbox;
+    function _getReward(bytes[] calldata attributes) private pure returns (bytes32, uint256) {
         bytes32 rewardAsset;
         uint256 rewardAmount;
 
         for (uint256 i; i < attributes.length; i++) {
-            if (bytes4(attributes[i]) == _INBOX_ATTRIBUTE_SELECTOR) {
-                inbox = abi.decode(attributes[i][4:], (bytes32));
-            } else if (bytes4(attributes[i]) == _REWARD_ATTRIBUTE_SELECTOR) {
+            if (bytes4(attributes[i]) == _REWARD_ATTRIBUTE_SELECTOR) {
                 (rewardAsset, rewardAmount) = abi.decode(attributes[i][4:], (bytes32, uint256));
             }
         }
 
-        return (inbox.bytes32ToAddress(), rewardAsset, rewardAmount);
+        return (rewardAsset, rewardAmount);
     }
 
     function _getRequesterAndExpiryAndReward(bytes[] calldata attributes)

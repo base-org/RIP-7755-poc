@@ -155,17 +155,17 @@ contract RRC7755Inbox is RRC7755Base, Paymaster {
 
     function _processAttributes(bytes[] calldata attributes) private pure returns (bool, address) {
         bool isUserOp;
-        address precheckContract;
+        bytes32 precheckContract;
 
         for (uint256 i; i < attributes.length; i++) {
             if (bytes4(attributes[i]) == _USER_OP_ATTRIBUTE_SELECTOR) {
                 isUserOp = abi.decode(attributes[i][4:], (bool));
             } else if (bytes4(attributes[i]) == _PRECHECK_ATTRIBUTE_SELECTOR) {
-                precheckContract = abi.decode(attributes[i][4:], (address));
+                precheckContract = abi.decode(attributes[i][4:], (bytes32));
             }
         }
 
-        return (isUserOp, precheckContract);
+        return (isUserOp, precheckContract.bytes32ToAddress());
     }
 
     function _getMainStorage() private pure returns (MainStorage storage $) {

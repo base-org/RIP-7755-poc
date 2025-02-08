@@ -42,10 +42,10 @@ contract HelperConfig is Script {
     function getArbitrumSepoliaConfig() public view returns (NetworkConfig memory) {
         return NetworkConfig({
             chainId: ARBITRUM_SEPOLIA_CHAIN_ID,
-            opStackOutbox: 0x47b5B7908C5713741275F02573b1E1c923De53b6,
+            opStackOutbox: address(0),
             arbitrumOutbox: address(0),
-            hashiOutbox: 0xEea9a1118F80C7318c87ecC9E74638eE4adB4a6b,
-            inbox: 0x3925cA932720B63ccD2C359DF27fD4146b123628,
+            hashiOutbox: 0x09F9E99d379A9963Fe13814b31B90ba81bf9a74f,
+            inbox: 0xAF8e568F4E3105e1D8818B26dCA57CD4bd753695,
             l2Oracle: 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4,
             shoyuBashi: 0xce8b068D4F7F2eb3bDAFa72eC3C4feE78CF9Ccf7,
             deployerKey: vm.envUint("PRIVATE_KEY"),
@@ -56,10 +56,10 @@ contract HelperConfig is Script {
     function getBaseSepoliaConfig() public view returns (NetworkConfig memory) {
         return NetworkConfig({
             chainId: BASE_SEPOLIA_CHAIN_ID,
-            opStackOutbox: 0x778BBC9031303111863556A839f942fa57958dAB,
-            arbitrumOutbox: 0xAD1F7De075f304821838d5b7D53B6Af3787acB84,
-            hashiOutbox: 0x421194292DC69C440528d3865Ae6A2B22F683Cb6,
-            inbox: 0x0D595D4d3dC06548D536e74528C5B8ecc2171B31,
+            opStackOutbox: 0x99FCF11772af0a9Cc411af3CB4311A387Dd55b15,
+            arbitrumOutbox: 0xBb174bdaF21d8Ee40763fD5a859B0164365C64FF,
+            hashiOutbox: 0xE4401EB53AE90a5335a51fe1828d7BeCf7a63508,
+            inbox: 0x8e993853C303288f4fcd138E180E31a3c798E4F9,
             l2Oracle: 0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205,
             shoyuBashi: 0x6602dc9b6bd964C2a11BBdA9B2275308D1Bbc14f,
             deployerKey: vm.envUint("PRIVATE_KEY"),
@@ -70,10 +70,10 @@ contract HelperConfig is Script {
     function getOptimismSepoliaConfig() public view returns (NetworkConfig memory) {
         return NetworkConfig({
             chainId: OPTIMISM_SEPOLIA_CHAIN_ID,
-            opStackOutbox: 0x10971bB1913D3Fa79B0503aF4568CA11f237E919,
-            arbitrumOutbox: 0xCe255d8676A34575bd580D1520f0e2968Ea45Ec3,
-            hashiOutbox: 0xcCB16Bf719ac9A0D125d7491Dfa897E9053Ca415,
-            inbox: 0x27B9e81C31eab9fdB8Ed1280680b23299FBa4cd8,
+            opStackOutbox: 0x4b43589e343365F922C257ff48975c885A54e8D0,
+            arbitrumOutbox: 0xe38f582b29144C8614B5bD90A95B1E62F4D672F0,
+            hashiOutbox: 0x0D595D4d3dC06548D536e74528C5B8ecc2171B31,
+            inbox: 0x9435B271fB6b525B87171F92379A5c85fEF4d4cB,
             l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629,
             shoyuBashi: 0x7237bb8d1d38DF8b473b5A38eD90088AF162ad8e,
             deployerKey: vm.envUint("PRIVATE_KEY"),
