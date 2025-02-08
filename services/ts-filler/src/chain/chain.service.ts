@@ -211,7 +211,7 @@ export default class ChainService {
     outboxAddress: Address
   ): Promise<Log[]> {
     const apiKey = this.activeChains.src.etherscanApiKey;
-    const url = `${this.activeChains.src.etherscanApiUrl}/api?module=logs&action=getLogs&address=${outboxAddress}&topic0=0xa37ff6d366884aabcbf069aa27b0e52078eea55e90ad8fc2349cd0a2aac08298&page=1&apikey=${apiKey}&fromBlock=${fromBlock}`;
+    const url = `${this.activeChains.src.etherscanApiUrl}/api?module=logs&action=getLogs&address=${outboxAddress}&topic0=0x14ccce6e0b6e428805c2f007dfbad914d0ae8dd4514a970138e0abe3d6adeaa9&page=1&apikey=${apiKey}&fromBlock=${fromBlock}`;
 
     return await this.request(url);
   }

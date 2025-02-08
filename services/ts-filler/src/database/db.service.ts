@@ -18,10 +18,10 @@ export default class DBService {
   }
 
   async storeSuccessfulCall(
-    requestHash: Address,
-    txnHash: Address,
-    sender: string,
-    receiver: string,
+    requestHash: Hex,
+    txnHash: Hex,
+    sender: Hex,
+    receiver: Hex,
     payload: Hex,
     value: bigint,
     attributes: Attributes,

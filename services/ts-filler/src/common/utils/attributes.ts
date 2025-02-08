@@ -3,7 +3,6 @@ import bytes32ToAddress from "./bytes32ToAddress";
 
 const REWARD_ATTRIBUTE_SELECTOR = "0xa362e5db";
 const DELAY_ATTRIBUTE_SELECTOR = "0x84f550e0";
-const FULFILLER_ATTRIBUTE_SELECTOR = "0x138a03fc";
 const L2_ORACLE_ATTRIBUTE_SELECTOR = "0x7ff7245a";
 const SHOYU_BASHI_ATTRIBUTE_SELECTOR = "0xda07e15d";
 
@@ -61,18 +60,6 @@ export default class Attributes {
     );
 
     return hash;
-  }
-
-  setFulfiller(fulfiller: Address): void {
-    this.attributes.push(
-      `${FULFILLER_ATTRIBUTE_SELECTOR}${fulfiller.slice(2).padStart(64, "0")}`
-    );
-  }
-
-  removeFulfiller(): void {
-    this.attributes = this.attributes.filter(
-      (attr) => attr.slice(0, 10) !== FULFILLER_ATTRIBUTE_SELECTOR
-    );
   }
 
   private getAttribute(selector: Hex): Hex {
