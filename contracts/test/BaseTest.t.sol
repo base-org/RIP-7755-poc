@@ -48,9 +48,6 @@ contract BaseTest is Test, RRC7755Base {
     /// @notice The selector for the shoyuBashi attribute
     bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
 
-    /// @notice The selector for the inbox attribute
-    bytes4 internal constant _INBOX_ATTRIBUTE_SELECTOR = 0xbd362374; // inbox(bytes32)
-
     /// @notice The selector for the destinationChain attribute
     bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
 

@@ -57,7 +57,7 @@ contract RRC7755OutboxTest is BaseTest {
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        adjustedAttributes[3] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
+        adjustedAttributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
         messageId =
             outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, adjustedAttributes);
 
@@ -83,7 +83,7 @@ contract RRC7755OutboxTest is BaseTest {
         TestMessage memory m = _initMessage(rewardAmount, false);
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidAttributeLength.selector, 3, 0));
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidAttributeLength.selector, 2, 0));
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, new bytes[](0));
     }
 
@@ -186,17 +186,6 @@ contract RRC7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         vm.expectRevert(
             abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _DELAY_ATTRIBUTE_SELECTOR)
-        );
-        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
-    }
-
-    function test_sendMessage_reverts_ifMissingInboxAttribute(uint256 rewardAmount) external fundAlice(rewardAmount) {
-        TestMessage memory m = _initMessage(rewardAmount, false);
-        m.attributes[2] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR);
-
-        vm.prank(ALICE);
-        vm.expectRevert(
-            abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _INBOX_ATTRIBUTE_SELECTOR)
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
@@ -647,7 +636,7 @@ contract RRC7755OutboxTest is BaseTest {
         bytes32 sender = address(outbox).addressToBytes32();
         Call[] memory calls = new Call[](1);
         calls[0] = Call({to: address(outbox).addressToBytes32(), data: "", value: 0});
-        bytes[] memory attributes = new bytes[](3);
+        bytes[] memory attributes = new bytes[](2);
 
         if (isNativeAsset) {
             attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, rewardAmount);
@@ -657,7 +646,6 @@ contract RRC7755OutboxTest is BaseTest {
         }
 
         attributes = _setDelay(attributes, 10, block.timestamp + 11);
-        attributes[2] = abi.encodeWithSelector(_INBOX_ATTRIBUTE_SELECTOR, bytes32(0));
 
         return TestMessage({
             sourceChain: bytes32(block.chainid),
@@ -683,14 +671,13 @@ contract RRC7755OutboxTest is BaseTest {
             paymasterAndData: "",
             signature: ""
         });
-        bytes[] memory attributes = new bytes[](4);
+        bytes[] memory attributes = new bytes[](3);
 
         attributes[0] =
             abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
 
         attributes = _setDelay(attributes, 10, block.timestamp + 11);
-        attributes[2] = abi.encodeWithSelector(_INBOX_ATTRIBUTE_SELECTOR, bytes32(0));
-        attributes[3] = abi.encodeWithSelector(_USER_OP_ATTRIBUTE_SELECTOR, true);
+        attributes[2] = abi.encodeWithSelector(_USER_OP_ATTRIBUTE_SELECTOR, true);
 
         return TestMessage({
             sourceChain: bytes32(block.chainid),

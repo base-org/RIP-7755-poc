@@ -18,7 +18,7 @@ contract RRC7755Base {
     }
 
     /// @notice The selector for the precheck attribute
-    bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xfa1e5831; // precheck(address)
+    bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xbef86027; // precheck(bytes32)
 
     /// @notice The selector for the isUserOp attribute. Used to designate a request designated to be a destination
     ///         chain ERC-4337 User Operation
