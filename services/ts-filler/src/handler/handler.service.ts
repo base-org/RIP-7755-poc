@@ -1,11 +1,18 @@
-import { decodeAbiParameters, zeroAddress, type Hex } from "viem";
+import {
+  decodeAbiParameters,
+  toHex,
+  zeroAddress,
+  type Address,
+  type Hex,
+} from "viem";
 
 import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
 import { Provers, type ActiveChains } from "../common/types/chain";
-import RIP7755Inbox from "../abis/RIP7755Inbox";
+import RRC7755Inbox from "../abis/RRC7755Inbox";
 import type CAIP10 from "../common/utils/caip10";
 import type Attributes from "../common/utils/attributes";
+import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 
 export default class HandlerService {
   constructor(
@@ -16,8 +23,8 @@ export default class HandlerService {
 
   async handleRequest(
     outboxId: Hex,
-    sender: CAIP10,
-    receiver: CAIP10,
+    sender: Hex,
+    receiver: Hex,
     payload: Hex,
     value: bigint,
     attributes: Attributes
@@ -30,12 +37,15 @@ export default class HandlerService {
         ? this.activeChains.dst.targetProver
         : Provers.Hashi;
 
+    const senderAddr = bytes32ToAddress(sender);
+    const receiverAddr = bytes32ToAddress(receiver);
+
     const expectedProverAddr =
       this.activeChains.src.outboxContracts[proverName];
 
     if (
       expectedProverAddr &&
-      sender.getAddress().toLowerCase() !== expectedProverAddr.toLowerCase()
+      senderAddr.toLowerCase() !== expectedProverAddr.toLowerCase()
     ) {
       throw new Error("Unknown Prover contract");
     }
@@ -43,7 +53,7 @@ export default class HandlerService {
     // - Make sure inboxContract matches the trusted inbox for dst chain Id
     if (
       this.activeChains.dst.contracts.inbox.toLowerCase() !==
-      receiver.getAddress().toLowerCase()
+      receiverAddr.toLowerCase()
     ) {
       throw new Error("Unknown Inbox contract on dst chain");
     }
@@ -83,19 +93,17 @@ export default class HandlerService {
     }
 
     // Gather transaction params
-    const fulfillerAddr = this.signerService.getFulfillerAddress();
-    attributes.setFulfiller(fulfillerAddr);
-    const address = receiver.getAddress();
-    const abi = RIP7755Inbox;
-    const functionName = "executeMessage";
+    const abi = RRC7755Inbox;
+    const functionName = "fulfill";
     const args = [
-      sender.getCaip2(),
-      sender.getAddress(),
+      toHex(this.activeChains.src.chainId, { size: 32 }),
+      sender,
       payload,
       attributes.getAttributes(),
+      this.signerService.getFulfillerAddress(),
     ];
     const estimatedDestinationGas = await this.signerService.estimateGas(
-      address,
+      receiverAddr,
       abi,
       functionName,
       args,
@@ -114,7 +122,7 @@ export default class HandlerService {
       "Request passed validation - preparing transaction for submission to destination chain"
     );
     const txnHash = await this.signerService.sendTransaction(
-      address,
+      receiverAddr,
       abi,
       functionName,
       args,
@@ -133,8 +141,8 @@ export default class HandlerService {
     const dbSuccess = await this.dbService.storeSuccessfulCall(
       outboxId,
       txnHash,
-      sender.format(),
-      receiver.format(),
+      sender,
+      receiver,
       payload,
       value,
       attributes,

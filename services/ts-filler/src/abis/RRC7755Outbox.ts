@@ -10,8 +10,12 @@ export default [
     type: "function",
     name: "cancelMessage",
     inputs: [
-      { name: "sender", type: "string", internalType: "string" },
-      { name: "receiver", type: "string", internalType: "string" },
+      {
+        name: "destinationChain",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      { name: "receiver", type: "bytes32", internalType: "bytes32" },
       { name: "payload", type: "bytes", internalType: "bytes" },
       {
         name: "expandedAttributes",
@@ -26,8 +30,12 @@ export default [
     type: "function",
     name: "claimReward",
     inputs: [
-      { name: "sender", type: "string", internalType: "string" },
-      { name: "receiver", type: "string", internalType: "string" },
+      {
+        name: "destinationChain",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      { name: "receiver", type: "bytes32", internalType: "bytes32" },
       { name: "payload", type: "bytes", internalType: "bytes" },
       {
         name: "expandedAttributes",
@@ -48,10 +56,83 @@ export default [
       {
         name: "",
         type: "uint8",
-        internalType: "enum RIP7755Outbox.CrossChainCallStatus",
+        internalType: "enum RRC7755Outbox.CrossChainCallStatus",
       },
     ],
     stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getRequestId",
+    inputs: [
+      { name: "sourceChain", type: "bytes32", internalType: "bytes32" },
+      { name: "sender", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "destinationChain",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      { name: "receiver", type: "bytes32", internalType: "bytes32" },
+      { name: "payload", type: "bytes", internalType: "bytes" },
+      { name: "attributes", type: "bytes[]", internalType: "bytes[]" },
+      { name: "isUserOp", type: "bool", internalType: "bool" },
+    ],
+    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "getRequestId",
+    inputs: [
+      { name: "sourceChain", type: "bytes32", internalType: "bytes32" },
+      { name: "sender", type: "bytes32", internalType: "bytes32" },
+      {
+        name: "destinationChain",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      { name: "receiver", type: "bytes32", internalType: "bytes32" },
+      { name: "payload", type: "bytes", internalType: "bytes" },
+      { name: "attributes", type: "bytes[]", internalType: "bytes[]" },
+    ],
+    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
+    stateMutability: "pure",
+  },
+  {
+    type: "function",
+    name: "getUserOpHash",
+    inputs: [
+      {
+        name: "userOp",
+        type: "tuple",
+        internalType: "struct PackedUserOperation",
+        components: [
+          { name: "sender", type: "address", internalType: "address" },
+          { name: "nonce", type: "uint256", internalType: "uint256" },
+          { name: "initCode", type: "bytes", internalType: "bytes" },
+          { name: "callData", type: "bytes", internalType: "bytes" },
+          {
+            name: "accountGasLimits",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+          {
+            name: "preVerificationGas",
+            type: "uint256",
+            internalType: "uint256",
+          },
+          { name: "gasFees", type: "bytes32", internalType: "bytes32" },
+          {
+            name: "paymasterAndData",
+            type: "bytes",
+            internalType: "bytes",
+          },
+          { name: "signature", type: "bytes", internalType: "bytes" },
+        ],
+      },
+    ],
+    outputs: [{ name: "", type: "bytes32", internalType: "bytes32" }],
+    stateMutability: "pure",
   },
   {
     type: "function",
@@ -59,10 +140,10 @@ export default [
     inputs: [
       {
         name: "destinationChain",
-        type: "string",
-        internalType: "string",
+        type: "bytes32",
+        internalType: "bytes32",
       },
-      { name: "receiver", type: "string", internalType: "string" },
+      { name: "receiver", type: "bytes32", internalType: "bytes32" },
       { name: "payload", type: "bytes", internalType: "bytes" },
       { name: "attributes", type: "bytes[]", internalType: "bytes[]" },
     ],
@@ -119,16 +200,28 @@ export default [
         internalType: "bytes32",
       },
       {
-        name: "sender",
-        type: "string",
+        name: "sourceChain",
+        type: "bytes32",
         indexed: false,
-        internalType: "string",
+        internalType: "bytes32",
+      },
+      {
+        name: "sender",
+        type: "bytes32",
+        indexed: false,
+        internalType: "bytes32",
+      },
+      {
+        name: "destinationChain",
+        type: "bytes32",
+        indexed: false,
+        internalType: "bytes32",
       },
       {
         name: "receiver",
-        type: "string",
+        type: "bytes32",
         indexed: false,
-        internalType: "string",
+        internalType: "bytes32",
       },
       {
         name: "payload",
@@ -153,16 +246,6 @@ export default [
   },
   {
     type: "error",
-    name: "AddressEmptyCode",
-    inputs: [{ name: "target", type: "address", internalType: "address" }],
-  },
-  {
-    type: "error",
-    name: "AddressInsufficientBalance",
-    inputs: [{ name: "account", type: "address", internalType: "address" }],
-  },
-  {
-    type: "error",
     name: "AttributeNotFound",
     inputs: [{ name: "selector", type: "bytes4", internalType: "bytes4" }],
   },
@@ -179,7 +262,6 @@ export default [
     ],
   },
   { type: "error", name: "ExpiryTooSoon", inputs: [] },
-  { type: "error", name: "FailedInnerCall", inputs: [] },
   {
     type: "error",
     name: "InvalidAttributeLength",
@@ -207,12 +289,12 @@ export default [
       {
         name: "expected",
         type: "uint8",
-        internalType: "enum RIP7755Outbox.CrossChainCallStatus",
+        internalType: "enum RRC7755Outbox.CrossChainCallStatus",
       },
       {
         name: "actual",
         type: "uint8",
-        internalType: "enum RIP7755Outbox.CrossChainCallStatus",
+        internalType: "enum RRC7755Outbox.CrossChainCallStatus",
       },
     ],
   },
@@ -226,16 +308,8 @@ export default [
   },
   {
     type: "error",
-    name: "SafeERC20FailedOperation",
-    inputs: [{ name: "token", type: "address", internalType: "address" }],
-  },
-  {
-    type: "error",
-    name: "StringsInsufficientHexLength",
-    inputs: [
-      { name: "value", type: "uint256", internalType: "uint256" },
-      { name: "length", type: "uint256", internalType: "uint256" },
-    ],
+    name: "MissingRequiredAttribute",
+    inputs: [{ name: "selector", type: "bytes4", internalType: "bytes4" }],
   },
   {
     type: "error",

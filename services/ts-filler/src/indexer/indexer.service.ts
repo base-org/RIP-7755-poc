@@ -1,11 +1,11 @@
 import { sleep } from "bun";
-import { decodeEventLog, type Address, type Hex } from "viem";
+import { decodeEventLog, fromHex, type Address, type Hex } from "viem";
 
 import ChainService from "../chain/chain.service";
 import chains from "../chain/chains";
 import ConfigService from "../config/config.service";
 import { SupportedChains } from "../common/types/chain";
-import OutboxAbi from "../abis/RIP7755Outbox";
+import OutboxAbi from "../abis/RRC7755Outbox";
 import SignerService from "../signer/signer.service";
 import DBService from "../database/db.service";
 import HandlerService from "../handler/handler.service";
@@ -110,23 +110,29 @@ export default class IndexerService {
       throw new Error("Error decoding CrossChainCallRequested logs");
     }
 
-    const { outboxId, sender, receiver, payload, value, attributes } =
-      topics.args as {
-        outboxId: Hex;
-        sender: string;
-        receiver: string;
-        payload: Hex;
-        value: bigint;
-        attributes: Hex[];
-      };
-
-    const wrappedSender = new CAIP10(sender);
-    const wrappedReceiver = new CAIP10(receiver);
+    const {
+      outboxId,
+      sender,
+      destinationChain,
+      receiver,
+      payload,
+      value,
+      attributes,
+    } = topics.args as {
+      outboxId: Hex;
+      sourceChain: Hex;
+      sender: Address;
+      destinationChain: Hex;
+      receiver: Address;
+      payload: Hex;
+      value: bigint;
+      attributes: Hex[];
+    };
 
     const activeChains = {
       src: chains[sourceChain],
       l1: chains[config.l1],
-      dst: chains[wrappedReceiver.getChainId()],
+      dst: chains[fromHex(destinationChain, "number")],
     };
 
     if (!activeChains.src) {
@@ -136,9 +142,7 @@ export default class IndexerService {
       throw new Error(`Invalid L1 Chain: ${config.l1}`);
     }
     if (!activeChains.dst) {
-      throw new Error(
-        `Invalid Destination Chain: ${wrappedReceiver.getChainId()}`
-      );
+      throw new Error(`Invalid Destination Chain: ${destinationChain}`);
     }
 
     const signerService = new SignerService(activeChains.dst);
@@ -150,8 +154,8 @@ export default class IndexerService {
 
     await handlerService.handleRequest(
       outboxId,
-      wrappedSender,
-      wrappedReceiver,
+      sender,
+      receiver,
       payload,
       value,
       new Attributes(attributes)

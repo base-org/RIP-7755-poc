@@ -1,6 +1,6 @@
 import { encodeAbiParameters, type EncodeAbiParametersReturnType } from "viem";
 
-import RIP7755Outbox from "../abis/RIP7755Outbox";
+import RIP7755Outbox from "../abis/RRC7755Outbox";
 import ChainService from "../chain/chain.service";
 import chains from "../chain/chains";
 import type ConfigService from "../config/config.service";
