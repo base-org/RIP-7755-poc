@@ -5,6 +5,8 @@ import {Script} from "forge-std/Script.sol";
 
 import {EntryPoint} from "account-abstraction/core/EntryPoint.sol";
 
+import {MockAccount} from "../test/mocks/MockAccount.sol";
+
 contract HelperConfig is Script {
     struct NetworkConfig {
         uint256 chainId;
@@ -14,8 +16,9 @@ contract HelperConfig is Script {
         address inbox;
         address l2Oracle;
         address shoyuBashi;
-        uint256 deployerKey;
         address entryPoint;
+        address smartAccount;
+        string rpcUrl;
     }
 
     uint256 public DEFAULT_ANVIL_PRIVATE_KEY = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
@@ -48,8 +51,9 @@ contract HelperConfig is Script {
             inbox: 0xAF8e568F4E3105e1D8818B26dCA57CD4bd753695,
             l2Oracle: 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4,
             shoyuBashi: 0xce8b068D4F7F2eb3bDAFa72eC3C4feE78CF9Ccf7,
-            deployerKey: vm.envUint("PRIVATE_KEY"),
-            entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032
+            entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
+            smartAccount: 0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb,
+            rpcUrl: vm.envString("ARBITRUM_SEPOLIA_RPC")
         });
     }
 
@@ -62,8 +66,9 @@ contract HelperConfig is Script {
             inbox: 0x8e993853C303288f4fcd138E180E31a3c798E4F9,
             l2Oracle: 0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205,
             shoyuBashi: 0x6602dc9b6bd964C2a11BBdA9B2275308D1Bbc14f,
-            deployerKey: vm.envUint("PRIVATE_KEY"),
-            entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032
+            entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
+            smartAccount: 0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb,
+            rpcUrl: vm.envString("BASE_SEPOLIA_RPC")
         });
     }
 
@@ -76,13 +81,15 @@ contract HelperConfig is Script {
             inbox: 0x9435B271fB6b525B87171F92379A5c85fEF4d4cB,
             l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629,
             shoyuBashi: 0x7237bb8d1d38DF8b473b5A38eD90088AF162ad8e,
-            deployerKey: vm.envUint("PRIVATE_KEY"),
-            entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032
+            entryPoint: 0x0000000071727De22E5E9d8BAf0edAc6f37da032,
+            smartAccount: 0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb,
+            rpcUrl: vm.envString("OPTIMISM_SEPOLIA_RPC")
         });
     }
 
     function getLocalConfig() public returns (NetworkConfig memory) {
         EntryPoint entryPoint = new EntryPoint();
+        MockAccount smartAccount = new MockAccount();
 
         return NetworkConfig({
             chainId: LOCAL_CHAIN_ID,
@@ -92,8 +99,9 @@ contract HelperConfig is Script {
             inbox: address(0),
             l2Oracle: address(0),
             shoyuBashi: address(0),
-            deployerKey: 0,
-            entryPoint: address(entryPoint)
+            entryPoint: address(entryPoint),
+            smartAccount: address(smartAccount),
+            rpcUrl: ""
         });
     }
 

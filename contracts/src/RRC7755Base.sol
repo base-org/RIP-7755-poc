@@ -20,10 +20,6 @@ contract RRC7755Base {
     /// @notice The selector for the precheck attribute
     bytes4 internal constant _PRECHECK_ATTRIBUTE_SELECTOR = 0xbef86027; // precheck(bytes32)
 
-    /// @notice The selector for the isUserOp attribute. Used to designate a request designated to be a destination
-    ///         chain ERC-4337 User Operation
-    bytes4 internal constant _USER_OP_ATTRIBUTE_SELECTOR = 0xd45448dd; // isUserOp(bool)
-
     /// @notice This error is thrown if an attribute is not found in the attributes array
     ///
     /// @param selector The selector of the attribute that was not found
@@ -48,7 +44,7 @@ contract RRC7755Base {
         bytes32 receiver,
         bytes calldata payload,
         bytes[] calldata attributes
-    ) public pure returns (bytes32) {
+    ) public view virtual returns (bytes32) {
         return keccak256(abi.encode(sourceChain, sender, destinationChain, receiver, payload, attributes));
     }
 
