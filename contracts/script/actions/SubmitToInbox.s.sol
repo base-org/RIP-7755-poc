@@ -17,13 +17,12 @@ contract SubmitToInbox is Script, RRC7755Base {
     bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
 
     function run() external {
-        uint256 pk = vm.envUint("PRIVATE_KEY");
         RRC7755Inbox inbox = RRC7755Inbox(payable(0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512));
         address fulfiller = 0x23214A0864FC0014CAb6030267738F01AFfdd547;
 
         (bytes32 sourceChain, bytes32 sender, bytes memory payload, bytes[] memory attributes) = _initMessage();
 
-        vm.startBroadcast(pk);
+        vm.startBroadcast();
         inbox.fulfill(sourceChain, sender, payload, attributes, fulfiller);
         vm.stopBroadcast();
     }

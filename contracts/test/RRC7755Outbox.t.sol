@@ -11,14 +11,17 @@ import {BaseTest} from "./BaseTest.t.sol";
 
 contract RRC7755OutboxTest is BaseTest {
     using GlobalTypes for address;
+    using GlobalTypes for bytes;
 
     struct TestMessage {
         bytes32 sourceChain;
         bytes32 destinationChain;
         bytes32 sender;
         bytes32 receiver;
+        PackedUserOperation userOp;
         bytes payload;
         bytes[] attributes;
+        bytes[] userOpAttributes;
     }
 
     MockOutbox outbox;
@@ -48,23 +51,21 @@ contract RRC7755OutboxTest is BaseTest {
         TestMessage memory m = _initMessage(rewardAmount / 2, false);
         bytes32 messageId = _deriveMessageId(m);
 
-        bytes[] memory adjustedAttributes = _getAdjustedAttributes(m);
-
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
         emit MessagePosted(
-            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, adjustedAttributes
+            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, m.attributes
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        adjustedAttributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
+        m.attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
         messageId =
-            outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, adjustedAttributes);
+            outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, m.attributes);
 
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
         emit MessagePosted(
-            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, adjustedAttributes
+            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, m.attributes
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
@@ -76,15 +77,6 @@ contract RRC7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidValue.selector, rewardAmount, 0));
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
-    }
-
-    function test_sendMessage_reverts_ifMissingAttributes(uint256 rewardAmount) external fundAlice(rewardAmount) {
-        vm.assume(rewardAmount > 0);
-        TestMessage memory m = _initMessage(rewardAmount, false);
-
-        vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidAttributeLength.selector, 2, 0));
-        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, new bytes[](0));
     }
 
     function test_sendMessage_reverts_ifNativeCurrencyIncludedUnnecessarily(uint256 rewardAmount)
@@ -190,6 +182,49 @@ contract RRC7755OutboxTest is BaseTest {
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
+    function test_sendMessage_reverts_ifIncorrectNonce(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        TestMessage memory m = _initMessage(rewardAmount, false);
+        m.attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1000);
+
+        vm.prank(ALICE);
+        vm.expectRevert(RRC7755Outbox.InvalidNonce.selector);
+        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+    }
+
+    function test_sendMessage_reverts_ifMissingNonceAttribute(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        TestMessage memory m = _initMessage(rewardAmount, false);
+        m.attributes[2] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR);
+
+        vm.prank(ALICE);
+        vm.expectRevert(
+            abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _NONCE_ATTRIBUTE_SELECTOR)
+        );
+        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+    }
+
+    function test_sendMessage_reverts_ifIncorrectRequester(uint256 rewardAmount) external fundAlice(rewardAmount) {
+        TestMessage memory m = _initMessage(rewardAmount, false);
+        m.attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, FILLER.addressToBytes32());
+
+        vm.prank(ALICE);
+        vm.expectRevert(RRC7755Outbox.InvalidRequester.selector);
+        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+    }
+
+    function test_sendMessage_reverts_ifMissingRequesterAttribute(uint256 rewardAmount)
+        external
+        fundAlice(rewardAmount)
+    {
+        TestMessage memory m = _initMessage(rewardAmount, false);
+        m.attributes[3] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR);
+
+        vm.prank(ALICE);
+        vm.expectRevert(
+            abi.encodeWithSelector(RRC7755Outbox.MissingRequiredAttribute.selector, _REQUESTER_ATTRIBUTE_SELECTOR)
+        );
+        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+    }
+
     function test_sendMessage_setStatusToRequested_nativeAssetReward(uint256 rewardAmount)
         external
         fundAlice(rewardAmount)
@@ -210,7 +245,7 @@ contract RRC7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         vm.expectEmit(true, false, false, true);
         emit MessagePosted(
-            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, _getAdjustedAttributes(m)
+            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, m.attributes
         );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
@@ -241,6 +276,11 @@ contract RRC7755OutboxTest is BaseTest {
         assertEq(contractBalAfter - contractBalBefore, rewardAmount);
     }
 
+    function test_processAttributes_reverts_ifInvalidCaller() external {
+        vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidCaller.selector, address(this), address(outbox)));
+        outbox.processAttributes(new bytes[](0), address(outbox), 0);
+    }
+
     function test_claimReward_reverts_requestDoesNotExist(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _initMessage(rewardAmount, false);
         bytes memory storageProofData = abi.encode(true);
@@ -261,9 +301,7 @@ contract RRC7755OutboxTest is BaseTest {
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         vm.prank(FILLER);
         vm.expectRevert(
@@ -273,18 +311,16 @@ contract RRC7755OutboxTest is BaseTest {
                 RRC7755Outbox.CrossChainCallStatus.Completed
             )
         );
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
     }
 
     function test_claimReward_reverts_requestCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
         bytes memory storageProofData = abi.encode(true);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         vm.prank(FILLER);
         vm.expectRevert(
@@ -294,9 +330,7 @@ contract RRC7755OutboxTest is BaseTest {
                 RRC7755Outbox.CrossChainCallStatus.Canceled
             )
         );
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
     }
 
     function test_claimReward_emitsEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -306,9 +340,7 @@ contract RRC7755OutboxTest is BaseTest {
         vm.expectEmit(true, false, false, true);
         emit CrossChainCallCompleted(_deriveMessageId(m), FILLER);
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
     }
 
     function test_claimReward_storesCompletedStatus_pendingState(uint256 rewardAmount)
@@ -319,9 +351,7 @@ contract RRC7755OutboxTest is BaseTest {
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
         assert(status == RRC7755Outbox.CrossChainCallStatus.Completed);
@@ -335,11 +365,9 @@ contract RRC7755OutboxTest is BaseTest {
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.userOp, storageProofData, FILLER);
 
-        bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
+        bytes32 messageId = outbox.getUserOpHash(m.userOp);
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
         assert(status == RRC7755Outbox.CrossChainCallStatus.Completed);
     }
@@ -354,9 +382,7 @@ contract RRC7755OutboxTest is BaseTest {
         uint256 fillerBalBefore = FILLER.balance;
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         uint256 fillerBalAfter = FILLER.balance;
 
@@ -376,9 +402,7 @@ contract RRC7755OutboxTest is BaseTest {
         uint256 contractBalBefore = address(outbox).balance;
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         uint256 contractBalAfter = address(outbox).balance;
 
@@ -392,9 +416,7 @@ contract RRC7755OutboxTest is BaseTest {
         uint256 fillerBalBefore = mockErc20.balanceOf(FILLER);
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         uint256 fillerBalAfter = mockErc20.balanceOf(FILLER);
 
@@ -408,9 +430,7 @@ contract RRC7755OutboxTest is BaseTest {
         uint256 contractBalBefore = mockErc20.balanceOf(address(outbox));
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         uint256 contractBalAfter = mockErc20.balanceOf(address(outbox));
 
@@ -427,15 +447,15 @@ contract RRC7755OutboxTest is BaseTest {
                 RRC7755Outbox.CrossChainCallStatus.None
             )
         );
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_reverts_requestAlreadyCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -444,7 +464,7 @@ contract RRC7755OutboxTest is BaseTest {
                 RRC7755Outbox.CrossChainCallStatus.Canceled
             )
         );
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_reverts_requestAlreadyCompleted(uint256 rewardAmount)
@@ -455,9 +475,7 @@ contract RRC7755OutboxTest is BaseTest {
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(
-            m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m), storageProofData, FILLER
-        );
+        outbox.claimReward(m.destinationChain, m.receiver, m.payload, m.attributes, storageProofData, FILLER);
 
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -466,7 +484,7 @@ contract RRC7755OutboxTest is BaseTest {
                 RRC7755Outbox.CrossChainCallStatus.Completed
             )
         );
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_reverts_invalidCaller(uint256 rewardAmount) external fundAlice(rewardAmount) {
@@ -474,40 +492,40 @@ contract RRC7755OutboxTest is BaseTest {
 
         vm.prank(FILLER);
         vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidCaller.selector, FILLER, ALICE));
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_reverts_requestStillActive(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
         uint256 cancelDelaySeconds = outbox.CANCEL_DELAY_SECONDS();
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + cancelDelaySeconds - 1);
+        vm.warp(this.extractExpiry(m.attributes) + cancelDelaySeconds - 1);
         vm.expectRevert(
             abi.encodeWithSelector(
                 RRC7755Outbox.CannotCancelRequestBeforeExpiry.selector,
                 block.timestamp,
-                this.extractExpiry(_getAdjustedAttributes(m)) + cancelDelaySeconds
+                this.extractExpiry(m.attributes) + cancelDelaySeconds
             )
         );
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_reverts_ifInvalidCaller(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(FILLER);
         vm.expectRevert(abi.encodeWithSelector(RRC7755Outbox.InvalidCaller.selector, FILLER, ALICE));
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_setsStatusAsCanceled(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(_deriveMessageId(m));
         assert(status == RRC7755Outbox.CrossChainCallStatus.Canceled);
@@ -516,11 +534,11 @@ contract RRC7755OutboxTest is BaseTest {
     function test_cancelMessage_setsStatusAsCanceled_userOp(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitUserOp(rewardAmount);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.userOpAttributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelUserOp(m.userOp);
 
-        bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
+        bytes32 messageId = outbox.getUserOpHash(m.userOp);
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
         assert(status == RRC7755Outbox.CrossChainCallStatus.Canceled);
     }
@@ -528,11 +546,11 @@ contract RRC7755OutboxTest is BaseTest {
     function test_cancelMessage_emitsCanceledEvent(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _submitRequest(rewardAmount);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.expectEmit(true, false, false, false);
         emit CrossChainCallCanceled(_deriveMessageId(m));
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
     function test_cancelMessage_returnsNativeCurrencyToRequester(uint256 rewardAmount)
@@ -546,9 +564,9 @@ contract RRC7755OutboxTest is BaseTest {
 
         uint256 aliceBalBefore = ALICE.balance;
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         uint256 aliceBalAfter = ALICE.balance;
 
@@ -566,9 +584,9 @@ contract RRC7755OutboxTest is BaseTest {
 
         uint256 contractBalBefore = address(outbox).balance;
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         uint256 contractBalAfter = address(outbox).balance;
 
@@ -580,9 +598,9 @@ contract RRC7755OutboxTest is BaseTest {
 
         uint256 aliceBalBefore = mockErc20.balanceOf(ALICE);
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         uint256 aliceBalAfter = mockErc20.balanceOf(ALICE);
 
@@ -594,9 +612,9 @@ contract RRC7755OutboxTest is BaseTest {
 
         uint256 contractBalBefore = mockErc20.balanceOf(address(outbox));
 
-        vm.warp(this.extractExpiry(_getAdjustedAttributes(m)) + outbox.CANCEL_DELAY_SECONDS());
+        vm.warp(this.extractExpiry(m.attributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, _getAdjustedAttributes(m));
+        outbox.cancelMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
         uint256 contractBalAfter = mockErc20.balanceOf(address(outbox));
 
@@ -636,7 +654,7 @@ contract RRC7755OutboxTest is BaseTest {
         bytes32 sender = address(outbox).addressToBytes32();
         Call[] memory calls = new Call[](1);
         calls[0] = Call({to: address(outbox).addressToBytes32(), data: "", value: 0});
-        bytes[] memory attributes = new bytes[](2);
+        bytes[] memory attributes = new bytes[](4);
 
         if (isNativeAsset) {
             attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, rewardAmount);
@@ -646,20 +664,35 @@ contract RRC7755OutboxTest is BaseTest {
         }
 
         attributes = _setDelay(attributes, 10, block.timestamp + 11);
+        attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
+        attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
+
+        PackedUserOperation memory userOp;
 
         return TestMessage({
             sourceChain: bytes32(block.chainid),
             destinationChain: destinationChain,
             sender: sender,
             receiver: sender,
+            userOp: userOp,
             payload: abi.encode(calls),
-            attributes: attributes
+            attributes: attributes,
+            userOpAttributes: new bytes[](0)
         });
     }
 
     function _initUserOpMessage(uint256 rewardAmount) private view returns (TestMessage memory) {
         bytes32 destinationChain = bytes32(block.chainid);
         bytes32 sender = address(outbox).addressToBytes32();
+        bytes[] memory attributes = new bytes[](4);
+
+        attributes[0] =
+            abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
+
+        attributes = _setDelay(attributes, 10, block.timestamp + 11);
+        attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
+        attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
+
         PackedUserOperation memory userOp = PackedUserOperation({
             sender: address(0),
             nonce: 1,
@@ -668,24 +701,19 @@ contract RRC7755OutboxTest is BaseTest {
             accountGasLimits: 0,
             preVerificationGas: 0,
             gasFees: 0,
-            paymasterAndData: "",
+            paymasterAndData: _encodePaymasterAndData(address(outbox), attributes, ALICE),
             signature: ""
         });
-        bytes[] memory attributes = new bytes[](3);
-
-        attributes[0] =
-            abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, address(mockErc20).addressToBytes32(), rewardAmount);
-
-        attributes = _setDelay(attributes, 10, block.timestamp + 11);
-        attributes[2] = abi.encodeWithSelector(_USER_OP_ATTRIBUTE_SELECTOR, true);
 
         return TestMessage({
             sourceChain: bytes32(block.chainid),
             destinationChain: destinationChain,
             sender: sender,
             receiver: sender,
+            userOp: userOp,
             payload: abi.encode(userOp),
-            attributes: attributes
+            attributes: new bytes[](0),
+            userOpAttributes: attributes
         });
     }
 
@@ -713,19 +741,23 @@ contract RRC7755OutboxTest is BaseTest {
     }
 
     function _deriveMessageId(TestMessage memory m) private view returns (bytes32) {
-        bytes[] memory adjustedAttributes = _getAdjustedAttributes(m);
-        return
-            outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, adjustedAttributes);
+        return outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, m.attributes);
     }
 
-    function _getAdjustedAttributes(TestMessage memory m) private view returns (bytes[] memory) {
-        bytes[] memory adjustedAttributes = new bytes[](m.attributes.length + 2);
-        for (uint256 i = 0; i < m.attributes.length; i++) {
-            adjustedAttributes[i] = m.attributes[i];
-        }
-        adjustedAttributes[m.attributes.length] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
-        adjustedAttributes[m.attributes.length + 1] =
-            abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
-        return adjustedAttributes;
+    function _encodePaymasterAndData(address inbox, bytes[] memory attributes, address ethAddress)
+        private
+        pure
+        returns (bytes memory)
+    {
+        address precheck = address(0);
+        uint256 ethAmount = 0.0001 ether;
+        uint128 paymasterVerificationGasLimit = 100000;
+        uint128 paymasterPostOpGasLimit = 100000;
+        return abi.encodePacked(
+            inbox,
+            paymasterVerificationGasLimit,
+            paymasterPostOpGasLimit,
+            abi.encode(ethAddress, ethAmount, precheck, attributes)
+        );
     }
 }

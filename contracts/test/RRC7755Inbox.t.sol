@@ -157,16 +157,15 @@ contract RRC7755InboxTest is BaseTest {
         bytes32 sourceChain = bytes32(block.chainid);
         bytes32 sender = address(this).addressToBytes32();
         bytes memory payload = abi.encode(new Call[](0));
-        bytes[] memory attributes = new bytes[](isPrecheck ? 6 : 5);
+        bytes[] memory attributes = new bytes[](isPrecheck ? 5 : 4);
 
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, bytes32(0), uint256(0));
         attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, 10, block.timestamp + 11);
         attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 1);
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, ALICE.addressToBytes32());
-        attributes[4] = abi.encodeWithSelector(_USER_OP_ATTRIBUTE_SELECTOR, isUserOp);
 
         if (isPrecheck) {
-            attributes[5] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR, address(precheck));
+            attributes[4] = abi.encodeWithSelector(_PRECHECK_ATTRIBUTE_SELECTOR, address(precheck));
         }
 
         return TestMessage({
@@ -176,7 +175,7 @@ contract RRC7755InboxTest is BaseTest {
             sourceChain: sourceChain,
             sender: sender,
             payload: payload,
-            attributes: attributes
+            attributes: isUserOp ? new bytes[](0) : attributes
         });
     }
 
