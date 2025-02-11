@@ -22,6 +22,7 @@ contract SubmitUserOp is Script, RRC7755Base {
     bytes4 internal constant _SHOYU_BASHI_ATTRIBUTE_SELECTOR = 0xda07e15d; // shoyuBashi(bytes32)
     bytes4 internal constant _DESTINATION_CHAIN_SELECTOR = 0xdff49bf1; // destinationChain(bytes32)
     bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
+    address ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
     HelperConfig public helperConfig;
 
@@ -62,10 +63,10 @@ contract SubmitUserOp is Script, RRC7755Base {
         uint128 maxFeePerGas = 100000;
 
         vm.createSelectFork(dstConfig.rpcUrl);
-        uint256 nonce = EntryPoint(payable(dstConfig.entryPoint)).getNonce(dstConfig.smartAccount, 0);
+        uint256 nonce = EntryPoint(payable(ENTRY_POINT)).getNonce(dstConfig.smartAccount, 0);
 
         bytes32 destinationChain = bytes32(destinationChainId);
-        bytes32 receiver = dstConfig.entryPoint.addressToBytes32();
+        bytes32 receiver = ENTRY_POINT.addressToBytes32();
         bytes[] memory attributes = new bytes[](3);
 
         attributes[0] = abi.encodeWithSelector(_REWARD_ATTRIBUTE_SELECTOR, _NATIVE_ASSET, 0.0002 ether);
