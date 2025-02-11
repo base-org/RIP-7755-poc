@@ -6,7 +6,7 @@ import {StateValidator} from "../StateValidator.sol";
 
 /// @title ArbitrumProver
 ///
-/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
+/// @author Coinbase (https://github.com/base/RRC-7755-poc)
 ///
 /// @notice This is a utility library for validating Arbitrum storage proofs.
 library ArbitrumProver {
