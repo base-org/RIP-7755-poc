@@ -46,13 +46,9 @@ read-mock:
 set-mock:
 	cast send $(MOCK_VERIFIER_ADDRESS) "storeFulfillmentInfo(bytes32,address)" $(ARBITRUM_REQUEST_HASH) $(FULFILLER_ADDRESS) --rpc-url $(ARBITRUM_RPC) --account $(ACCOUNT)
 
-.PHONY: deploy-arbitrum-sepolia
-deploy-arbitrum-sepolia:
-	forge script script/chains/DeployArbitrum.s.sol:DeployArbitrum --rpc-url $(ARBITRUM_RPC) --broadcast -vvvv
-
-.PHONY: deploy-op-stack
-deploy-op-stack:
-	forge script script/chains/DeployBase.s.sol:DeployBase --rpc-url $(OP_STACK_RPC) --account $(ACCOUNT) --broadcast -vvvv
+.PHONY: deploy
+deploy:
+	forge script script/Deploy.s.sol:Deploy --account $(ACCOUNT) --broadcast -vvvv
 
 .PHONY: submit-request
 submit-request:
