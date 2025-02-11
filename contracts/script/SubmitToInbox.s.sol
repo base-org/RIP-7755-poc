@@ -3,9 +3,9 @@ pragma solidity 0.8.24;
 
 import {Script} from "forge-std/Script.sol";
 
-import {GlobalTypes} from "../../src/libraries/GlobalTypes.sol";
-import {RRC7755Base} from "../../src/RRC7755Base.sol";
-import {RRC7755Inbox} from "../../src/RRC7755Inbox.sol";
+import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
+import {RRC7755Base} from "../src/RRC7755Base.sol";
+import {RRC7755Inbox} from "../src/RRC7755Inbox.sol";
 
 contract SubmitToInbox is Script, RRC7755Base {
     using GlobalTypes for address;

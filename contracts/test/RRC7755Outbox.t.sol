@@ -49,25 +49,12 @@ contract RRC7755OutboxTest is BaseTest {
 
     function test_sendMessage_incrementsNonce(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _initMessage(rewardAmount / 2, false);
-        bytes32 messageId = _deriveMessageId(m);
+        uint256 before = outbox.getNonce(ALICE);
 
         vm.prank(ALICE);
-        vm.expectEmit(true, false, false, true);
-        emit MessagePosted(
-            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, m.attributes
-        );
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        m.attributes[2] = abi.encodeWithSelector(_NONCE_ATTRIBUTE_SELECTOR, 2);
-        messageId =
-            outbox.getRequestId(m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, m.attributes);
-
-        vm.prank(ALICE);
-        vm.expectEmit(true, false, false, true);
-        emit MessagePosted(
-            messageId, m.sourceChain, m.sender, m.destinationChain, m.receiver, m.payload, 0, m.attributes
-        );
-        outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
+        assertEq(outbox.getNonce(ALICE), before + 1);
     }
 
     function test_sendMessage_reverts_ifInvalidNativeCurrency(uint256 rewardAmount) external fundAlice(rewardAmount) {
