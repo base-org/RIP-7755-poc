@@ -6,6 +6,7 @@ import {UserOperationLib} from "account-abstraction/core/UserOperationLib.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {GlobalTypes} from "./libraries/GlobalTypes.sol";
+import {NonceManager} from "./NonceManager.sol";
 import {RRC7755Base} from "./RRC7755Base.sol";
 import {RRC7755Inbox} from "./RRC7755Inbox.sol";
 
@@ -15,7 +16,7 @@ import {RRC7755Inbox} from "./RRC7755Inbox.sol";
 ///
 /// @notice A source contract for initiating RRC-7755 Cross Chain Requests as well as reward fulfillment to Fulfillers
 ///         that submit the cross chain calls to destination chains.
-abstract contract RRC7755Outbox is RRC7755Base {
+abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     using GlobalTypes for address;
     using GlobalTypes for bytes32;
     using UserOperationLib for PackedUserOperation;
@@ -58,9 +59,6 @@ abstract contract RRC7755Outbox is RRC7755Base {
 
     /// @notice The duration, in excess of CrossChainRequest.expiry, which must pass before a request can be canceled
     uint256 public constant CANCEL_DELAY_SECONDS = 1 days;
-
-    /// @notice An incrementing nonce value to ensure no two `CrossChainRequest` can be exactly the same
-    uint256 private _nonce;
 
     /// @notice Event emitted when a user sends a message to the `RRC7755Inbox`
     ///
@@ -327,8 +325,8 @@ abstract contract RRC7755Outbox is RRC7755Base {
                 _handleDelayAttribute(attributes[i]);
                 attributeProcessed[1] = true;
             } else if (attributeSelector == _NONCE_ATTRIBUTE_SELECTOR && !attributeProcessed[2]) {
-                // confirm passed in nonce == _getNextNonce()
-                if (abi.decode(attributes[i][4:], (uint256)) != _getNextNonce()) {
+                // confirm passed in nonce == _incrementNonce()
+                if (abi.decode(attributes[i][4:], (uint256)) != _incrementNonce(requester)) {
                     revert InvalidNonce();
                 }
                 attributeProcessed[2] = true;
@@ -508,14 +506,6 @@ abstract contract RRC7755Outbox is RRC7755Base {
 
         if (!usingNativeCurrency) {
             rewardAsset.bytes32ToAddress().safeTransferFrom(requester, address(this), rewardAmount);
-        }
-    }
-
-    function _getNextNonce() private returns (uint256) {
-        unchecked {
-            // It would take ~3,671,743,063,080,802,746,815,416,825,491,118,336,290,905,145,409,708,398,004 years
-            // with a sustained request rate of 1 trillion requests per second to overflow the nonce counter
-            return ++_nonce;
         }
     }
 
