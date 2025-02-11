@@ -6,7 +6,7 @@ import {BlockHeaders} from "../BlockHeaders.sol";
 
 /// @title OPStackProver
 ///
-/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
+/// @author Coinbase (https://github.com/base/RRC-7755-poc)
 ///
 /// @notice This is a utility library for validating OP Stack storage proofs.
 library OPStackProver {

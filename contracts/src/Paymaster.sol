@@ -10,7 +10,7 @@ import {IUserOpPrecheck} from "./interfaces/IUserOpPrecheck.sol";
 
 /// @title Paymaster
 ///
-/// @author Coinbase (https://github.com/base-org/RRC-7755-poc)
+/// @author Coinbase (https://github.com/base/RRC-7755-poc)
 ///
 /// @notice This contract is used as a hook for fulfillers to provide funds for requested transactions when the
 ///         cross-chain call(s) are ERC-4337 User Operations
