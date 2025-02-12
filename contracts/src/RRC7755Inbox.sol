@@ -87,8 +87,6 @@ contract RRC7755Inbox is RRC7755Base, Paymaster {
         _setFulfillmentInfo(messageId, fulfiller);
 
         _sendCallsAndValidateMsgValue(payload);
-
-        emit CallFulfilled({requestHash: messageId, fulfilledBy: fulfiller});
     }
 
     /// @notice Returns the stored fulfillment info for a passed in call hash
@@ -132,6 +130,8 @@ contract RRC7755Inbox is RRC7755Base, Paymaster {
             FulfillmentInfo({timestamp: uint96(block.timestamp), fulfiller: fulfiller});
         MainStorage storage $ = _getMainStorage();
         $.fulfillmentInfo[requestHash] = fulfillmentInfo;
+
+        emit CallFulfilled({requestHash: requestHash, fulfilledBy: fulfiller});
     }
 
     function _runPrecheck(
