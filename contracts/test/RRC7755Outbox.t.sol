@@ -132,7 +132,8 @@ contract RRC7755OutboxTest is BaseTest {
         vm.prank(ALICE);
         outbox.sendMessage(m.destinationChain, m.receiver, m.payload, m.attributes);
 
-        bytes32 messageId = outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)));
+        bytes32 messageId =
+            outbox.getUserOpHash(abi.decode(m.payload, (PackedUserOperation)), m.receiver, m.destinationChain);
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
         assert(status == RRC7755Outbox.CrossChainCallStatus.Requested);
     }
@@ -352,9 +353,9 @@ contract RRC7755OutboxTest is BaseTest {
         bytes memory storageProofData = abi.encode(true);
 
         vm.prank(FILLER);
-        outbox.claimReward(m.userOp, storageProofData, FILLER);
+        outbox.claimReward(m.destinationChain, m.receiver, m.userOp, storageProofData, FILLER);
 
-        bytes32 messageId = outbox.getUserOpHash(m.userOp);
+        bytes32 messageId = outbox.getUserOpHash(m.userOp, m.receiver, m.destinationChain);
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
         assert(status == RRC7755Outbox.CrossChainCallStatus.Completed);
     }
@@ -523,9 +524,9 @@ contract RRC7755OutboxTest is BaseTest {
 
         vm.warp(this.extractExpiry(m.userOpAttributes) + outbox.CANCEL_DELAY_SECONDS());
         vm.prank(ALICE);
-        outbox.cancelUserOp(m.userOp);
+        outbox.cancelUserOp(m.destinationChain, m.receiver, m.userOp);
 
-        bytes32 messageId = outbox.getUserOpHash(m.userOp);
+        bytes32 messageId = outbox.getUserOpHash(m.userOp, m.receiver, m.destinationChain);
         RRC7755Outbox.CrossChainCallStatus status = outbox.getMessageStatus(messageId);
         assert(status == RRC7755Outbox.CrossChainCallStatus.Canceled);
     }

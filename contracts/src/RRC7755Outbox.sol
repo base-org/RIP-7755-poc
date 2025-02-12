@@ -219,12 +219,20 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @custom:reverts If finality delay seconds have not passed since the request was fulfilled on destination chain
     /// @custom:reverts If the reward attribute is not found in the attributes array
     ///
-    /// @param userOp The ERC-4337 User Operation
-    /// @param proof  A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
-    ///               storage on the destination chain
-    /// @param payTo  The address the Filler wants to receive the reward
-    function claimReward(PackedUserOperation calldata userOp, bytes calldata proof, address payTo) external {
-        bytes32 messageId = userOp.hash();
+    /// @param destinationChain The chain identifier of the destination chain
+    /// @param receiver         The account address of the receiver
+    /// @param userOp           The ERC-4337 User Operation
+    /// @param proof            A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
+    ///                         storage on the destination chain
+    /// @param payTo            The address the Filler wants to receive the reward
+    function claimReward(
+        bytes32 destinationChain,
+        bytes32 receiver,
+        PackedUserOperation calldata userOp,
+        bytes calldata proof,
+        address payTo
+    ) external {
+        bytes32 messageId = getUserOpHash(userOp, receiver, destinationChain);
 
         bytes memory storageKey = abi.encode(keccak256(abi.encodePacked(messageId, _VERIFIER_STORAGE_LOCATION)));
         address inbox = address(bytes20(userOp.paymasterAndData[:20]));
@@ -272,9 +280,11 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @custom:reverts If `msg.sender` is not the requester defined by the requester attribute
     /// @custom:reverts If the current block timestamp is less than the expiry timestamp plus the cancel delay seconds
     ///
-    /// @param userOp The ERC-4337 User Operation
-    function cancelUserOp(PackedUserOperation calldata userOp) external {
-        bytes32 messageId = userOp.hash();
+    /// @param destinationChain The chain identifier of the destination chain
+    /// @param receiver         The account address of the receiver
+    /// @param userOp           The ERC-4337 User Operation
+    function cancelUserOp(bytes32 destinationChain, bytes32 receiver, PackedUserOperation calldata userOp) external {
+        bytes32 messageId = getUserOpHash(userOp, receiver, destinationChain);
         bytes[] memory attributes = getUserOpAttributes(userOp);
 
         (bytes32 requester, uint256 expiry, bytes32 rewardAsset, uint256 rewardAmount) =
@@ -401,17 +411,23 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
         bytes[] calldata attributes
     ) public view override returns (bytes32) {
         return attributes.length == 0
-            ? this.getUserOpHash(abi.decode(payload, (PackedUserOperation)))
+            ? this.getUserOpHash(abi.decode(payload, (PackedUserOperation)), receiver, destinationChain)
             : super.getRequestId(sourceChain, sender, destinationChain, receiver, payload, attributes);
     }
 
     /// @notice Returns the hash of an ERC-4337 User Operation
     ///
-    /// @param userOp The ERC-4337 User Operation
+    /// @param userOp           The ERC-4337 User Operation
+    /// @param receiver         The destination chain EntryPoint contract address
+    /// @param destinationChain The destination chain identifier
     ///
     /// @return _ The hash of the ERC-4337 User Operation
-    function getUserOpHash(PackedUserOperation calldata userOp) public pure returns (bytes32) {
-        return userOp.hash();
+    function getUserOpHash(PackedUserOperation calldata userOp, bytes32 receiver, bytes32 destinationChain)
+        public
+        pure
+        returns (bytes32)
+    {
+        return keccak256(abi.encode(userOp.hash(), receiver.bytes32ToAddress(), uint256(destinationChain)));
     }
 
     /// @notice Returns the requester, expiry, reward asset, and reward amount from the attributes array
