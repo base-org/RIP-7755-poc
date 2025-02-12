@@ -15,8 +15,6 @@ ARBITRUM_RPC = $(ARBITRUM_SEPOLIA_RPC)
 OPTIMISM_RPC = $(OPTIMISM_SEPOLIA_RPC)
 BASE_RPC = $(BASE_SEPOLIA_RPC)
 
-OP_STACK_RPC = $(BASE_RPC)
-
 .PHONY: test
 test:
 	forge fmt
@@ -72,6 +70,30 @@ submit-optimism-to-arbitrum:
 .PHONY: submit-optimism-to-base
 submit-optimism-to-base:
 	forge script script/submitRequest/OptimismToBase.s.sol:OptimismToBase --rpc-url $(OPTIMISM_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: userop-base-to-arbitrum
+userop-base-to-arbitrum:
+	forge script script/submitUserOp/ToArbitrum.s.sol:ToArbitrum --rpc-url $(BASE_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: userop-base-to-optimism
+userop-base-to-optimism:
+	forge script script/submitUserOp/BaseToOptimism.s.sol:BaseToOptimism --rpc-url $(BASE_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: userop-arbitrum-to-base
+userop-arbitrum-to-base:
+	DESTINATION_CHAIN_ID=84532 forge script script/submitUserOp/FromArbitrum.s.sol:FromArbitrum --rpc-url $(ARBITRUM_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: userop-arbitrum-to-optimism
+userop-arbitrum-to-optimism:
+	DESTINATION_CHAIN_ID=11155420 forge script script/submitUserOp/FromArbitrum.s.sol:FromArbitrum --rpc-url $(ARBITRUM_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: userop-optimism-to-arbitrum
+userop-optimism-to-arbitrum:
+	forge script script/submitUserOp/ToArbitrum.s.sol:ToArbitrum --rpc-url $(OPTIMISM_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: userop-optimism-to-base
+userop-optimism-to-base:
+	forge script script/submitUserOp/OptimismToBase.s.sol:OptimismToBase --rpc-url $(OPTIMISM_RPC) --account $(ACCOUNT) --broadcast -vvvv
 
 .PHONY: fulfill-request
 fulfill-request:

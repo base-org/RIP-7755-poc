@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 import {RRC7755Outbox} from "../../src/RRC7755Outbox.sol";
 import {HelperConfig} from "../HelperConfig.s.sol";
-import {StandardBase} from "./StandardBase.s.sol";
+import {StandardBase} from "../requests/StandardBase.s.sol";
 
 contract ToArbitrum is StandardBase {
     function run() external {
@@ -17,11 +17,11 @@ contract ToArbitrum is StandardBase {
 
         uint256 nonce = outbox.getNonce(_REQUESTER);
 
-        (bytes32 destinationChain, bytes32 receiver, Call[] memory calls, bytes[] memory attributes) =
+        (bytes32 destinationChain, bytes32 receiver, bytes memory payload, bytes[] memory attributes) =
             _initMessage(destinationChainId, duration, nonce + 1);
 
         vm.startBroadcast();
-        outbox.sendMessage{value: 0.0002 ether}(destinationChain, receiver, abi.encode(calls), attributes);
+        outbox.sendMessage{value: 0.0002 ether}(destinationChain, receiver, payload, attributes);
         vm.stopBroadcast();
     }
 
