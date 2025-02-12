@@ -29,7 +29,7 @@ contract StandardBase is Script, RRC7755Base {
     function _initMessage(uint256 destinationChainId, uint256 duration, uint256 nonce)
         internal
         virtual
-        returns (bytes32, bytes32, Call[] memory, bytes[] memory)
+        returns (bytes32, bytes32, bytes memory, bytes[] memory)
     {
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
 
@@ -46,7 +46,7 @@ contract StandardBase is Script, RRC7755Base {
         attributes[3] = abi.encodeWithSelector(_REQUESTER_ATTRIBUTE_SELECTOR, _REQUESTER.addressToBytes32());
         attributes[4] = abi.encodeWithSelector(_L2_ORACLE_ATTRIBUTE_SELECTOR, dstConfig.l2Oracle);
 
-        return (destinationChain, receiver, calls, attributes);
+        return (destinationChain, receiver, abi.encode(calls), attributes);
     }
 
     // Including to block from coverage report
