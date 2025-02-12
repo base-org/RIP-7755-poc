@@ -13,6 +13,9 @@ import RRC7755Inbox from "../abis/RRC7755Inbox";
 import Attributes from "../common/utils/attributes";
 import bytes32ToAddress from "../common/utils/bytes32ToAddress";
 import EntryPoint from "../abis/EntryPoint";
+import extractAttributesFromUserOp from "../common/utils/extractAttributesFromUserOp";
+import decodeUserOp from "../common/utils/decodeUserOp";
+import Calls from "../abis/Calls";
 
 export default class HandlerService {
   constructor(
@@ -40,8 +43,7 @@ export default class HandlerService {
     let userOpAttributes = new Attributes([]);
 
     if (attributes.count() === 0) {
-      const res = this.extractAttributesFromUserOp(payload);
-      userOpAttributes = res.attributes;
+      userOpAttributes = extractAttributesFromUserOp(decodeUserOp(payload));
     }
 
     const senderAddr = bytes32ToAddress(sender);
@@ -138,7 +140,8 @@ export default class HandlerService {
     receiver: Address,
     payload: Hex
   ): Promise<Hex> {
-    const { op, attributes } = this.extractAttributesFromUserOp(payload);
+    const op = decodeUserOp(payload);
+    const attributes = extractAttributesFromUserOp(op);
 
     const abi = EntryPoint;
     const functionName = "handleOps";
@@ -225,21 +228,7 @@ export default class HandlerService {
   }
 
   private extractValueNeededFromCalls(payload: Hex): bigint {
-    const [calls] = decodeAbiParameters(
-      [
-        {
-          name: "calls",
-          type: "tuple[]",
-          internalType: "struct Call[]",
-          components: [
-            { name: "to", type: "bytes32", internalType: "bytes32" },
-            { name: "data", type: "bytes", internalType: "bytes" },
-            { name: "value", type: "uint256", internalType: "uint256" },
-          ],
-        },
-      ],
-      payload
-    );
+    const [calls] = decodeAbiParameters(Calls, payload);
 
     // - Add up total value needed
     let valueNeeded = 0n;
@@ -263,56 +252,5 @@ export default class HandlerService {
       asset === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
       amount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
     );
-  }
-
-  extractAttributesFromUserOp(payload: Hex): {
-    op: any;
-    attributes: Attributes;
-  } {
-    const [op] = decodeAbiParameters(
-      [
-        {
-          name: "userOp",
-          type: "tuple",
-          internalType: "struct PackedUserOperation",
-          components: [
-            { name: "sender", type: "address", internalType: "address" },
-            { name: "nonce", type: "uint256", internalType: "uint256" },
-            { name: "initCode", type: "bytes", internalType: "bytes" },
-            { name: "callData", type: "bytes", internalType: "bytes" },
-            {
-              name: "accountGasLimits",
-              type: "bytes32",
-              internalType: "bytes32",
-            },
-            {
-              name: "preVerificationGas",
-              type: "uint256",
-              internalType: "uint256",
-            },
-            { name: "gasFees", type: "bytes32", internalType: "bytes32" },
-            {
-              name: "paymasterAndData",
-              type: "bytes",
-              internalType: "bytes",
-            },
-            { name: "signature", type: "bytes", internalType: "bytes" },
-          ],
-        },
-      ],
-      payload
-    );
-    const paymasterData = `0x${op.paymasterAndData.slice(106)}` as Hex;
-    const [, , , attributes] = decodeAbiParameters(
-      [
-        { name: "ethAddress", type: "address", internalType: "address" },
-        { name: "ethAmount", type: "uint256", internalType: "uint256" },
-        { name: "precheck", type: "address", internalType: "address" },
-        { name: "attributes", type: "bytes[]", internalType: "bytes[]" },
-      ],
-      paymasterData
-    );
-
-    return { op, attributes: new Attributes(attributes as Hex[]) };
   }
 }
