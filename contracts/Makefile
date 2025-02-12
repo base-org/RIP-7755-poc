@@ -11,6 +11,11 @@ ARBITRUM_RPC = $(ARBITRUM_SEPOLIA_RPC)
 OPTIMISM_RPC = $(OPTIMISM_SEPOLIA_RPC)
 BASE_RPC = $(BASE_SEPOLIA_RPC)
 
+.PHONY: install-foundry
+install-foundry:
+	curl -L https://foundry.paradigm.xyz | bash
+	~/.foundry/bin/foundryup
+
 .PHONY: test
 test:
 	forge fmt
