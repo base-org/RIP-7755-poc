@@ -25,9 +25,9 @@ export default class DBService {
     payload: Hex,
     value: bigint,
     attributes: Attributes,
-    activeChains: ActiveChains
+    activeChains: ActiveChains,
+    finalityDelaySeconds: number
   ): Promise<boolean> {
-    const { finalityDelaySeconds } = attributes.getDelay();
     const doc = new Submission({
       requestHash,
       claimAvailableAt:
