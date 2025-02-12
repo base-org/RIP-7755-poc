@@ -23,7 +23,7 @@ test:
 .PHONY: coverage
 coverage:
 	forge fmt
-	forge coverage
+	forge coverage --no-match-contract Deploy
 
 .PHONY: deploy-mock
 deploy-mock:
