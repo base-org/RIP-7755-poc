@@ -4,6 +4,12 @@ This repo consists of work-in-progress implementations of the smart contracts ma
 
 ## Getting Started
 
+### Install Foundry if not already installed
+
+```bash
+make install-foundry
+```
+
 ### Install dependencies
 
 ```bash
