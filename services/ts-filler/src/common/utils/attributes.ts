@@ -9,6 +9,10 @@ const SHOYU_BASHI_ATTRIBUTE_SELECTOR = "0xda07e15d";
 export default class Attributes {
   constructor(private attributes: Hex[]) {}
 
+  count(): number {
+    return this.attributes.length;
+  }
+
   getAttributes(): Hex[] {
     return this.attributes;
   }

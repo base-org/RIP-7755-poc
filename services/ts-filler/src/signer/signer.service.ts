@@ -3,6 +3,7 @@ import {
   http,
   type Account,
   type Address,
+  type Hex,
   type WalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -54,19 +55,30 @@ export default class SignerService {
     });
   }
 
-  async sendTransaction(
+  async writeContract(
     to: Address,
     abi: any,
     functionName: string,
     args: any[],
     value = 0n
-  ): Promise<Address> {
+  ): Promise<Hex> {
     return await exponentialBackoff(async () => {
       return await this.signer.writeContract({
         address: to,
         abi,
         functionName,
         args,
+        value,
+        chain: this.chain.publicClient.chain,
+        account: this.account,
+      });
+    });
+  }
+
+  async sendTransaction(to: Address, value: bigint): Promise<Hex> {
+    return await exponentialBackoff(async () => {
+      return await this.signer.sendTransaction({
+        to,
         value,
         chain: this.chain.publicClient.chain,
         account: this.account,

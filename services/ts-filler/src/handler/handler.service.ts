@@ -10,9 +10,9 @@ import type SignerService from "../signer/signer.service";
 import type DBService from "../database/db.service";
 import { Provers, type ActiveChains } from "../common/types/chain";
 import RRC7755Inbox from "../abis/RRC7755Inbox";
-import type CAIP10 from "../common/utils/caip10";
-import type Attributes from "../common/utils/attributes";
+import Attributes from "../common/utils/attributes";
 import bytes32ToAddress from "../common/utils/bytes32ToAddress";
+import EntryPoint from "../abis/EntryPoint";
 
 export default class HandlerService {
   constructor(
@@ -37,6 +37,13 @@ export default class HandlerService {
         ? this.activeChains.dst.targetProver
         : Provers.Hashi;
 
+    let userOpAttributes = new Attributes([]);
+
+    if (attributes.count() === 0) {
+      const res = this.extractAttributesFromUserOp(payload);
+      userOpAttributes = res.attributes;
+    }
+
     const senderAddr = bytes32ToAddress(sender);
     const receiverAddr = bytes32ToAddress(receiver);
 
@@ -51,10 +58,12 @@ export default class HandlerService {
     }
 
     // - Make sure inboxContract matches the trusted inbox for dst chain Id
-    if (
-      this.activeChains.dst.contracts.inbox.toLowerCase() !==
-      receiverAddr.toLowerCase()
-    ) {
+    const expectedReceiverAddress =
+      attributes.count() > 0
+        ? this.activeChains.dst.contracts.inbox.toLowerCase()
+        : this.activeChains.dst.contracts.entryPoint.toLowerCase();
+
+    if (expectedReceiverAddress !== receiverAddr.toLowerCase()) {
       throw new Error("Unknown Inbox contract on dst chain");
     }
 
@@ -63,12 +72,159 @@ export default class HandlerService {
       proverName === Provers.Hashi
         ? zeroAddress
         : this.activeChains.dst.l2Oracle;
-    if (
-      attributes.getL2Oracle().toLowerCase() !== expectedOracle.toLowerCase()
-    ) {
+    const selectedOracle =
+      attributes.count() === 0
+        ? userOpAttributes.getL2Oracle().toLowerCase()
+        : attributes.getL2Oracle().toLowerCase();
+    if (selectedOracle !== expectedOracle.toLowerCase()) {
       throw new Error("Unkown Oracle contract for dst chain");
     }
 
+    const txnHash = await this.submit(
+      sender,
+      receiverAddr,
+      payload,
+      attributes
+    );
+
+    console.log(
+      `Destination chain transaction successful! Storing record in DB. TxHash: ${txnHash}`
+    );
+
+    const finalityDelaySeconds =
+      attributes.count() > 0
+        ? attributes.getDelay().finalityDelaySeconds
+        : userOpAttributes.getDelay().finalityDelaySeconds;
+
+    // record db instance to be picked up later for reward collection
+    const dbSuccess = await this.dbService.storeSuccessfulCall(
+      outboxId,
+      txnHash,
+      sender,
+      receiver,
+      payload,
+      value,
+      attributes,
+      this.activeChains,
+      finalityDelaySeconds
+    );
+
+    if (!dbSuccess) {
+      throw new Error("Failed to store successful call in db");
+    }
+
+    console.log("Record successfully stored to DB");
+  }
+
+  private async submit(
+    sender: Hex,
+    receiver: Address,
+    payload: Hex,
+    attributes: Attributes
+  ): Promise<Hex> {
+    if (attributes.count() > 0) {
+      return await this.submitStandardTransaction(
+        sender,
+        receiver,
+        payload,
+        attributes
+      );
+    }
+
+    return await this.submitUserOperation(receiver, payload);
+  }
+
+  private async submitUserOperation(
+    receiver: Address,
+    payload: Hex
+  ): Promise<Hex> {
+    const { op, attributes } = this.extractAttributesFromUserOp(payload);
+
+    const abi = EntryPoint;
+    const functionName = "handleOps";
+    const args = [[op], this.signerService.getFulfillerAddress()];
+    const valueNeeded = 0n;
+    return await this.submitTransaction(
+      receiver,
+      attributes,
+      abi,
+      functionName,
+      args,
+      valueNeeded
+    );
+  }
+
+  private async submitStandardTransaction(
+    sender: Hex,
+    receiver: Address,
+    payload: Hex,
+    attributes: Attributes
+  ): Promise<Hex> {
+    const valueNeeded = this.extractValueNeededFromCalls(payload);
+
+    // Gather transaction params
+    const abi = RRC7755Inbox;
+    const functionName = "fulfill";
+    const args = [
+      toHex(this.activeChains.src.chainId, { size: 32 }),
+      sender,
+      payload,
+      attributes.getAttributes(),
+      this.signerService.getFulfillerAddress(),
+    ];
+
+    return await this.submitTransaction(
+      receiver,
+      attributes,
+      abi,
+      functionName,
+      args,
+      valueNeeded
+    );
+  }
+
+  private async submitTransaction(
+    receiver: Address,
+    attributes: Attributes,
+    abi: any,
+    functionName: string,
+    args: any[],
+    valueNeeded: bigint
+  ): Promise<Hex> {
+    const estimatedDestinationGas = await this.signerService.estimateGas(
+      receiver,
+      abi,
+      functionName,
+      args,
+      valueNeeded
+    );
+
+    // - rewardAsset + rewardAmount should make sense given requested calls
+    if (!this.isValidReward(attributes, valueNeeded, estimatedDestinationGas)) {
+      console.error("Undesirable reward");
+      throw new Error("Undesirable reward");
+    }
+
+    // submit dst txn
+    console.log(
+      "Request passed validation - preparing transaction for submission to destination chain"
+    );
+    const txnHash = await this.signerService.writeContract(
+      receiver,
+      abi,
+      functionName,
+      args,
+      valueNeeded
+    );
+
+    if (!txnHash) {
+      throw new Error("Failed to submit transaction");
+    }
+
+    return txnHash;
+  }
+
+  private extractValueNeededFromCalls(payload: Hex): bigint {
     const [calls] = decodeAbiParameters(
       [
         {
@@ -92,68 +248,7 @@ export default class HandlerService {
       valueNeeded += calls[i].value;
     }
 
-    // Gather transaction params
-    const abi = RRC7755Inbox;
-    const functionName = "fulfill";
-    const args = [
-      toHex(this.activeChains.src.chainId, { size: 32 }),
-      sender,
-      payload,
-      attributes.getAttributes(),
-      this.signerService.getFulfillerAddress(),
-    ];
-    const estimatedDestinationGas = await this.signerService.estimateGas(
-      receiverAddr,
-      abi,
-      functionName,
-      args,
-      valueNeeded
-    );
-
-    // - rewardAsset + rewardAmount should make sense given requested calls
-    if (!this.isValidReward(attributes, valueNeeded, estimatedDestinationGas)) {
-      console.error("Undesirable reward");
-      throw new Error("Undesirable reward");
-    }
-
-    // function fulfill(CrossChainRequest calldata request, address fulfiller) external
-    // submit dst txn
-    console.log(
-      "Request passed validation - preparing transaction for submission to destination chain"
-    );
-    const txnHash = await this.signerService.sendTransaction(
-      receiverAddr,
-      abi,
-      functionName,
-      args,
-      valueNeeded
-    );
-
-    if (!txnHash) {
-      throw new Error("Failed to submit transaction");
-    }
-
-    console.log(
-      `Destination chain transaction successful! Storing record in DB. TxHash: ${txnHash}`
-    );
-
-    // record db instance to be picked up later for reward collection
-    const dbSuccess = await this.dbService.storeSuccessfulCall(
-      outboxId,
-      txnHash,
-      sender,
-      receiver,
-      payload,
-      value,
-      attributes,
-      this.activeChains
-    );
-
-    if (!dbSuccess) {
-      throw new Error("Failed to store successful call in db");
-    }
-
-    console.log("Record successfully stored to DB");
+    return valueNeeded;
   }
 
   private isValidReward(
@@ -168,5 +263,56 @@ export default class HandlerService {
       asset === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
       amount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
     );
+  }
+
+  extractAttributesFromUserOp(payload: Hex): {
+    op: any;
+    attributes: Attributes;
+  } {
+    const [op] = decodeAbiParameters(
+      [
+        {
+          name: "userOp",
+          type: "tuple",
+          internalType: "struct PackedUserOperation",
+          components: [
+            { name: "sender", type: "address", internalType: "address" },
+            { name: "nonce", type: "uint256", internalType: "uint256" },
+            { name: "initCode", type: "bytes", internalType: "bytes" },
+            { name: "callData", type: "bytes", internalType: "bytes" },
+            {
+              name: "accountGasLimits",
+              type: "bytes32",
+              internalType: "bytes32",
+            },
+            {
+              name: "preVerificationGas",
+              type: "uint256",
+              internalType: "uint256",
+            },
+            { name: "gasFees", type: "bytes32", internalType: "bytes32" },
+            {
+              name: "paymasterAndData",
+              type: "bytes",
+              internalType: "bytes",
+            },
+            { name: "signature", type: "bytes", internalType: "bytes" },
+          ],
+        },
+      ],
+      payload
+    );
+    const paymasterData = `0x${op.paymasterAndData.slice(106)}` as Hex;
+    const [, , , attributes] = decodeAbiParameters(
+      [
+        { name: "ethAddress", type: "address", internalType: "address" },
+        { name: "ethAmount", type: "uint256", internalType: "uint256" },
+        { name: "precheck", type: "address", internalType: "address" },
+        { name: "attributes", type: "bytes[]", internalType: "bytes[]" },
+      ],
+      paymasterData
+    );
+
+    return { op, attributes: new Attributes(attributes as Hex[]) };
   }
 }

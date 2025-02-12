@@ -76,7 +76,6 @@ export default class RewardMonitorService {
         job.claimAvailableAt
       );
       const attributesClass = new Attributes(attributes);
-      attributesClass.removeFulfiller();
 
       const usingHashi =
         !activeChains.src.exposesL1State || !activeChains.dst.sharesStateWithL1;
@@ -85,7 +84,7 @@ export default class RewardMonitorService {
         // NOTE: This is only for a proof of concept. We have a mock shoyu bashi contract that allows us to directly set the block hash for the l2 block number.
         // In production, more sophisticated logic will be needed to determine the latest block number accounted for in the Hashi system.
         const shoyuBashi = attributesClass.getShoyuBashi();
-        await signerService.sendTransaction(
+        await signerService.writeContract(
           bytes32ToAddress(shoyuBashi),
           ShoyuBashi,
           "setHash",
@@ -112,7 +111,7 @@ export default class RewardMonitorService {
 
       const senderObj = new CAIP10(sender);
 
-      const txnHash = await signerService.sendTransaction(
+      const txnHash = await signerService.writeContract(
         senderObj.getAddress(),
         RIP7755Outbox,
         functionName,
