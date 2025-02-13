@@ -174,7 +174,7 @@ abstract contract Paymaster is IPaymaster {
     ///
     /// @dev Reverts if caller's magic spend balance is insufficient
     ///
-    /// @param amount The amount to deposit on the the Entrypoint.
+    /// @param amount The amount to deposit on the Entrypoint.
     function entryPointDeposit(uint256 amount) external payable {
         _depositEth();
         _convertEthForGas(msg.sender, amount);
