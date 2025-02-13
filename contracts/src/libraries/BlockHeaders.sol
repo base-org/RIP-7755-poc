@@ -15,7 +15,7 @@ library BlockHeaders {
     /// @notice The minimum block fields length
     uint256 private constant MINIMUM_BLOCK_FIELDS_LENGTH = 12;
 
-    /// @notice This error is thrown when the number of bytes to convert into an uin256 is greather than 32
+    /// @notice This error is thrown when the number of bytes to convert into an uint256 is greater than 32
     error BytesLengthExceeds32();
 
     /// @notice This error is thrown when the encoded block headers does not contain all 16 fields
