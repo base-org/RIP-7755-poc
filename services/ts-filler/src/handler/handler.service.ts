@@ -79,7 +79,7 @@ export default class HandlerService {
         ? userOpAttributes.getL2Oracle().toLowerCase()
         : attributes.getL2Oracle().toLowerCase();
     if (selectedOracle !== expectedOracle.toLowerCase()) {
-      throw new Error("Unkown Oracle contract for dst chain");
+      throw new Error("Unknown Oracle contract for dst chain");
     }
 
     const txnHash = await this.submit(
