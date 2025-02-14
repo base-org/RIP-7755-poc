@@ -18,7 +18,7 @@ library BlockHeaders {
     /// @notice This error is thrown when the number of bytes to convert into an uin256 is greather than 32
     error BytesLengthExceeds32();
 
-    /// @notice This error is thrown when the encoded block headers does not contain all 16 fields
+    /// @notice This error is thrown when the encoded block headers does not contain all 12 fields
     error InvalidBlockFieldRLP();
 
     /// @notice Converts an RLP-encoded block header into a block hash
