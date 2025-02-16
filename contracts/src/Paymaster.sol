@@ -7,6 +7,7 @@ import {PackedUserOperation} from "account-abstraction/interfaces/PackedUserOper
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 import {IUserOpPrecheck} from "./interfaces/IUserOpPrecheck.sol";
+import {GlobalTypes} from "./libraries/GlobalTypes.sol";
 
 /// @title Paymaster
 ///
@@ -16,6 +17,8 @@ import {IUserOpPrecheck} from "./interfaces/IUserOpPrecheck.sol";
 ///         cross-chain call(s) are ERC-4337 User Operations
 abstract contract Paymaster is IPaymaster {
     using SafeTransferLib for address;
+    using GlobalTypes for address;
+    using GlobalTypes for bytes32;
 
     /// @notice The context structure returned by validatePaymasterUserOp
     struct Context {
@@ -26,15 +29,15 @@ abstract contract Paymaster is IPaymaster {
         /// @dev The sender of the user operation
         address sender;
         /// @dev The token address for magic spend
-        address magicSpendToken;
+        bytes32 magicSpendToken;
         /// @dev The amount that was spent as a magic spend (either native currency or ERC20 tokens)
         uint256 magicSpendAmount;
         /// @dev The address of the fulfiller
         address fulfiller;
     }
 
-    /// @notice The address value to represent native currency
-    address private constant _ETH_ADDRESS = address(0);
+    /// @notice The bytes32 address value to represent native currency
+    bytes32 private constant _NATIVE_ASSET = 0x000000000000000000000000eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee;
 
     /// @notice The ERC-4337 EntryPoint contract
     IEntryPoint public immutable ENTRY_POINT;
@@ -61,12 +64,12 @@ abstract contract Paymaster is IPaymaster {
     /// @notice A mapping tracking the magic spend amount that has been allocated by a fulfiller. This balance sits in
     ///         this contract and is used to provide funds for call execution. This is different from gas sponsorship.
     ///         It is for any call sending an eth value or erc20 tokens with it.
-    mapping(address fulfiller => mapping(address token => uint256 magicSpendBalance)) private _magicSpendBalance;
+    mapping(address fulfiller => mapping(bytes32 token => uint256 magicSpendBalance)) private _magicSpendBalance;
 
     /// @notice A mapping from an account's address to the magic spend amount that can be withdrawn by the account.
     ///         This is used to track the amount of currency (either eth or erc20 tokens) that has been allocated by
     ///         the paymaster but not yet withdrawn by the account
-    mapping(address account => mapping(address token => uint256)) private _withdrawable;
+    mapping(address account => mapping(bytes32 token => uint256)) private _withdrawable;
 
     /// @notice This error is thrown when an address is the zero address
     error ZeroAddress();
@@ -153,7 +156,8 @@ abstract contract Paymaster is IPaymaster {
     /// @param token  Address representing ERC20 token or eth to deposit
     /// @param amount Amount of magic spend currency to deposit
     function magicSpendDeposit(address token, uint256 amount) external payable {
-        if (token == _ETH_ADDRESS) {
+        bytes32 tokenBytes32 = token.addressToBytes32();
+        if (tokenBytes32 == _NATIVE_ASSET) {
             if (amount != msg.value) {
                 revert InvalidValue(amount, msg.value);
             }
@@ -165,7 +169,7 @@ abstract contract Paymaster is IPaymaster {
             }
 
             // ERC20 deposit
-            _magicSpendBalance[msg.sender][token] += amount;
+            _magicSpendBalance[msg.sender][tokenBytes32] += amount;
             token.safeTransferFrom(msg.sender, address(this), amount);
         }
     }
@@ -189,18 +193,19 @@ abstract contract Paymaster is IPaymaster {
     /// @param withdrawAddress The address to withdraw the eth to
     /// @param amount          The amount of eth to withdraw
     function withdrawTo(address token, address withdrawAddress, uint256 amount) external {
+        bytes32 tokenBytes32 = token.addressToBytes32();
         if (withdrawAddress == address(0)) {
             revert ZeroAddress();
         }
 
-        uint256 balance = _magicSpendBalance[msg.sender][token];
+        uint256 balance = _magicSpendBalance[msg.sender][tokenBytes32];
 
         if (amount > balance) {
             revert InsufficientMagicSpendBalance(msg.sender, balance, amount);
         }
 
         unchecked {
-            _magicSpendBalance[msg.sender][token] -= amount;
+            _magicSpendBalance[msg.sender][tokenBytes32] -= amount;
         }
 
         _sendTokens({token: token, to: withdrawAddress, amount: amount});
@@ -264,8 +269,8 @@ abstract contract Paymaster is IPaymaster {
         returns (bytes memory context, uint256 validationData)
     {
         _settleBalanceDiff(maxCost);
-        (address magicSpendToken, uint256 magicSpendAmount, address precheckContract) =
-            abi.decode(userOp.paymasterAndData[52:], (address, uint256, address));
+        (bytes32 magicSpendToken, uint256 magicSpendAmount, address precheckContract) =
+            abi.decode(userOp.paymasterAndData[52:], (bytes32, uint256, address));
 
         address fulfiller = tx.origin;
         uint256 balance = _magicSpendBalance[fulfiller][magicSpendToken];
@@ -305,7 +310,7 @@ abstract contract Paymaster is IPaymaster {
     /// @custom:reverts If the withdrawable amount is 0
     ///
     /// @param token Token address to withdraw
-    function withdrawGasExcess(address token) external {
+    function withdrawGasExcess(bytes32 token) external {
         uint256 amount = _withdrawable[msg.sender][token];
 
         if (amount == 0) {
@@ -313,7 +318,7 @@ abstract contract Paymaster is IPaymaster {
         }
 
         delete _withdrawable[msg.sender][token];
-        _sendTokens({token: token, to: msg.sender, amount: amount});
+        _sendTokens({token: token.bytes32ToAddress(), to: msg.sender, amount: amount});
     }
 
     /// @notice A function that is called after a User Operation is executed. This function is used to update the
@@ -363,7 +368,8 @@ abstract contract Paymaster is IPaymaster {
     ///
     /// @return balance The balance of magic spend eth for the fulfiller
     function getMagicSpendBalance(address account, address token) external view returns (uint256) {
-        return _magicSpendBalance[account][token];
+        bytes32 tokenBytes32 = token.addressToBytes32();
+        return _magicSpendBalance[account][tokenBytes32];
     }
 
     /// @notice A function that sets the fulfillment info for a User Operation
@@ -375,7 +381,7 @@ abstract contract Paymaster is IPaymaster {
     /// @notice A function that deposits eth into the paymaster
     function _depositEth() private {
         unchecked {
-            _magicSpendBalance[msg.sender][_ETH_ADDRESS] += msg.value;
+            _magicSpendBalance[msg.sender][_NATIVE_ASSET] += msg.value;
         }
     }
 
@@ -386,14 +392,14 @@ abstract contract Paymaster is IPaymaster {
     /// @param fulfiller The address of the fulfiller
     /// @param amount    The amount of eth to convert for gas
     function _convertEthForGas(address fulfiller, uint256 amount) private {
-        uint256 balance = _magicSpendBalance[fulfiller][_ETH_ADDRESS];
+        uint256 balance = _magicSpendBalance[fulfiller][_NATIVE_ASSET];
 
         if (amount > balance) {
             revert InsufficientMagicSpendBalance(fulfiller, balance, amount);
         }
 
         unchecked {
-            _magicSpendBalance[fulfiller][_ETH_ADDRESS] -= amount;
+            _magicSpendBalance[fulfiller][_NATIVE_ASSET] -= amount;
             _ethForGas[fulfiller] += amount;
             totalTrackedGasBalance += amount;
         }
@@ -427,7 +433,7 @@ abstract contract Paymaster is IPaymaster {
     /// @param to     Address to send tokens to
     /// @param amount Amount of tokens to send
     function _sendTokens(address token, address to, uint256 amount) private {
-        if (token == _ETH_ADDRESS) {
+        if (token.addressToBytes32() == _NATIVE_ASSET) {
             to.safeTransferETH(amount);
         } else {
             token.safeTransfer(to, amount);

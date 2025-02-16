@@ -11,11 +11,13 @@ import {MockEndpoint} from "./mocks/MockEndpoint.sol";
 import {Paymaster} from "../src/Paymaster.sol";
 import {MockPaymaster} from "./mocks/MockPaymaster.sol";
 import {MockUserOpPrecheck} from "./mocks/MockUserOpPrecheck.sol";
+import {GlobalTypes} from "../src/libraries/GlobalTypes.sol";
 
 contract PaymasterTest is BaseTest, MockEndpoint {
     using UserOperationLib for PackedUserOperation;
+    using GlobalTypes for address;
 
-    address constant _ETH_ADDRESS = address(0);
+    address constant _ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     IEntryPoint entryPoint;
     MockAccount mockAccount;
@@ -686,7 +688,9 @@ contract PaymasterTest is BaseTest, MockEndpoint {
             sender: address(mockAccount),
             nonce: nonce,
             initCode: "",
-            callData: abi.encodeWithSelector(MockAccount.executeUserOp.selector, address(paymaster), token),
+            callData: abi.encodeWithSelector(
+                MockAccount.executeUserOp.selector, address(paymaster), token.addressToBytes32()
+            ),
             accountGasLimits: bytes32(abi.encodePacked(uint128(1000000), uint128(1000000))),
             preVerificationGas: 100000,
             gasFees: bytes32(abi.encodePacked(uint128(1000000), uint128(1000000))),
@@ -702,7 +706,10 @@ contract PaymasterTest is BaseTest, MockEndpoint {
         returns (bytes memory)
     {
         return abi.encodePacked(
-            address(paymaster), uint128(1000000), uint128(1000000), abi.encode(token, ethAmount, precheck)
+            address(paymaster),
+            uint128(1000000),
+            uint128(1000000),
+            abi.encode(token.addressToBytes32(), ethAmount, precheck)
         );
     }
 
