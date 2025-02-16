@@ -10,7 +10,6 @@ import SignerService from "../signer/signer.service";
 import DBService from "../database/db.service";
 import HandlerService from "../handler/handler.service";
 import config from "../config";
-import CAIP10 from "../common/utils/caip10";
 import Attributes from "../common/utils/attributes";
 
 export default class IndexerService {

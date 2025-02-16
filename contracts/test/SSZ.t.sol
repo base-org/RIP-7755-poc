@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import {Test} from "forge-std/Test.sol";
 
 import {SSZ} from "../src/libraries/SSZ.sol";
+import {MockSSZ} from "./mocks/MockSSZ.sol";
 
 contract SSZTest is Test {
     bytes32[] proof;
@@ -11,7 +12,11 @@ contract SSZTest is Test {
     bytes32 leaf;
     uint256 index;
 
+    MockSSZ ssz;
+
     function setUp() public {
+        ssz = new MockSSZ();
+
         proof.push(0xd526ab81e92ee5f1cc067756a28fabace998cbcdc4dfc15be4e7a1e20556dd77);
         proof.push(0x91fef64270acd9eaa77515c225e1ff733405ad5c9ef6af09348a81d494d91153);
         proof.push(0xc29d2435ffdaae8e956a6ff850f93785e9088fc361df4b65fc4e5eda3dc48e5e);
@@ -30,16 +35,16 @@ contract SSZTest is Test {
     }
 
     function test_verifyProof_returnsTrue() public view {
-        assertEq(SSZ.verifyProof(proof, root, leaf, index), true);
+        assertEq(ssz.verifyProof(proof, root, leaf, index), true);
     }
 
     function test_verifyProof_reverts_invalidIndex() public {
         vm.expectRevert(0x5849603f);
-        SSZ.verifyProof(proof, root, leaf, 1);
+        ssz.verifyProof(proof, root, leaf, 1);
     }
 
     function test_verifyProof_reverts_missingItem() public {
         vm.expectRevert(0x1b6661c3);
-        SSZ.verifyProof(new bytes32[](0), root, leaf, 2);
+        ssz.verifyProof(new bytes32[](0), root, leaf, 2);
     }
 }

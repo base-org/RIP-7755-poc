@@ -1,29 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import {Script} from "forge-std/Script.sol";
 import {Strings} from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
+import {MultiChain} from "./MultiChain.sol";
 import {RRC7755OutboxToArbitrum} from "../src/outboxes/RRC7755OutboxToArbitrum.sol";
 import {RRC7755OutboxToOPStack} from "../src/outboxes/RRC7755OutboxToOPStack.sol";
 import {RRC7755OutboxToHashi} from "../src/outboxes/RRC7755OutboxToHashi.sol";
 import {RRC7755Inbox} from "../src/RRC7755Inbox.sol";
 
-contract Deploy is Script {
-    struct Cfg {
-        string chainName;
-        string rpcUrl;
-    }
-
-    address ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
-    Cfg[3] chains;
-
-    constructor() {
-        chains[0] = Cfg({chainName: "arbitrumSepolia", rpcUrl: vm.envString("ARBITRUM_SEPOLIA_RPC")});
-        chains[1] = Cfg({chainName: "baseSepolia", rpcUrl: vm.envString("BASE_SEPOLIA_RPC")});
-        chains[2] = Cfg({chainName: "optimismSepolia", rpcUrl: vm.envString("OPTIMISM_SEPOLIA_RPC")});
-    }
-
+contract Deploy is MultiChain {
     function run() external {
         string memory out = "{";
 

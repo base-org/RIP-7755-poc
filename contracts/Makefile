@@ -99,3 +99,7 @@ userop-optimism-to-base:
 .PHONY: fulfill-request
 fulfill-request:
 	forge script script/actions/SubmitToInbox.s.sol:SubmitToInbox --rpc-url $(OPTIMISM_RPC) --account $(ACCOUNT) --broadcast -vvvv
+
+.PHONY: recover-paymaster-funds
+recover-paymaster-funds:
+	forge script script/RecoverPaymasterFunds.s.sol:RecoverPaymasterFunds --account $(ACCOUNT) --broadcast -vvvv
