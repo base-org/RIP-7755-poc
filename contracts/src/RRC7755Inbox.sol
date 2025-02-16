@@ -21,7 +21,7 @@ contract RRC7755Inbox is RRC7755Base, Paymaster {
     struct MainStorage {
         /// @notice A mapping from the keccak256 hash of a 7755 request to its `FulfillmentInfo`. This can only be set
         ///         once per call
-        mapping(bytes32 requestHash => FulfillmentInfo) fulfillmentInfo;
+        mapping(bytes32 => FulfillmentInfo) fulfillmentInfo;
     }
 
     /// @notice Stored on verifyingContract and proved against in originationContract
