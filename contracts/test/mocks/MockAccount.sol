@@ -14,8 +14,8 @@ contract MockAccount {
         return 0;
     }
 
-    function executeUserOp(address paymaster, address token) external {
-        bytes4 selector = bytes4(keccak256("withdrawGasExcess(address)"));
+    function executeUserOp(address paymaster, bytes32 token) external {
+        bytes4 selector = bytes4(keccak256("withdrawGasExcess(bytes32)"));
         (bool success,) = paymaster.call(abi.encodeWithSelector(selector, token));
         require(success, "Failed to call withdrawGasExcess");
     }
