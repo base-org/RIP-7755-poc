@@ -46,7 +46,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     bytes4 internal constant _L2_ORACLE_ATTRIBUTE_SELECTOR = 0x7ff7245a; // l2Oracle(address)
 
     /// @notice A mapping from the keccak256 hash of a message request to its current status
-    mapping(bytes32 messageId => CrossChainCallStatus status) private _messageStatus;
+    mapping(bytes32 => CrossChainCallStatus) private _messageStatus;
 
     /// @notice The bytes32 representation of the address representing the native currency of the blockchain this
     ///         contract is deployed on following ERC-7528
