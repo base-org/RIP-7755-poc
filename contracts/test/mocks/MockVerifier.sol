@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 contract MockVerifier {
     struct MainStorage {
         /// @notice A mapping from the keccak256 hash of a `CrossChainRequest` to its `FulfillmentInfo`. This can only be set once per call
-        mapping(bytes32 requestHash => FulfillmentInfo) fulfillmentInfo;
+        mapping(bytes32 => FulfillmentInfo) fulfillmentInfo;
     }
 
     /// @notice Stored on verifyingContract and proved against in originationContract
@@ -12,7 +12,7 @@ contract MockVerifier {
         /// @dev Block timestamp when fulfilled
         uint96 timestamp;
         /// @dev Msg.sender of fulfillment call
-        address filler;
+        address fulfiller;
     }
 
     // Main storage location used as the base for the fulfillmentInfo mapping following EIP-7201.
