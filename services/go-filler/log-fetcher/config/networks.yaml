@@ -24,7 +24,7 @@ networks:
     target-prover: OPStack
   11155420: # Optimism Sepolia
     chain-id: 11155420
-    prover-contracts:
+    prover-contracts: {}
     rpc-url: ${OPTIMISM_SEPOLIA_RPC}
     l2-oracle: 0x218CD9489199F321E1177b56385d333c5B598629
     l2-oracle-storage-key: 0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49
@@ -34,7 +34,7 @@ networks:
     target-prover: OPStack
   11155111: # Sepolia
     chain-id: 11155111
-    prover-contracts:
+    prover-contracts: {}
     rpc-url: ${SEPOLIA_RPC}
     contracts:
       anchor-state-registry: 0x218CD9489199F321E1177b56385d333c5B598629
