@@ -62,7 +62,7 @@ contract HashiProverTest is BaseTest {
         prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
     }
 
-    function test_reverts_ifInvaldBlockHeader() external fundAlice(_REWARD_AMOUNT) {
+    function test_reverts_ifInvalidBlockHeader() external fundAlice(_REWARD_AMOUNT) {
         (string memory sender, string memory destinationChain, Call[] memory calls, bytes[] memory attributes) =
             _initMessage(_REWARD_AMOUNT);
         bytes32 messageId = _getMessageId(sender, destinationChain, calls, attributes);
