@@ -269,8 +269,8 @@ export default class ProverService {
     return { address, storageKeys, blockNumber: l1BlockNumber };
   }
 
-  private deriveRIP7755VerifierStorageSlot(requestHash: Address): Address {
-    console.log("deriveRIP7755VerifierStorageSlot");
+  private deriveRRC7755VerifierStorageSlot(requestHash: Address): Address {
+    console.log("deriveRRC7755VerifierStorageSlot");
     return keccak256(
       encodeAbiParameters(
         [{ type: "bytes32" }, { type: "uint256" }],
