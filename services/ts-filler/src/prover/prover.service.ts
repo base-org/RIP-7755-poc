@@ -85,7 +85,7 @@ export default class ProverService {
 
     const { l2Block, parentAssertionHash, afterInboxBatchAcc, assertion } =
       await this.chainService.getL2Block(l1BlockNumber);
-    const l2Slot = this.deriveRIP7755VerifierStorageSlot(requestHash);
+    const l2Slot = this.deriveRRC7755VerifierStorageSlot(requestHash);
 
     if (timestampCutoff > l2Block.timestamp) {
       throw new Error("L2 block timestamp is too old");
