@@ -44,7 +44,7 @@ library HashiProver {
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If RLP-encoded block header does not correspond to the block hash stored in Hashi
-    /// @custom:reverts If storage proof invalid.
+    /// @custom:reverts  If the storage proof is invalid.
     ///
     /// @param proof  The proof to validate
     /// @param target The proof target on L1 and dst L2
