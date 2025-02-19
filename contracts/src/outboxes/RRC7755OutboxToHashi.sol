@@ -10,7 +10,7 @@ import {RRC7755Outbox} from "../RRC7755Outbox.sol";
 ///
 /// @author Crosschain Alliance
 ///
-/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on a EVM
+/// @notice This contract implements storage proof validation to ensure that requested calls actually happened on an EVM
 ///         chain.
 contract RRC7755OutboxToHashi is RRC7755Outbox {
     using HashiProver for bytes;
