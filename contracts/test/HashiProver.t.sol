@@ -36,6 +36,10 @@ contract HashiProverTest is BaseTest {
         validProof = vm.readFile(path);
     }
 
+    function test_minExpiryTime(uint256 finalityDelay) external {
+        assertEq(prover.minExpiryTime(finalityDelay), finalityDelay);
+    }
+
     function test_isOptionalAttribute_shoyuBashi() external view {
         assert(prover.isOptionalAttribute(_SHOYU_BASHI_ATTRIBUTE_SELECTOR));
     }

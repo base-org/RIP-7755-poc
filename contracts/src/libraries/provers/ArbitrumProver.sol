@@ -103,10 +103,7 @@ library ArbitrumProver {
     ///
     /// @param proof  The proof to validate
     /// @param target The proof target on L1 and dst L2
-    ///
-    /// @return l2Timestamp    The timestamp of the validated L2 state root
-    /// @return l2StorageValue The storage value of the destination L2 storage slot
-    function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
+    function validate(bytes calldata proof, Target memory target) internal view {
         RRC7755Proof memory data = abi.decode(proof, (RRC7755Proof));
 
         // Set the expected storage key and value for the destination L2 storage slot
@@ -147,7 +144,7 @@ library ArbitrumProver {
         }
 
         // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
-        (bytes32 l2StateRoot, uint256 l2Timestamp) = data.encodedBlockArray.extractStateRootAndTimestamp();
+        bytes32 l2StateRoot = data.encodedBlockArray.extractStateRoot();
 
         // Because the previous step confirmed L1 state, we do not need to repeat steps 1 and 2 again
         // We now just need to validate account storage on the destination L2 using
@@ -158,8 +155,6 @@ library ArbitrumProver {
         if (!target.l2Address.validateAccountStorage(l2StateRoot, data.dstL2AccountProofParams)) {
             revert InvalidL2Storage();
         }
-
-        return (l2Timestamp, data.dstL2AccountProofParams.storageValue);
     }
 
     /// @notice Derives the L1 storageKey using the supplied `nodeIndex` and the `confirmData` storage slot offset

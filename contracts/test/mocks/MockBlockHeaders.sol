@@ -16,7 +16,7 @@ contract MockBlockHeaders {
         return BlockHeaders.extractStateRootBlockNumberAndTimestamp(blockHeaders);
     }
 
-    function extractStateRootAndTimestamp(bytes memory blockHeaders) external pure returns (bytes32, uint256) {
-        return BlockHeaders.extractStateRootAndTimestamp(blockHeaders);
+    function extractStateRoot(bytes memory blockHeaders) external pure returns (bytes32) {
+        return BlockHeaders.extractStateRoot(blockHeaders);
     }
 }

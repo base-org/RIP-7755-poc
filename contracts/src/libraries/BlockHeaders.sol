@@ -58,20 +58,19 @@ library BlockHeaders {
         );
     }
 
-    /// @notice Extracts the state root and timestamp from an RLP-encoded block header
+    /// @notice Extracts the state root from an RLP-encoded block header
     ///
     /// @param blockHeaders The RLP-encoded block headers
     ///
     /// @return stateRoot
-    /// @return timestamp
-    function extractStateRootAndTimestamp(bytes memory blockHeaders) internal pure returns (bytes32, uint256) {
+    function extractStateRoot(bytes memory blockHeaders) internal pure returns (bytes32) {
         RLPReader.RLPItem[] memory blockFields = blockHeaders.readList();
 
         if (blockFields.length < MINIMUM_BLOCK_FIELDS_LENGTH) {
             revert InvalidBlockFieldRLP();
         }
 
-        return (bytes32(blockFields[3].readBytes()), _bytesToUint256(blockFields[11].readBytes()));
+        return bytes32(blockFields[3].readBytes());
     }
 
     /// @notice Converts a sequence of bytes into an uint256

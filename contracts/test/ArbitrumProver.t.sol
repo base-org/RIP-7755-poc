@@ -42,18 +42,8 @@ contract ArbitrumProverTest is BaseTest {
         unconfirmedState = vm.readFile(unconfirmedStatePath);
     }
 
-    function test_reverts_ifFinalityDelaySecondsStillInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
-        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1828828574);
-
-        ArbitrumProver.RRC7755Proof memory proof = _buildProof(validProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
-
-        vm.prank(FILLER);
-        vm.expectRevert(RRC7755OutboxToArbitrum.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, abi.encode(proof));
+    function test_minExpiryTime(uint256 finalityDelay) external {
+        assertEq(prover.minExpiryTime(finalityDelay), 8 days);
     }
 
     function test_reverts_ifInvalidL1State() external fundAlice(_REWARD_AMOUNT) {

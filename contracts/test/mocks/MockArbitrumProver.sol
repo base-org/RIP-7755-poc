@@ -4,6 +4,10 @@ pragma solidity 0.8.24;
 import {RRC7755OutboxToArbitrum} from "../../src/outboxes/RRC7755OutboxToArbitrum.sol";
 
 contract MockArbitrumProver is RRC7755OutboxToArbitrum {
+    function minExpiryTime(uint256 finalityDelay) external pure returns (uint256) {
+        return _minExpiryTime(finalityDelay);
+    }
+
     function validateProof(bytes memory storageKey, address inbox, bytes[] calldata attributes, bytes calldata proof)
         external
         view

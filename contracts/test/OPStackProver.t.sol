@@ -32,18 +32,8 @@ contract OPStackProverTest is BaseTest {
         invalidL2Storage = vm.readFile(invalidL2StoragePath);
     }
 
-    function test_validate_reverts_ifFinalityDelaySecondsInProgress() external fundAlice(_REWARD_AMOUNT) {
-        (string memory sourceChain, string memory sender, Call[] memory calls, bytes[] memory attributes) =
-            _initMessage(_REWARD_AMOUNT);
-        bytes32 messageId = _getMessageId(sourceChain, sender, calls, attributes);
-        attributes[1] = abi.encodeWithSelector(_DELAY_ATTRIBUTE_SELECTOR, type(uint256).max - 1 ether, 1735681520);
-
-        bytes memory storageProofData = _buildProofAndEncodeProof(validProof);
-        bytes memory inboxStorageKey = _deriveStorageKey(messageId);
-
-        vm.prank(FILLER);
-        vm.expectRevert(RRC7755OutboxToOPStack.FinalityDelaySecondsInProgress.selector);
-        prover.validateProof(inboxStorageKey, _INBOX_CONTRACT, attributes, storageProofData);
+    function test_minExpiryTime(uint256 finalityDelay) external {
+        assertEq(prover.minExpiryTime(finalityDelay), 8 days);
     }
 
     function test_validate_reverts_ifBeaconRootCallFails() external fundAlice(_REWARD_AMOUNT) {

@@ -63,10 +63,7 @@ library OPStackProver {
     ///
     /// @param proof  The proof to validate
     /// @param target The proof target on L1 and dst L2
-    ///
-    /// @return l2Timestamp    The timestamp of the validated L2 state root
-    /// @return l2StorageValue The storage value of the destination L2 storage slot
-    function validate(bytes calldata proof, Target memory target) internal view returns (uint256, bytes memory) {
+    function validate(bytes calldata proof, Target memory target) internal view {
         RRC7755Proof memory data = abi.decode(proof, (RRC7755Proof));
 
         // Set the expected storage key for the L1 storage slot
@@ -90,7 +87,7 @@ library OPStackProver {
 
         bytes32 version;
         // Extract the L2 stateRoot and timestamp from the RLP-encoded block array
-        (bytes32 l2StateRoot, uint256 l2Timestamp) = data.encodedBlockArray.extractStateRootAndTimestamp();
+        bytes32 l2StateRoot = data.encodedBlockArray.extractStateRoot();
         // Derive the L2 blockhash
         bytes32 l2BlockHash = data.encodedBlockArray.toBlockHash();
 
@@ -112,7 +109,5 @@ library OPStackProver {
         if (!target.l2Address.validateAccountStorage(l2StateRoot, data.dstL2AccountProofParams)) {
             revert InvalidL2Storage();
         }
-
-        return (l2Timestamp, data.dstL2AccountProofParams.storageValue);
     }
 }
