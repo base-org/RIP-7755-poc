@@ -37,20 +37,19 @@ contract BlockHeadersTest is BaseTest {
         blockHeaders.extractStateRootBlockNumberAndTimestamp(INVALID_HEADERS);
     }
 
-    function test_extractStateRootAndTimestamp_reverts_ifInvalidBlockFieldRLP() public {
-        vm.expectRevert(BlockHeaders.InvalidBlockFieldRLP.selector);
-        blockHeaders.extractStateRootAndTimestamp(INVALID_HEADERS);
-    }
-
-    function test_extractStateRootAndTimestamp_reverts_ifInvalidBlockFieldRLP_2() public {
+    function test_extractStateRootBlockNumberAndTimestamp_reverts_ifInvalidBlockFieldRLP_2() public {
         vm.expectRevert(BlockHeaders.BytesLengthExceeds32.selector);
-        blockHeaders.extractStateRootAndTimestamp(INVALID_HEADERS_2);
+        blockHeaders.extractStateRootBlockNumberAndTimestamp(INVALID_HEADERS_2);
     }
 
-    function test_extractStateRootAndTimestamp() public view {
-        (bytes32 stateRoot, uint256 timestamp) = blockHeaders.extractStateRootAndTimestamp(HEADERS);
+    function test_extractStateRoot_reverts_ifInvalidBlockFieldRLP() public {
+        vm.expectRevert(BlockHeaders.InvalidBlockFieldRLP.selector);
+        blockHeaders.extractStateRoot(INVALID_HEADERS);
+    }
+
+    function test_extractStateRoot() public view {
+        bytes32 stateRoot = blockHeaders.extractStateRoot(HEADERS);
 
         assertEq(stateRoot, 0xaebca17956e6adc9e2166f963e9f042fe712bd8cab4cf89a793c796336d0af5f);
-        assertEq(timestamp, uint256(1734727658));
     }
 }

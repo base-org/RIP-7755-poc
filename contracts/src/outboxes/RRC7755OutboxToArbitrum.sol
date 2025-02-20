@@ -2,7 +2,6 @@
 pragma solidity 0.8.24;
 
 import {ArbitrumProver} from "../libraries/provers/ArbitrumProver.sol";
-import {RRC7755Inbox} from "../RRC7755Inbox.sol";
 import {RRC7755Outbox} from "../RRC7755Outbox.sol";
 
 /// @title RRC7755OutboxToArbitrum
@@ -14,16 +13,15 @@ import {RRC7755Outbox} from "../RRC7755Outbox.sol";
 contract RRC7755OutboxToArbitrum is RRC7755Outbox {
     using ArbitrumProver for bytes;
 
-    /// @notice This error is thrown when fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from
-    ///         current destination chain block timestamp.
-    error FinalityDelaySecondsInProgress();
+    /// @notice Returns the minimum amount of time before a request can expire
+    function _minExpiryTime(uint256) internal pure override returns (uint256) {
+        return 8 days;
+    }
 
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.
     /// @custom:reverts If fulfillmentInfo not found at verifyingContractStorageKey on request.verifyingContract
-    /// @custom:reverts If fulfillmentInfo.timestamp is less than request.finalityDelaySeconds from current destination
-    ///                 chain block timestamp.
     /// @custom:reverts If the L2StorageRoot does not correspond to our validated L1 storage slot
     ///
     /// @param inboxContractStorageKey The storage location of the data to verify on the destination chain
@@ -39,19 +37,8 @@ contract RRC7755OutboxToArbitrum is RRC7755Outbox {
     ) internal view override {
         bytes calldata l2OracleAttribute = _locateAttribute(attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);
         address l2Oracle = abi.decode(l2OracleAttribute[4:], (address));
-
-        ArbitrumProver.Target memory target =
-            ArbitrumProver.Target({l1Address: l2Oracle, l2Address: inbox, l2StorageKey: inboxContractStorageKey});
-        (uint256 l2Timestamp, bytes memory inboxContractStorageValue) = proof.validate(target);
-
-        RRC7755Inbox.FulfillmentInfo memory fulfillmentInfo = _decodeFulfillmentInfo(bytes32(inboxContractStorageValue));
-
-        bytes calldata delayAttribute = _locateAttribute(attributes, _DELAY_ATTRIBUTE_SELECTOR);
-        (uint256 delaySeconds,) = abi.decode(delayAttribute[4:], (uint256, uint256));
-
-        // Ensure that the fulfillment timestamp is not within the finality delay
-        if (fulfillmentInfo.timestamp + delaySeconds > l2Timestamp) {
-            revert FinalityDelaySecondsInProgress();
-        }
+        proof.validate(
+            ArbitrumProver.Target({l1Address: l2Oracle, l2Address: inbox, l2StorageKey: inboxContractStorageKey})
+        );
     }
 }

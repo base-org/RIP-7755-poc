@@ -26,6 +26,11 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
     ///         current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
 
+    /// @notice Returns the minimum amount of time before a request can expire
+    function _minExpiryTime(uint256 finalityDelaySeconds) internal pure override returns (uint256) {
+        return finalityDelaySeconds;
+    }
+
     /// @notice Validates storage proofs and verifies fulfillment
     ///
     /// @custom:reverts If storage proof invalid.

@@ -490,6 +490,11 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
         bytes calldata proofData
     ) internal view virtual;
 
+    /// @notice Returns the minimum amount of time before a request can expire
+    ///
+    /// @param finalityDelaySeconds The amount of time that must pass before a fulfiller is able to claim their reward
+    function _minExpiryTime(uint256 finalityDelaySeconds) internal pure virtual returns (uint256);
+
     /// @notice Decodes the `FulfillmentInfo` struct from the `RRC7755Inbox` storage slot
     ///
     /// @param inboxContractStorageValue The storage value of the `RRC7755Inbox` storage slot
@@ -571,7 +576,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     function _handleDelayAttribute(bytes calldata attribute) private view {
         (uint256 finalityDelaySeconds, uint256 expiry) = abi.decode(attribute[4:], (uint256, uint256));
 
-        if (expiry < block.timestamp + finalityDelaySeconds) {
+        if (expiry < block.timestamp + _minExpiryTime(finalityDelaySeconds)) {
             revert ExpiryTooSoon();
         }
     }
