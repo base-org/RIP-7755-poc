@@ -57,7 +57,7 @@ export default {
     },
     publicClient: createPublicClient({
       chain: baseSepolia,
-      transport: http(),
+      transport: http(process.env.BASE_SEPOLIA_RPC),
     }),
     targetProver: Provers.OPStack,
     exposesL1State: true,
@@ -86,7 +86,7 @@ export default {
     },
     publicClient: createPublicClient({
       chain: optimismSepolia,
-      transport: http(),
+      transport: http(process.env.OPTIMISM_SEPOLIA_RPC),
     }),
     targetProver: Provers.OPStack,
     exposesL1State: true,
