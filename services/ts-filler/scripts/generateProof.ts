@@ -20,7 +20,7 @@ async function main() {
     throw new Error(`Invalid L1 Chain: ${config.l1}`);
   }
   if (!activeChains.dst) {
-    throw new Error(`Invalid Destination Chain: ${Number(config.dstChain)}`);
+    throw new Error(`Invalid Destination Chain: ${config.dstChain}`);
   }
 
   const configService = new ConfigService();
