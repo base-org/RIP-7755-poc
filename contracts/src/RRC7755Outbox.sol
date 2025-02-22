@@ -99,7 +99,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @param received The actual `msg.value` that was sent with the transaction
     error InvalidValue(uint256 expected, uint256 received);
 
-    /// @notice This error is thrown if a user attempts to cancel a request or a Filler attempts to claim a reward for
+    /// @notice This error is thrown if a user attempts to cancel a request or a fulfiller attempts to claim a reward for
     ///         a request that is not in the `CrossChainCallStatus.Requested` state
     ///
     /// @param expected The expected status during the transaction
@@ -177,7 +177,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
         return messageId;
     }
 
-    /// @notice To be called by a Filler that successfully submitted a cross chain request to the destination chain and
+    /// @notice To be called by a fulfiller that successfully submitted a cross chain request to the destination chain and
     ///         can prove it with a valid nested storage proof
     ///
     /// @custom:reverts If the request is not in the `CrossChainCallStatus.Requested` state
@@ -191,7 +191,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @param attributes       The attributes to be included in the message
     /// @param proof            A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     ///                         storage on the destination chain
-    /// @param payTo            The address the Filler wants to receive the reward
+    /// @param payTo            The address the fulfiller wants to receive the reward
     function claimReward(
         bytes32 destinationChain,
         bytes32 receiver,
@@ -212,7 +212,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
         _processClaim(messageId, payTo, rewardAsset, rewardAmount);
     }
 
-    /// @notice To be called by a Filler that successfully submitted a cross chain user operation to the destination chain
+    /// @notice To be called by a fulfiller that successfully submitted a cross chain user operation to the destination chain
     ///
     /// @custom:reverts If the request is not in the `CrossChainCallStatus.Requested` state
     /// @custom:reverts If storage proof invalid
@@ -224,7 +224,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @param userOp           The ERC-4337 User Operation
     /// @param proof            A proof that cryptographically verifies that `fulfillmentInfo` does, indeed, exist in
     ///                         storage on the destination chain
-    /// @param payTo            The address the Filler wants to receive the reward
+    /// @param payTo            The address the fulfiller wants to receive the reward
     function claimReward(
         bytes32 destinationChain,
         bytes32 receiver,
