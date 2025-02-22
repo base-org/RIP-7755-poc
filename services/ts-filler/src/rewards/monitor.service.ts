@@ -6,7 +6,7 @@ import {
   type Hex,
 } from "viem";
 
-import RIP7755Outbox from "../abis/RRC7755Outbox";
+import RRC7755Outbox from "../abis/RRC7755Outbox";
 import ChainService from "../chain/chain.service";
 import chains from "../chain/chains";
 import type ConfigService from "../config/config.service";
