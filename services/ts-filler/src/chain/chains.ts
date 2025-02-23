@@ -52,6 +52,7 @@ export default {
     l2OracleStorageKey:
       "0xa6eef7e35abe7026729641147f7915573c7e97b47efa546f5f6e3230263bcb49",
     contracts: {
+      l2MessagePasser: "0x4200000000000000000000000000000000000016",
       inbox: "0xdb38e29f8ee636b93d2743045404a51b94a420c0",
       entryPoint: "0x0000000071727De22E5E9d8BAf0edAc6f37da032",
     },

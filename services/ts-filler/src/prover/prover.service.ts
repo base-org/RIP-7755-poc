@@ -166,7 +166,8 @@ export default class ProverService {
 
       if (
         dstConfig.chainId === SupportedChains.OptimismSepolia ||
-        dstConfig.chainId === SupportedChains.MockOptimism
+        dstConfig.chainId === SupportedChains.MockOptimism ||
+        dstConfig.chainId === SupportedChains.BaseSepolia
       ) {
         calls.push(
           dstConfig.publicClient.getProof({
@@ -325,6 +326,7 @@ export default class ProverService {
           parentAssertionHash,
           afterInboxBatchAcc
         );
+      case SupportedChains.BaseSepolia:
       case SupportedChains.MockOptimism:
       case SupportedChains.OptimismSepolia:
         return this.buildOPStackProof(
