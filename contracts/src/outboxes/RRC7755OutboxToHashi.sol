@@ -26,6 +26,87 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
     ///         current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
 
+    /// @notice This is only to be called by this contract during a `sendMessage` call
+    ///
+    /// @custom:reverts If the caller is not this contract
+    ///
+    /// @param attributes The attributes to be processed
+    /// @param requester  The address of the requester
+    /// @param value      The value of the message
+    function processAttributes(bytes[] calldata attributes, address requester, uint256 value) public override {
+        if (msg.sender != address(this)) {
+            revert InvalidCaller({caller: msg.sender, expectedCaller: address(this)});
+        }
+
+        bool[6] memory attributeProcessed = [false, false, false, false, false, false];
+
+        for (uint256 i; i < attributes.length; i++) {
+            bytes4 attributeSelector = bytes4(attributes[i]);
+
+            if (attributeSelector == _REWARD_ATTRIBUTE_SELECTOR && !attributeProcessed[0]) {
+                _handleRewardAttribute(attributes[i], requester, value);
+                attributeProcessed[0] = true;
+            } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
+                _handleDelayAttribute(attributes[i]);
+                attributeProcessed[1] = true;
+            } else if (attributeSelector == _NONCE_ATTRIBUTE_SELECTOR && !attributeProcessed[2]) {
+                // confirm passed in nonce == _incrementNonce()
+                if (abi.decode(attributes[i][4:], (uint256)) != _incrementNonce(requester)) {
+                    revert InvalidNonce();
+                }
+                attributeProcessed[2] = true;
+            } else if (attributeSelector == _REQUESTER_ATTRIBUTE_SELECTOR && !attributeProcessed[3]) {
+                // confirm passed in requester == msg.sender
+                if (abi.decode(attributes[i][4:], (address)) != requester) {
+                    revert InvalidRequester();
+                }
+                attributeProcessed[3] = true;
+            } else if (attributeSelector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR && !attributeProcessed[4]) {
+                attributeProcessed[4] = true;
+            } else if (attributeSelector == _DESTINATION_CHAIN_SELECTOR && !attributeProcessed[5]) {
+                attributeProcessed[5] = true;
+            } else if (!_isOptionalAttribute(attributeSelector)) {
+                revert UnsupportedAttribute(attributeSelector);
+            }
+        }
+
+        if (!attributeProcessed[0]) {
+            revert MissingRequiredAttribute(_REWARD_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[1]) {
+            revert MissingRequiredAttribute(_DELAY_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[2]) {
+            revert MissingRequiredAttribute(_NONCE_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[3]) {
+            revert MissingRequiredAttribute(_REQUESTER_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[4]) {
+            revert MissingRequiredAttribute(_SHOYU_BASHI_ATTRIBUTE_SELECTOR);
+        }
+
+        if (!attributeProcessed[5]) {
+            revert MissingRequiredAttribute(_DESTINATION_CHAIN_SELECTOR);
+        }
+    }
+
+    /// @notice Returns true if the attribute selector is supported by this contract
+    ///
+    /// @param selector The selector of the attribute
+    ///
+    /// @return _ True if the attribute selector is supported by this contract
+    function supportsAttribute(bytes4 selector) public pure override returns (bool) {
+        return selector == _REWARD_ATTRIBUTE_SELECTOR || selector == _DELAY_ATTRIBUTE_SELECTOR
+            || selector == _NONCE_ATTRIBUTE_SELECTOR || selector == _REQUESTER_ATTRIBUTE_SELECTOR
+            || selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR || selector == _DESTINATION_CHAIN_SELECTOR
+            || super.supportsAttribute(selector);
+    }
+
     /// @notice Returns the minimum amount of time before a request can expire
     function _minExpiryTime(uint256 finalityDelaySeconds) internal pure override returns (uint256) {
         return finalityDelaySeconds;
@@ -82,10 +163,5 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
         bytes calldata shoyuBashiBytes = _locateAttribute(attributes, _SHOYU_BASHI_ATTRIBUTE_SELECTOR);
         bytes32 shoyuBashiBytes32 = abi.decode(shoyuBashiBytes[4:], (bytes32));
         return shoyuBashiBytes32.bytes32ToAddress();
-    }
-
-    function _isOptionalAttribute(bytes4 selector) internal pure override returns (bool) {
-        return selector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR || selector == _DESTINATION_CHAIN_SELECTOR
-            || super._isOptionalAttribute(selector);
     }
 }
