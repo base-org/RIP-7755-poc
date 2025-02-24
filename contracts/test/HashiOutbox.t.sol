@@ -7,7 +7,7 @@ import {RRC7755OutboxToHashi} from "../src/outboxes/RRC7755OutboxToHashi.sol";
 
 import {BaseTest} from "./BaseTest.t.sol";
 
-contract RRC7755OutboxTest is BaseTest {
+contract HashiOutboxTest is BaseTest {
     using GlobalTypes for address;
 
     struct TestMessage {
@@ -20,17 +20,6 @@ contract RRC7755OutboxTest is BaseTest {
     }
 
     RRC7755OutboxToHashi hashiOutbox;
-
-    event MessagePosted(
-        bytes32 indexed outboxId,
-        bytes32 sourceChain,
-        bytes32 sender,
-        bytes32 destinationChain,
-        bytes32 receiver,
-        bytes payload,
-        uint256 value,
-        bytes[] attributes
-    );
 
     function setUp() public {
         _setUp();
