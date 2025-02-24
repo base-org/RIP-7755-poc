@@ -26,6 +26,11 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
     ///         current destination chain block timestamp.
     error FinalityDelaySecondsInProgress();
 
+    /// @notice This error is thrown when a duplicate attribute is found
+    ///
+    /// @param selector The selector of the duplicate attribute
+    error DuplicateAttribute(bytes4 selector);
+
     /// @notice This is only to be called by this contract during a `sendMessage` call
     ///
     /// @custom:reverts If the caller is not this contract
@@ -38,60 +43,39 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
             revert InvalidCaller({caller: msg.sender, expectedCaller: address(this)});
         }
 
-        bool[6] memory attributeProcessed = [false, false, false, false, false, false];
+        // Define required attributes and their handlers
+        bytes4[6] memory requiredSelectors = [
+            _REWARD_ATTRIBUTE_SELECTOR,
+            _NONCE_ATTRIBUTE_SELECTOR,
+            _REQUESTER_ATTRIBUTE_SELECTOR,
+            _DELAY_ATTRIBUTE_SELECTOR,
+            _SHOYU_BASHI_ATTRIBUTE_SELECTOR,
+            _DESTINATION_CHAIN_SELECTOR
+        ];
+        bool[6] memory processed;
 
+        // Process all attributes
         for (uint256 i; i < attributes.length; i++) {
-            bytes4 attributeSelector = bytes4(attributes[i]);
+            bytes4 selector = bytes4(attributes[i]);
 
-            if (attributeSelector == _REWARD_ATTRIBUTE_SELECTOR && !attributeProcessed[0]) {
-                _handleRewardAttribute(attributes[i], requester, value);
-                attributeProcessed[0] = true;
-            } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
-                _handleDelayAttribute(attributes[i]);
-                attributeProcessed[1] = true;
-            } else if (attributeSelector == _NONCE_ATTRIBUTE_SELECTOR && !attributeProcessed[2]) {
-                // confirm passed in nonce == _incrementNonce()
-                if (abi.decode(attributes[i][4:], (uint256)) != _incrementNonce(requester)) {
-                    revert InvalidNonce();
+            uint256 index = _findSelectorIndex(selector, requiredSelectors);
+            if (index != type(uint256).max) {
+                if (processed[index]) {
+                    revert DuplicateAttribute(selector);
                 }
-                attributeProcessed[2] = true;
-            } else if (attributeSelector == _REQUESTER_ATTRIBUTE_SELECTOR && !attributeProcessed[3]) {
-                // confirm passed in requester == msg.sender
-                if (abi.decode(attributes[i][4:], (address)) != requester) {
-                    revert InvalidRequester();
-                }
-                attributeProcessed[3] = true;
-            } else if (attributeSelector == _SHOYU_BASHI_ATTRIBUTE_SELECTOR && !attributeProcessed[4]) {
-                attributeProcessed[4] = true;
-            } else if (attributeSelector == _DESTINATION_CHAIN_SELECTOR && !attributeProcessed[5]) {
-                attributeProcessed[5] = true;
-            } else if (!_isOptionalAttribute(attributeSelector)) {
-                revert UnsupportedAttribute(attributeSelector);
+
+                _processAttribute(selector, attributes[i], requester, value);
+                processed[index] = true;
+            } else if (!_isOptionalAttribute(selector)) {
+                revert UnsupportedAttribute(selector);
             }
         }
 
-        if (!attributeProcessed[0]) {
-            revert MissingRequiredAttribute(_REWARD_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[1]) {
-            revert MissingRequiredAttribute(_DELAY_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[2]) {
-            revert MissingRequiredAttribute(_NONCE_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[3]) {
-            revert MissingRequiredAttribute(_REQUESTER_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[4]) {
-            revert MissingRequiredAttribute(_SHOYU_BASHI_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[5]) {
-            revert MissingRequiredAttribute(_DESTINATION_CHAIN_SELECTOR);
+        // Check for missing required attributes
+        for (uint256 i; i < requiredSelectors.length; i++) {
+            if (!processed[i]) {
+                revert MissingRequiredAttribute(requiredSelectors[i]);
+            }
         }
     }
 
@@ -163,5 +147,30 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
         bytes calldata shoyuBashiBytes = _locateAttribute(attributes, _SHOYU_BASHI_ATTRIBUTE_SELECTOR);
         bytes32 shoyuBashiBytes32 = abi.decode(shoyuBashiBytes[4:], (bytes32));
         return shoyuBashiBytes32.bytes32ToAddress();
+    }
+
+    /// @dev Helper function to process individual attributes
+    function _processAttribute(bytes4 selector, bytes calldata attribute, address requester, uint256 value) private {
+        if (selector == _REWARD_ATTRIBUTE_SELECTOR) {
+            _handleRewardAttribute(attribute, requester, value);
+        } else if (selector == _NONCE_ATTRIBUTE_SELECTOR) {
+            if (abi.decode(attribute[4:], (uint256)) != _incrementNonce(requester)) {
+                revert InvalidNonce();
+            }
+        } else if (selector == _REQUESTER_ATTRIBUTE_SELECTOR) {
+            if (abi.decode(attribute[4:], (address)) != requester) {
+                revert InvalidRequester();
+            }
+        } else if (selector == _DELAY_ATTRIBUTE_SELECTOR) {
+            _handleDelayAttribute(attribute);
+        }
+    }
+
+    /// @dev Helper function to find the index of a selector in the array
+    function _findSelectorIndex(bytes4 selector, bytes4[6] memory selectors) private pure returns (uint256) {
+        for (uint256 i; i < selectors.length; i++) {
+            if (selector == selectors[i]) return i;
+        }
+        return type(uint256).max; // Not found
     }
 }
