@@ -307,9 +307,12 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @param selector The selector of the attribute
     ///
     /// @return _ True if the attribute selector is supported by this contract
-    function supportsAttribute(bytes4 selector) external pure returns (bool) {
-        return selector == _REWARD_ATTRIBUTE_SELECTOR || selector == _DELAY_ATTRIBUTE_SELECTOR;
+    function supportsAttribute(bytes4 selector) public pure virtual returns (bool) {
+        return selector == _PRECHECK_ATTRIBUTE_SELECTOR;
     }
+
+    /// @notice Returns the required attributes for this contract
+    function getRequiredAttributes() external pure virtual returns (bytes4[] memory);
 
     /// @notice This is only to be called by this contract during a `sendMessage` call
     ///
@@ -318,55 +321,7 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     /// @param attributes The attributes to be processed
     /// @param requester  The address of the requester
     /// @param value      The value of the message
-    function processAttributes(bytes[] calldata attributes, address requester, uint256 value) public {
-        if (msg.sender != address(this)) {
-            revert InvalidCaller({caller: msg.sender, expectedCaller: address(this)});
-        }
-
-        bool[4] memory attributeProcessed = [false, false, false, false];
-
-        for (uint256 i; i < attributes.length; i++) {
-            bytes4 attributeSelector = bytes4(attributes[i]);
-
-            if (attributeSelector == _REWARD_ATTRIBUTE_SELECTOR && !attributeProcessed[0]) {
-                _handleRewardAttribute(attributes[i], requester, value);
-                attributeProcessed[0] = true;
-            } else if (attributeSelector == _DELAY_ATTRIBUTE_SELECTOR && !attributeProcessed[1]) {
-                _handleDelayAttribute(attributes[i]);
-                attributeProcessed[1] = true;
-            } else if (attributeSelector == _NONCE_ATTRIBUTE_SELECTOR && !attributeProcessed[2]) {
-                // confirm passed in nonce == _incrementNonce()
-                if (abi.decode(attributes[i][4:], (uint256)) != _incrementNonce(requester)) {
-                    revert InvalidNonce();
-                }
-                attributeProcessed[2] = true;
-            } else if (attributeSelector == _REQUESTER_ATTRIBUTE_SELECTOR && !attributeProcessed[3]) {
-                // confirm passed in requester == msg.sender
-                if (abi.decode(attributes[i][4:], (bytes32)) != requester.addressToBytes32()) {
-                    revert InvalidRequester();
-                }
-                attributeProcessed[3] = true;
-            } else if (!_isOptionalAttribute(attributeSelector)) {
-                revert UnsupportedAttribute(attributeSelector);
-            }
-        }
-
-        if (!attributeProcessed[0]) {
-            revert MissingRequiredAttribute(_REWARD_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[1]) {
-            revert MissingRequiredAttribute(_DELAY_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[2]) {
-            revert MissingRequiredAttribute(_NONCE_ATTRIBUTE_SELECTOR);
-        }
-
-        if (!attributeProcessed[3]) {
-            revert MissingRequiredAttribute(_REQUESTER_ATTRIBUTE_SELECTOR);
-        }
-    }
+    function processAttributes(bytes[] calldata attributes, address requester, uint256 value) public virtual;
 
     /// @notice Validates storage proofs and verifies fill
     ///
@@ -512,10 +467,10 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
     }
 
     function _isOptionalAttribute(bytes4 selector) internal pure virtual returns (bool) {
-        return selector == _PRECHECK_ATTRIBUTE_SELECTOR || selector == _L2_ORACLE_ATTRIBUTE_SELECTOR;
+        return selector == _PRECHECK_ATTRIBUTE_SELECTOR;
     }
 
-    function _handleRewardAttribute(bytes calldata attribute, address requester, uint256 value) private {
+    function _handleRewardAttribute(bytes calldata attribute, address requester, uint256 value) internal {
         (bytes32 rewardAsset, uint256 rewardAmount) = abi.decode(attribute[4:], (bytes32, uint256));
 
         bool usingNativeCurrency = rewardAsset == _NATIVE_ASSET;
@@ -527,6 +482,14 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
 
         if (!usingNativeCurrency) {
             rewardAsset.bytes32ToAddress().safeTransferFrom(requester, address(this), rewardAmount);
+        }
+    }
+
+    function _handleDelayAttribute(bytes calldata attribute) internal view {
+        (uint256 finalityDelaySeconds, uint256 expiry) = abi.decode(attribute[4:], (uint256, uint256));
+
+        if (expiry < block.timestamp + _minExpiryTime(finalityDelaySeconds)) {
+            revert ExpiryTooSoon();
         }
     }
 
@@ -570,14 +533,6 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
             to.safeTransferETH(rewardAmount);
         } else {
             rewardAsset.bytes32ToAddress().safeTransfer(to, rewardAmount);
-        }
-    }
-
-    function _handleDelayAttribute(bytes calldata attribute) private view {
-        (uint256 finalityDelaySeconds, uint256 expiry) = abi.decode(attribute[4:], (uint256, uint256));
-
-        if (expiry < block.timestamp + _minExpiryTime(finalityDelaySeconds)) {
-            revert ExpiryTooSoon();
         }
     }
 

@@ -42,7 +42,7 @@ contract ArbitrumProverTest is BaseTest {
         unconfirmedState = vm.readFile(unconfirmedStatePath);
     }
 
-    function test_minExpiryTime(uint256 finalityDelay) external {
+    function test_minExpiryTime(uint256 finalityDelay) external view {
         assertEq(prover.minExpiryTime(finalityDelay), 8 days);
     }
 

@@ -1,19 +1,19 @@
 {
   "arbitrumSepolia": {
-    "RRC7755Inbox": "0x1bb8dacba30b1cd82ce1d3d7f24e16ee549aebe8",
-    "RRC7755OutboxToOPStack": "0x8dffae496443260c6b0121420cb8b7ff5332688a",
-    "RRC7755OutboxToHashi": "0x37ce91ee91ea28b1e704fda056e791f062cad44d"
+    "RRC7755Inbox": "0x5c2c743c41d7bff2cb3c1b82edbbb79e5c225baf",
+    "RRC7755OutboxToOPStack": "0x5f39f88bbb698cca291148c886438c1d3813e5c1",
+    "RRC7755OutboxToHashi": "0xd6b350775dca2f45597bef27010c1a4ce75065c4"
   },
   "baseSepolia": {
-    "RRC7755Inbox": "0x30adfdab722d36b26f12f562d7cadf4cd8831c58",
-    "RRC7755OutboxToArbitrum": "0x2504b1c3b78b2711e24eadf7ea077b0ca1b91859",
-    "RRC7755OutboxToOPStack": "0x57ee7e881f108fbc8dcc9216b1329d0929fe2c32",
-    "RRC7755OutboxToHashi": "0x2b77db0e0626fb6ce0c9def53139d996efa0527d"
+    "RRC7755Inbox": "0x248c18c76445ab8b042d31d7609fffec800a57ba",
+    "RRC7755OutboxToArbitrum": "0x946ca00a551d7009019b7bbd65f4d94a48792b8a",
+    "RRC7755OutboxToOPStack": "0x9d052b05d093a466c5138c765b980aa1e8d65dd8",
+    "RRC7755OutboxToHashi": "0xbb82b46c2c557861e044a28a666c00b042b82794"
   },
   "optimismSepolia": {
-    "RRC7755Inbox": "0x75319530c71ee1a9ef9bd477766d82d7b2c4f068",
-    "RRC7755OutboxToArbitrum": "0x4b249e565c6d12a48a6946faffc4bba0b82f6487",
-    "RRC7755OutboxToOPStack": "0x0af2dad45c60097115724bb3826930f56848d317",
-    "RRC7755OutboxToHashi": "0xf0c0b1cbfd50a2b7d72eb93a60ac1fd9311ea042"
+    "RRC7755Inbox": "0xe44231d6dcdeeddb5b781c4bb24d309b695d9119",
+    "RRC7755OutboxToArbitrum": "0x0005f24b46b973067542ab17c313bd6f36b12a34",
+    "RRC7755OutboxToOPStack": "0xbc54b421f508f18b05e70fa7326ac9e7cb600058",
+    "RRC7755OutboxToHashi": "0xd33467cb60a4c0c9f703fc5cfc3d4313d21c7a3c"
   }
 }
