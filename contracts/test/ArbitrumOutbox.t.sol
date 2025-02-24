@@ -27,6 +27,16 @@ contract ArbitrumOutboxTest is BaseTest {
         approveAddr = address(arbitrumOutbox);
     }
 
+    function test_getRequiredAttributes() external view {
+        bytes4[] memory requiredAttributes = arbitrumOutbox.getRequiredAttributes();
+        assertEq(requiredAttributes.length, 5);
+        assertEq(requiredAttributes[0], _REWARD_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[1], _L2_ORACLE_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[2], _NONCE_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[3], _REQUESTER_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[4], _DELAY_ATTRIBUTE_SELECTOR);
+    }
+
     function test_sendMessage_reverts_ifInvalidCaller(uint256 rewardAmount) external fundAlice(rewardAmount) {
         TestMessage memory m = _initMessage(rewardAmount);
         m.attributes = _addAttribute(m.attributes, _L2_ORACLE_ATTRIBUTE_SELECTOR);

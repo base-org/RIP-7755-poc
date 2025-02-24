@@ -4,6 +4,11 @@ pragma solidity 0.8.24;
 import {RRC7755Outbox} from "../../src/RRC7755Outbox.sol";
 
 contract MockOutbox is RRC7755Outbox {
+    /// @notice Returns the required attributes for this contract
+    function getRequiredAttributes() external pure override returns (bytes4[] memory) {
+        return _getRequiredAttributes();
+    }
+
     /// @notice This is only to be called by this contract during a `sendMessage` call
     ///
     /// @custom:reverts If the caller is not this contract
@@ -71,6 +76,16 @@ contract MockOutbox is RRC7755Outbox {
         bytes[] calldata attributes,
         bytes calldata proofData
     ) internal view override {}
+
+    function _getRequiredAttributes() private pure returns (bytes4[] memory) {
+        bytes4[] memory requiredSelectors = new bytes4[](5);
+        requiredSelectors[0] = _REWARD_ATTRIBUTE_SELECTOR;
+        requiredSelectors[1] = _L2_ORACLE_ATTRIBUTE_SELECTOR;
+        requiredSelectors[2] = _NONCE_ATTRIBUTE_SELECTOR;
+        requiredSelectors[3] = _REQUESTER_ATTRIBUTE_SELECTOR;
+        requiredSelectors[4] = _DELAY_ATTRIBUTE_SELECTOR;
+        return requiredSelectors;
+    }
 
     // Including to block from coverage report
     function test() external {}

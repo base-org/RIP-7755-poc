@@ -36,7 +36,7 @@ contract HashiProverTest is BaseTest {
         validProof = vm.readFile(path);
     }
 
-    function test_minExpiryTime(uint256 finalityDelay) external {
+    function test_minExpiryTime(uint256 finalityDelay) external view {
         assertEq(prover.minExpiryTime(finalityDelay), finalityDelay);
     }
 

@@ -311,6 +311,9 @@ abstract contract RRC7755Outbox is RRC7755Base, NonceManager {
         return selector == _PRECHECK_ATTRIBUTE_SELECTOR;
     }
 
+    /// @notice Returns the required attributes for this contract
+    function getRequiredAttributes() external pure virtual returns (bytes4[] memory);
+
     /// @notice This is only to be called by this contract during a `sendMessage` call
     ///
     /// @custom:reverts If the caller is not this contract

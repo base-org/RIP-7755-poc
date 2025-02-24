@@ -27,6 +27,17 @@ contract HashiOutboxTest is BaseTest {
         approveAddr = address(hashiOutbox);
     }
 
+    function test_getRequiredAttributes() external view {
+        bytes4[] memory requiredAttributes = hashiOutbox.getRequiredAttributes();
+        assertEq(requiredAttributes.length, 6);
+        assertEq(requiredAttributes[0], _REWARD_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[1], _NONCE_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[2], _REQUESTER_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[3], _DELAY_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[4], _SHOYU_BASHI_ATTRIBUTE_SELECTOR);
+        assertEq(requiredAttributes[5], _DESTINATION_CHAIN_SELECTOR);
+    }
+
     function test_sendMessage_reverts_ifInvalidCaller(uint256 rewardAmount) external fundAlice(rewardAmount) {
         vm.prank(ALICE);
         mockErc20.approve(address(hashiOutbox), rewardAmount);

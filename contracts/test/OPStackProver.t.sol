@@ -32,7 +32,7 @@ contract OPStackProverTest is BaseTest {
         invalidL2Storage = vm.readFile(invalidL2StoragePath);
     }
 
-    function test_minExpiryTime(uint256 finalityDelay) external {
+    function test_minExpiryTime(uint256 finalityDelay) external view {
         assertEq(prover.minExpiryTime(finalityDelay), 8 days);
     }
 

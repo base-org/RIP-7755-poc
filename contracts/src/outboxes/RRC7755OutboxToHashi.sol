@@ -31,6 +31,11 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
     /// @param selector The selector of the duplicate attribute
     error DuplicateAttribute(bytes4 selector);
 
+    /// @notice Returns the required attributes for this contract
+    function getRequiredAttributes() external pure override returns (bytes4[] memory) {
+        return _getRequiredAttributes();
+    }
+
     /// @notice This is only to be called by this contract during a `sendMessage` call
     ///
     /// @custom:reverts If the caller is not this contract
@@ -44,15 +49,8 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
         }
 
         // Define required attributes and their handlers
-        bytes4[6] memory requiredSelectors = [
-            _REWARD_ATTRIBUTE_SELECTOR,
-            _NONCE_ATTRIBUTE_SELECTOR,
-            _REQUESTER_ATTRIBUTE_SELECTOR,
-            _DELAY_ATTRIBUTE_SELECTOR,
-            _SHOYU_BASHI_ATTRIBUTE_SELECTOR,
-            _DESTINATION_CHAIN_SELECTOR
-        ];
-        bool[6] memory processed;
+        bytes4[] memory requiredSelectors = _getRequiredAttributes();
+        bool[] memory processed = new bool[](requiredSelectors.length);
 
         // Process all attributes
         for (uint256 i; i < attributes.length; i++) {
@@ -167,10 +165,21 @@ contract RRC7755OutboxToHashi is RRC7755Outbox {
     }
 
     /// @dev Helper function to find the index of a selector in the array
-    function _findSelectorIndex(bytes4 selector, bytes4[6] memory selectors) private pure returns (uint256) {
+    function _findSelectorIndex(bytes4 selector, bytes4[] memory selectors) private pure returns (uint256) {
         for (uint256 i; i < selectors.length; i++) {
             if (selector == selectors[i]) return i;
         }
         return type(uint256).max; // Not found
+    }
+
+    function _getRequiredAttributes() private pure returns (bytes4[] memory) {
+        bytes4[] memory requiredSelectors = new bytes4[](6);
+        requiredSelectors[0] = _REWARD_ATTRIBUTE_SELECTOR;
+        requiredSelectors[1] = _NONCE_ATTRIBUTE_SELECTOR;
+        requiredSelectors[2] = _REQUESTER_ATTRIBUTE_SELECTOR;
+        requiredSelectors[3] = _DELAY_ATTRIBUTE_SELECTOR;
+        requiredSelectors[4] = _SHOYU_BASHI_ATTRIBUTE_SELECTOR;
+        requiredSelectors[5] = _DESTINATION_CHAIN_SELECTOR;
+        return requiredSelectors;
     }
 }
