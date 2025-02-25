@@ -26,7 +26,7 @@ contract UserOpBase is StandardBase {
             super._initMessage(destinationChainId, duration, nonce);
         HelperConfig.NetworkConfig memory dstConfig = helperConfig.getConfig(destinationChainId);
 
-        address ethAddress = address(0);
+        address ethAddress = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
         uint128 verificationGasLimit = 100000;
         uint128 callGasLimit = 100000;
