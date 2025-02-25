@@ -59,7 +59,7 @@ contract HelperConfig is Script {
             inbox: addresses.readAddress(".arbitrumSepolia.RRC7755Inbox"),
             l2Oracle: 0x042B2E6C5E99d4c521bd49beeD5E99651D9B0Cf4,
             shoyuBashi: 0xce8b068D4F7F2eb3bDAFa72eC3C4feE78CF9Ccf7,
-            smartAccount: 0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb,
+            smartAccount: 0xef771D2A339FE480D48Bc5A47e252a48235A1B88,
             rpcUrl: vm.envString("ARBITRUM_SEPOLIA_RPC")
         });
     }
@@ -73,7 +73,7 @@ contract HelperConfig is Script {
             inbox: addresses.readAddress(".baseSepolia.RRC7755Inbox"),
             l2Oracle: 0x4C8BA32A5DAC2A720bb35CeDB51D6B067D104205,
             shoyuBashi: 0x6602dc9b6bd964C2a11BBdA9B2275308D1Bbc14f,
-            smartAccount: 0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb,
+            smartAccount: 0xef771D2A339FE480D48Bc5A47e252a48235A1B88,
             rpcUrl: vm.envString("BASE_SEPOLIA_RPC")
         });
     }
@@ -87,7 +87,7 @@ contract HelperConfig is Script {
             inbox: addresses.readAddress(".optimismSepolia.RRC7755Inbox"),
             l2Oracle: 0x218CD9489199F321E1177b56385d333c5B598629,
             shoyuBashi: 0x7237bb8d1d38DF8b473b5A38eD90088AF162ad8e,
-            smartAccount: 0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb,
+            smartAccount: 0xef771D2A339FE480D48Bc5A47e252a48235A1B88,
             rpcUrl: vm.envString("OPTIMISM_SEPOLIA_RPC")
         });
     }
