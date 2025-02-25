@@ -93,10 +93,11 @@ export default class HandlerService {
       `Destination chain transaction successful! Storing record in DB. TxHash: ${txnHash}`
     );
 
-    const finalityDelaySeconds =
-      attributes.count() > 0
-        ? attributes.getDelay().finalityDelaySeconds
-        : userOpAttributes.getDelay().finalityDelaySeconds;
+    const finalityDelaySeconds = this.getFinalityDelaySeconds(
+      proverName,
+      attributes,
+      userOpAttributes
+    );
 
     // record db instance to be picked up later for reward collection
     const dbSuccess = await this.dbService.storeSuccessfulCall(
@@ -252,5 +253,24 @@ export default class HandlerService {
       asset === "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".toLowerCase() &&
       amount > valueNeeded + estimatedDestinationGas // likely would want to add some extra threshold here but if this is true then the fulfiller will make money
     );
+  }
+
+  private getFinalityDelaySeconds(
+    proverName: Provers,
+    attributes: Attributes,
+    userOpAttributes: Attributes
+  ): number {
+    switch (proverName) {
+      case Provers.Hashi:
+        return attributes.count() > 0
+          ? attributes.getDelay().finalityDelaySeconds
+          : userOpAttributes.getDelay().finalityDelaySeconds;
+      case Provers.Arbitrum:
+        return 3600; // 1 hour NOTE: This is only used for testnet testing. Arbitrum mainnet uses 1 week
+      case Provers.OPStack:
+        return 345600; // 4 days
+      default:
+        throw new Error("Unknown prover");
+    }
   }
 }

@@ -22,7 +22,7 @@ export default {
     "0x0175b7a638427703f0dbe7bb9bbf987a2551717b34e79f33b5b1008d1fa01db9",
   ],
   mockAccount: "0x2c4d5B2d8B7ba9e15F09Da8fD455E312bF774Eeb",
-  ethAddress: zeroAddress,
+  ethAddress: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
 } as {
   slots: Record<string, Hex>;
   mockL1StateRootProof: Hex[];
