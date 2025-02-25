@@ -189,7 +189,7 @@ export const outboxABI = [
       {
         name: "fulfillmentInfo",
         type: "tuple",
-        internalType: "struct RIP7755Inbox.FulfillmentInfo",
+        internalType: "struct RRC7755Inbox.FulfillmentInfo",
         components: [
           { name: "timestamp", type: "uint96", internalType: "uint96" },
           { name: "filler", type: "address", internalType: "address" },
@@ -209,7 +209,7 @@ export const outboxABI = [
       {
         name: "",
         type: "uint8",
-        internalType: "enum RIP7755Outbox.CrossChainCallStatus",
+        internalType: "enum RRC7755Outbox.CrossChainCallStatus",
       },
     ],
     stateMutability: "view",
@@ -604,12 +604,12 @@ export const outboxABI = [
       {
         name: "expected",
         type: "uint8",
-        internalType: "enum RIP7755Outbox.CrossChainCallStatus",
+        internalType: "enum RRC7755Outbox.CrossChainCallStatus",
       },
       {
         name: "actual",
         type: "uint8",
-        internalType: "enum RIP7755Outbox.CrossChainCallStatus",
+        internalType: "enum RRC7755Outbox.CrossChainCallStatus",
       },
     ],
   },
